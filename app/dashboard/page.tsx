@@ -73,18 +73,23 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { name: "Smartphone X", category: "Electronics" },
-                { name: "Winter Jacket", category: "Clothing" },
-                { name: "Table Lamp", category: "Home Decor" },
-                { name: "Organic Apples", category: "Groceries" },
+                { name: "Smartphone X", category: "Electronics", stock: { cartons: 5, boxes: 20, pieces: 100 } },
+                { name: "Winter Jacket", category: "Clothing", stock: { cartons: 3, boxes: 15, pieces: 75 } },
+                { name: "Table Lamp", category: "Home Decor", stock: { cartons: 2, boxes: 10, pieces: 50 } },
+                { name: "Organic Apples", category: "Groceries", stock: { cartons: 8, boxes: 40, pieces: 200 } },
               ].map((item) => (
                 <div key={item.name} className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
                     <ShoppingBag className="h-6 w-6 text-gray-500" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium">{item.name}</p>
                     <p className="text-sm text-muted-foreground">{item.category}</p>
+                  </div>
+                  <div className="flex gap-2 text-xs">
+                    <span className="px-2 py-1 bg-gray-100 rounded-md">{item.stock.cartons} C</span>
+                    <span className="px-2 py-1 bg-gray-100 rounded-md">{item.stock.boxes} B</span>
+                    <span className="px-2 py-1 bg-gray-100 rounded-md">{item.stock.pieces} P</span>
                   </div>
                 </div>
               ))}
