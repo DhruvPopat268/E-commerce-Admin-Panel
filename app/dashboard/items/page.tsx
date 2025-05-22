@@ -1,5 +1,7 @@
 "use client"
 
+import { DialogFooter } from "@/components/ui/dialog"
+
 import type React from "react"
 
 import { useState } from "react"
@@ -7,14 +9,7 @@ import Image from "next/image"
 import { Plus, Pencil, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,20 +26,73 @@ const categories = [
 
 // Sample data for items
 const initialItems = [
-  { id: 1, name: "Smartphone X", category: "Electronics", image: "/placeholder.svg?height=100&width=100" },
-  { id: 2, name: "Winter Jacket", category: "Clothing", image: "/placeholder.svg?height=100&width=100" },
-  { id: 3, name: "Table Lamp", category: "Home Decor", image: "/placeholder.svg?height=100&width=100" },
-  { id: 4, name: "Organic Apples", category: "Groceries", image: "/placeholder.svg?height=100&width=100" },
-  { id: 5, name: "Basketball", category: "Sports", image: "/placeholder.svg?height=100&width=100" },
-  { id: 6, name: "Novel Collection", category: "Books", image: "/placeholder.svg?height=100&width=100" },
-  { id: 7, name: "Wireless Earbuds", category: "Electronics", image: "/placeholder.svg?height=100&width=100" },
-  { id: 8, name: "Summer Dress", category: "Clothing", image: "/placeholder.svg?height=100&width=100" },
+  {
+    id: 1,
+    name: "Smartphone X",
+    category: "Electronics",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 5, boxes: 20, pieces: 100 },
+  },
+  {
+    id: 2,
+    name: "Winter Jacket",
+    category: "Clothing",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 3, boxes: 15, pieces: 75 },
+  },
+  {
+    id: 3,
+    name: "Table Lamp",
+    category: "Home Decor",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 2, boxes: 10, pieces: 50 },
+  },
+  {
+    id: 4,
+    name: "Organic Apples",
+    category: "Groceries",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 8, boxes: 40, pieces: 200 },
+  },
+  {
+    id: 5,
+    name: "Basketball",
+    category: "Sports",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 1, boxes: 5, pieces: 25 },
+  },
+  {
+    id: 6,
+    name: "Novel Collection",
+    category: "Books",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 4, boxes: 20, pieces: 100 },
+  },
+  {
+    id: 7,
+    name: "Wireless Earbuds",
+    category: "Electronics",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 6, boxes: 30, pieces: 150 },
+  },
+  {
+    id: 8,
+    name: "Summer Dress",
+    category: "Clothing",
+    image: "/placeholder.svg?height=100&width=100",
+    stock: { cartons: 2, boxes: 10, pieces: 50 },
+  },
 ]
 
 export default function ItemsPage() {
   const [items, setItems] = useState(initialItems)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newItem, setNewItem] = useState({ name: "", category: "", image: "" })
+  const [newItem, setNewItem] = useState({
+    name: "",
+    category: "",
+    image: "",
+    stock: { cartons: 0, boxes: 0, pieces: 0 },
+  })
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -63,10 +111,16 @@ export default function ItemsPage() {
         name: newItem.name,
         category: newItem.category,
         image: imageUrl,
+        stock: newItem.stock,
       },
     ])
 
-    setNewItem({ name: "", category: "", image: "" })
+    setNewItem({
+      name: "",
+      category: "",
+      image: "",
+      stock: { cartons: 0, boxes: 0, pieces: 0 },
+    })
     setPreviewImage(null)
     setIsAddDialogOpen(false)
   }
@@ -124,9 +178,25 @@ export default function ItemsPage() {
               <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
             </div>
             <CardContent className="p-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h3 className="font-semibold text-lg">{item.name}</h3>
                 <p className="text-sm text-muted-foreground">{item.category}</p>
+
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div className="bg-gray-50 p-2 rounded-md text-center">
+                    <p className="font-medium">{item.stock.cartons}</p>
+                    <p className="text-xs text-muted-foreground">Cartons</p>
+                  </div>
+                  <div className="bg-gray-50 p-2 rounded-md text-center">
+                    <p className="font-medium">{item.stock.boxes}</p>
+                    <p className="text-xs text-muted-foreground">Boxes</p>
+                  </div>
+                  <div className="bg-gray-50 p-2 rounded-md text-center">
+                    <p className="font-medium">{item.stock.pieces}</p>
+                    <p className="text-xs text-muted-foreground">Pieces</p>
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center">
                   <div className="flex gap-2">
                     <Button variant="ghost" size="icon">
@@ -146,10 +216,12 @@ export default function ItemsPage() {
       </div>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Add New Item</DialogTitle>
-            <DialogDescription>Create a new product item with category, name and image.</DialogDescription>
+            <DialogDescription>
+              Create a new product item with category, name, image, and stock information.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -179,6 +251,73 @@ export default function ItemsPage() {
                 placeholder="e.g. Smartphone X"
               />
             </div>
+
+            <div className="grid gap-2">
+              <Label>Stock Information</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="cartons" className="text-sm">
+                    Cartons
+                  </Label>
+                  <Input
+                    id="cartons"
+                    type="number"
+                    min="0"
+                    value={newItem.stock.cartons}
+                    onChange={(e) =>
+                      setNewItem({
+                        ...newItem,
+                        stock: {
+                          ...newItem.stock,
+                          cartons: Number.parseInt(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="boxes" className="text-sm">
+                    Boxes
+                  </Label>
+                  <Input
+                    id="boxes"
+                    type="number"
+                    min="0"
+                    value={newItem.stock.boxes}
+                    onChange={(e) =>
+                      setNewItem({
+                        ...newItem,
+                        stock: {
+                          ...newItem.stock,
+                          boxes: Number.parseInt(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pieces" className="text-sm">
+                    Pieces
+                  </Label>
+                  <Input
+                    id="pieces"
+                    type="number"
+                    min="0"
+                    value={newItem.stock.pieces}
+                    onChange={(e) =>
+                      setNewItem({
+                        ...newItem,
+                        stock: {
+                          ...newItem.stock,
+                          pieces: Number.parseInt(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="image">Item Image</Label>
               <div className="flex items-center gap-4">
