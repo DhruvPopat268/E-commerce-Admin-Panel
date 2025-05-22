@@ -17,7 +17,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 
 // Sample data for categories
@@ -27,49 +26,43 @@ const initialCategories = [
     name: "Meat and Fish",
     image: "/placeholder.svg?height=60&width=60",
     status: true,
-    priority: 1,
   },
   {
     id: 2,
     name: "Fruits and Vegetables",
     image: "/placeholder.svg?height=60&width=60",
     status: false,
-    priority: 2,
   },
   {
     id: 3,
     name: "Breakfast",
     image: "/placeholder.svg?height=60&width=60",
     status: true,
-    priority: 3,
   },
   {
     id: 4,
     name: "Beverages",
     image: "/placeholder.svg?height=60&width=60",
     status: true,
-    priority: 4,
   },
   {
     id: 5,
     name: "Health Care",
     image: "/placeholder.svg?height=60&width=60",
     status: true,
-    priority: 5,
   },
   {
     id: 6,
     name: "Cleaning",
     image: "/placeholder.svg?height=60&width=60",
     status: true,
-    priority: 6,
   },
 ]
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState(initialCategories)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newCategory, setNewCategory] = useState({ name: "", image: "", status: true, priority: 1 })
+  const [newCategory, setNewCategory] = useState({ name: "", image: "", status: true })
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -90,11 +83,10 @@ export default function CategoriesPage() {
         name: newCategory.name,
         image: imageUrl,
         status: newCategory.status,
-        priority: newCategory.priority,
       },
     ])
 
-    setNewCategory({ name: "", image: "", status: true, priority: 1 })
+    setNewCategory({ name: "", image: "", status: true })
     setPreviewImage(null)
     setIsAddDialogOpen(false)
   }
@@ -116,10 +108,6 @@ export default function CategoriesPage() {
     )
   }
 
-  const updatePriority = (id: number, priority: number) => {
-    setCategories(categories.map((category) => (category.id === id ? { ...category, priority } : category)))
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -127,6 +115,9 @@ export default function CategoriesPage() {
           <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
           <p className="text-muted-foreground">Manage your product categories</p>
         </div>
+        <Button onClick={() => setIsAddDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+          <Plus className="mr-2 h-4 w-4" /> Add Category
+        </Button>
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -145,7 +136,7 @@ export default function CategoriesPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button onClick={() => setIsAddDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+              <Button onClick={() => {}} className="bg-teal-600 hover:bg-teal-700 text-white">
                 Search
               </Button>
             </div>
@@ -159,7 +150,6 @@ export default function CategoriesPage() {
                   <TableHead className="w-[150px]">Category Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -185,23 +175,6 @@ export default function CategoriesPage() {
                         className="data-[state=checked]:bg-teal-500"
                       />
                     </TableCell>
-                    <TableCell>
-                      <Select
-                        value={category.priority.toString()}
-                        onValueChange={(value) => updatePriority(category.id, Number.parseInt(value))}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6].map((num) => (
-                            <SelectItem key={num} value={num.toString()}>
-                              {num}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="icon" className="h-8 w-8 border-blue-500 text-blue-500">
@@ -222,12 +195,8 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      <Button onClick={() => setIsAddDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
-        <Plus className="mr-2 h-4 w-4" /> Add Category
-      </Button>
-
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Add New Category</DialogTitle>
             <DialogDescription>Create a new product category with name and image.</DialogDescription>
@@ -277,24 +246,6 @@ export default function CategoriesPage() {
                 />
                 <Label>{newCategory.status ? "Active" : "Inactive"}</Label>
               </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select
-                value={newCategory.priority.toString()}
-                onValueChange={(value) => setNewCategory({ ...newCategory, priority: Number.parseInt(value) })}
-              >
-                <SelectTrigger id="priority">
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6].map((num) => (
-                    <SelectItem key={num} value={num.toString()}>
-                      {num}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>

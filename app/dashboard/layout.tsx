@@ -5,15 +5,35 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Package, LayoutDashboard, LogOut, Menu, ShoppingBag, Users, X, Settings } from "lucide-react"
+import {
+  BarChart3,
+  Package,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  ShoppingBag,
+  Users,
+  X,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { cn } from "@/lib/utils"
+
+type NavItem = {
+  label: string
+  icon: React.ElementType
+  href?: string
+  active?: boolean
+  children?: NavItem[]
+  expanded?: boolean
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  const routes = [
+  const [navItems, setNavItems] = useState<NavItem[]>([
     {
       label: "Dashboard",
       icon: LayoutDashboard,
@@ -21,22 +41,65 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       active: pathname === "/dashboard",
     },
     {
-      label: "Categories",
+      label: "Category",
       icon: Package,
-      href: "/dashboard/categories",
-      active: pathname === "/dashboard/categories",
+      children: [
+        {
+          label: "Categories",
+          href: "/dashboard/categories",
+          active: pathname === "/dashboard/categories",
+          icon: ChevronRight,
+        },
+        {
+          label: "Sub Categories",
+          href: "/dashboard/subcategories",
+          active: pathname === "/dashboard/subcategories",
+          icon: ChevronRight,
+        },
+      ],
+      expanded: pathname.includes("/dashboard/categories") || pathname.includes("/dashboard/subcategories"),
     },
     {
-      label: "Items",
+      label: "Product",
       icon: ShoppingBag,
-      href: "/dashboard/items",
-      active: pathname === "/dashboard/items",
-    },
-    {
-      label: "Item Attributes",
-      icon: Settings,
-      href: "/dashboard/attributes",
-      active: pathname === "/dashboard/attributes",
+      children: [
+        {
+          label: "Product Attribute",
+          href: "/dashboard/attributes",
+          active: pathname === "/dashboard/attributes",
+          icon: ChevronRight,
+        },
+        {
+          label: "Product List",
+          href: "/dashboard/products",
+          active: pathname === "/dashboard/products",
+          icon: ChevronRight,
+        },
+        {
+          label: "Bulk Import",
+          href: "/dashboard/bulk-import",
+          active: pathname === "/dashboard/bulk-import",
+          icon: ChevronRight,
+        },
+        {
+          label: "Bulk Export",
+          href: "/dashboard/bulk-export",
+          active: pathname === "/dashboard/bulk-export",
+          icon: ChevronRight,
+        },
+        {
+          label: "Limited Stocks",
+          href: "/dashboard/limited-stocks",
+          active: pathname === "/dashboard/limited-stocks",
+          icon: ChevronRight,
+        },
+      ],
+      expanded:
+        pathname.includes("/dashboard/attributes") ||
+        pathname.includes("/dashboard/products") ||
+        pathname.includes("/dashboard/bulk-import") ||
+        pathname.includes("/dashboard/bulk-export") ||
+        pathname.includes("/dashboard/limited-stocks"),
     },
     {
       label: "User Logs",
@@ -50,7 +113,73 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       href: "/dashboard/analytics",
       active: pathname === "/dashboard/analytics",
     },
-  ]
+  ])
+
+  const toggleExpand = (index: number) => {
+    setNavItems((prev) => prev.map((item, i) => (i === index ? { ...item, expanded: !item.expanded } : item)))
+  }
+
+  const renderNavItems = (items: NavItem[], isMobile = false) => {
+    return items.map((item, index) => {
+      // If the item has children, render a dropdown
+      if (item.children) {
+        return (
+          <div key={item.label} className="space-y-1">
+            <button
+              onClick={() => toggleExpand(index)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+                item.expanded ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800",
+              )}
+            >
+              <item.icon className={cn("h-5 w-5", item.expanded ? "text-white" : "text-gray-400")} />
+              <span className="flex-1 text-left">{item.label}</span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  item.expanded ? "rotate-180 text-white" : "text-gray-400",
+                )}
+              />
+            </button>
+            {item.expanded && (
+              <div className="pl-6 space-y-1">
+                {item.children.map((child) => (
+                  <Link
+                    key={child.label}
+                    href={child.href || "#"}
+                    onClick={isMobile ? () => setIsSidebarOpen(false) : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+                      child.active ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800",
+                    )}
+                  >
+                    <span className="h-1 w-1 rounded-full bg-current"></span>
+                    {child.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      // Otherwise, render a regular nav item
+      return (
+        <Link
+          key={item.label}
+          href={item.href || "#"}
+          onClick={isMobile ? () => setIsSidebarOpen(false) : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+            item.active ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800",
+          )}
+        >
+          <item.icon className={cn("h-5 w-5", item.active ? "text-white" : "text-gray-400")} />
+          {item.label}
+        </Link>
+      )
+    })
+  }
 
   return (
     <div className="h-full relative">
@@ -62,21 +191,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="font-bold text-2xl text-white">Admin</span>
             </Link>
           </div>
-          <div className="flex-1 flex flex-col px-6 py-4 space-y-1">
-            {routes.map((route) => (
-              <Link
-                key={route.href}
-                href={route.href}
-                className={`
-                  flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all
-                  ${route.active ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}
-                `}
-              >
-                <route.icon className={`h-5 w-5 ${route.active ? "text-white" : "text-gray-400"}`} />
-                {route.label}
-              </Link>
-            ))}
-          </div>
+          <div className="flex-1 flex flex-col px-6 py-4 space-y-1">{renderNavItems(navItems)}</div>
           <div className="p-6">
             <Link href="/">
               <Button
@@ -110,22 +225,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <X className="h-6 w-6 text-white" />
                   </Button>
                 </div>
-                <div className="flex-1 flex flex-col px-6 py-4 space-y-1">
-                  {routes.map((route) => (
-                    <Link
-                      key={route.href}
-                      href={route.href}
-                      onClick={() => setIsSidebarOpen(false)}
-                      className={`
-                        flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all
-                        ${route.active ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}
-                      `}
-                    >
-                      <route.icon className={`h-5 w-5 ${route.active ? "text-white" : "text-gray-400"}`} />
-                      {route.label}
-                    </Link>
-                  ))}
-                </div>
+                <div className="flex-1 flex flex-col px-6 py-4 space-y-1">{renderNavItems(navItems, true)}</div>
                 <div className="p-6">
                   <Link href="/">
                     <Button
