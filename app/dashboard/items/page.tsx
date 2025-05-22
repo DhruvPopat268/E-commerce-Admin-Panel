@@ -1,18 +1,24 @@
 "use client"
 
-import { DialogFooter } from "@/components/ui/dialog"
-
 import type React from "react"
 
 import { useState } from "react"
 import Image from "next/image"
-import { Plus, Pencil, Trash2, X } from "lucide-react"
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 // Sample data for categories
 const categories = [
@@ -24,6 +30,13 @@ const categories = [
   { id: 6, name: "Books" },
 ]
 
+// Sample data for attributes
+const attributes = [
+  { id: 1, name: "BOX" },
+  { id: 2, name: "CARTOON" },
+  { id: 3, name: "PSC" },
+]
+
 // Sample data for items
 const initialItems = [
   {
@@ -31,56 +44,32 @@ const initialItems = [
     name: "Smartphone X",
     category: "Electronics",
     image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 5, boxes: 20, pieces: 100 },
+    status: true,
+    stock: { BOX: 5, CARTOON: 20, PSC: 100 },
   },
   {
     id: 2,
     name: "Winter Jacket",
     category: "Clothing",
     image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 3, boxes: 15, pieces: 75 },
+    status: true,
+    stock: { BOX: 3, CARTOON: 15, PSC: 75 },
   },
   {
     id: 3,
     name: "Table Lamp",
     category: "Home Decor",
     image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 2, boxes: 10, pieces: 50 },
+    status: true,
+    stock: { BOX: 2, CARTOON: 10, PSC: 50 },
   },
   {
     id: 4,
     name: "Organic Apples",
     category: "Groceries",
     image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 8, boxes: 40, pieces: 200 },
-  },
-  {
-    id: 5,
-    name: "Basketball",
-    category: "Sports",
-    image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 1, boxes: 5, pieces: 25 },
-  },
-  {
-    id: 6,
-    name: "Novel Collection",
-    category: "Books",
-    image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 4, boxes: 20, pieces: 100 },
-  },
-  {
-    id: 7,
-    name: "Wireless Earbuds",
-    category: "Electronics",
-    image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 6, boxes: 30, pieces: 150 },
-  },
-  {
-    id: 8,
-    name: "Summer Dress",
-    category: "Clothing",
-    image: "/placeholder.svg?height=100&width=100",
-    stock: { cartons: 2, boxes: 10, pieces: 50 },
+    status: false,
+    stock: { BOX: 8, CARTOON: 40, PSC: 200 },
   },
 ]
 
@@ -91,12 +80,17 @@ export default function ItemsPage() {
     name: "",
     category: "",
     image: "",
-    stock: { cartons: 0, boxes: 0, pieces: 0 },
+    status: true,
+    stock: { BOX: 0, CARTOON: 0, PSC: 0 },
   })
   const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
-  const filteredItems = selectedCategory ? items.filter((item) => item.category === selectedCategory) : items
+  const filteredItems = items.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
 
   const handleAddItem = () => {
     if (newItem.name.trim() === "" || newItem.category.trim() === "") return
@@ -111,6 +105,7 @@ export default function ItemsPage() {
         name: newItem.name,
         category: newItem.category,
         image: imageUrl,
+        status: newItem.status,
         stock: newItem.stock,
       },
     ])
@@ -119,7 +114,8 @@ export default function ItemsPage() {
       name: "",
       category: "",
       image: "",
-      stock: { cartons: 0, boxes: 0, pieces: 0 },
+      status: true,
+      stock: { BOX: 0, CARTOON: 0, PSC: 0 },
     })
     setPreviewImage(null)
     setIsAddDialogOpen(false)
@@ -136,6 +132,10 @@ export default function ItemsPage() {
     }
   }
 
+  const toggleStatus = (id: number) => {
+    setItems(items.map((item) => (item.id === id ? { ...item, status: !item.status } : item)))
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -143,77 +143,92 @@ export default function ItemsPage() {
           <h2 className="text-3xl font-bold tracking-tight">Items</h2>
           <p className="text-muted-foreground">Manage your product items</p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Item
-        </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-4">
-        <Label htmlFor="category-filter" className="sm:w-auto">
-          Filter by Category:
-        </Label>
-        <Select
-          value={selectedCategory || "all"}
-          onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
-        >
-          <SelectTrigger id="category-filter" className="w-full sm:w-[200px]">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.name}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredItems.map((item) => (
-          <Card key={item.id} className="overflow-hidden">
-            <div className="aspect-square relative">
-              <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-            </div>
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                <h3 className="font-semibold text-lg">{item.name}</h3>
-                <p className="text-sm text-muted-foreground">{item.category}</p>
-
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div className="bg-gray-50 p-2 rounded-md text-center">
-                    <p className="font-medium">{item.stock.cartons}</p>
-                    <p className="text-xs text-muted-foreground">Cartons</p>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded-md text-center">
-                    <p className="font-medium">{item.stock.boxes}</p>
-                    <p className="text-xs text-muted-foreground">Boxes</p>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded-md text-center">
-                    <p className="font-medium">{item.stock.pieces}</p>
-                    <p className="text-xs text-muted-foreground">Pieces</p>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon">
-                      <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
-                  </div>
-                </div>
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold">
+              Item Table <span className="text-sm text-gray-500 ml-2">{items.length}</span>
+            </h3>
+            <div className="flex gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <Input
+                  placeholder="Search by Name"
+                  className="pl-10 w-[300px]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <Button onClick={() => setIsAddDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+                Search
+              </Button>
+            </div>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader className="bg-gray-50">
+                <TableRow>
+                  <TableHead className="w-[80px]">SL</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Item Name</TableHead>
+                  <TableHead>Stock (BOX/CARTOON/PSC)</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.map((item, index) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-10 w-10 rounded-md overflow-hidden">
+                          <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                        </div>
+                        <span>{item.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <span className="px-2 py-1 bg-gray-100 rounded-md text-xs">BOX: {item.stock.BOX}</span>
+                        <span className="px-2 py-1 bg-gray-100 rounded-md text-xs">CARTOON: {item.stock.CARTOON}</span>
+                        <span className="px-2 py-1 bg-gray-100 rounded-md text-xs">PSC: {item.stock.PSC}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={item.status}
+                        onCheckedChange={() => toggleStatus(item.id)}
+                        className="data-[state=checked]:bg-teal-500"
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="icon" className="h-8 w-8 border-blue-500 text-blue-500">
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button variant="outline" size="icon" className="h-8 w-8 border-red-500 text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
+
+      <Button onClick={() => setIsAddDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+        <Plus className="mr-2 h-4 w-4" /> Add Item
+      </Button>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -255,66 +270,40 @@ export default function ItemsPage() {
             <div className="grid gap-2">
               <Label>Stock Information</Label>
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="cartons" className="text-sm">
-                    Cartons
-                  </Label>
-                  <Input
-                    id="cartons"
-                    type="number"
-                    min="0"
-                    value={newItem.stock.cartons}
-                    onChange={(e) =>
-                      setNewItem({
-                        ...newItem,
-                        stock: {
-                          ...newItem.stock,
-                          cartons: Number.parseInt(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="boxes" className="text-sm">
-                    Boxes
-                  </Label>
-                  <Input
-                    id="boxes"
-                    type="number"
-                    min="0"
-                    value={newItem.stock.boxes}
-                    onChange={(e) =>
-                      setNewItem({
-                        ...newItem,
-                        stock: {
-                          ...newItem.stock,
-                          boxes: Number.parseInt(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="pieces" className="text-sm">
-                    Pieces
-                  </Label>
-                  <Input
-                    id="pieces"
-                    type="number"
-                    min="0"
-                    value={newItem.stock.pieces}
-                    onChange={(e) =>
-                      setNewItem({
-                        ...newItem,
-                        stock: {
-                          ...newItem.stock,
-                          pieces: Number.parseInt(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                </div>
+                {attributes.map((attribute) => (
+                  <div key={attribute.id}>
+                    <Label htmlFor={`stock-${attribute.name}`} className="text-sm">
+                      {attribute.name}
+                    </Label>
+                    <Input
+                      id={`stock-${attribute.name}`}
+                      type="number"
+                      min="0"
+                      value={newItem.stock[attribute.name as keyof typeof newItem.stock] || 0}
+                      onChange={(e) =>
+                        setNewItem({
+                          ...newItem,
+                          stock: {
+                            ...newItem.stock,
+                            [attribute.name]: Number.parseInt(e.target.value) || 0,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={newItem.status}
+                  onCheckedChange={(checked) => setNewItem({ ...newItem, status: checked })}
+                  className="data-[state=checked]:bg-teal-500"
+                />
+                <Label>{newItem.status ? "Active" : "Inactive"}</Label>
               </div>
             </div>
 
@@ -348,7 +337,9 @@ export default function ItemsPage() {
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddItem}>Add Item</Button>
+            <Button onClick={handleAddItem} className="bg-teal-600 hover:bg-teal-700">
+              Add Item
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

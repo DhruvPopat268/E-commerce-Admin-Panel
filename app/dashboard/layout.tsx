@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Package, LayoutDashboard, LogOut, Menu, ShoppingBag, Users, X } from "lucide-react"
+import { BarChart3, Package, LayoutDashboard, LogOut, Menu, ShoppingBag, Users, X, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
@@ -31,6 +31,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: ShoppingBag,
       href: "/dashboard/items",
       active: pathname === "/dashboard/items",
+    },
+    {
+      label: "Item Attributes",
+      icon: Settings,
+      href: "/dashboard/attributes",
+      active: pathname === "/dashboard/attributes",
     },
     {
       label: "User Logs",
