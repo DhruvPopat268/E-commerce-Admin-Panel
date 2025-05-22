@@ -73,9 +73,9 @@ export default function AddProductPage() {
     image: "",
     price: "0",
     stock: "0",
-    discountType: "Percent",
+    discountType: "Amount", // Changed from "Percent" to "Amount"
     discountValue: "0",
-    taxType: "Percent",
+    taxType: "Amount", // Changed from "Percent" to "Amount"
     taxRate: "0",
   })
 
@@ -164,13 +164,9 @@ export default function AddProductPage() {
           {/* Left Column - Name and Description */}
           <div className="space-y-6">
             <div>
-              <div className="flex border-b mb-4">
-                <div className="px-4 py-2 border-b-2 border-teal-500 text-teal-500">English(EN)</div>
-                <div className="px-4 py-2 text-gray-600">Arabic - العربية(AR)</div>
-              </div>
-
+              
               <div className="space-y-2">
-                <Label htmlFor="name">Name (EN)</Label>
+                <Label htmlFor="name">Name</Label>
                 <Input
                   id="name"
                   value={product.name}
@@ -182,7 +178,7 @@ export default function AddProductPage() {
               </div>
 
               <div className="space-y-2 mt-6">
-                <Label htmlFor="description">Short Description (EN)</Label>
+                <Label htmlFor="description">Short Description</Label>
                 <div className="border rounded-md">
                   <div className="flex items-center border-b p-2 bg-gray-50">
                     <div className="flex space-x-1">
@@ -429,7 +425,7 @@ export default function AddProductPage() {
           {/* Left Column - Price Information */}
           <div className="bg-white rounded-lg p-6 border border-gray-200">
             <div className="flex items-center mb-4">
-              <DollarSign className="mr-2 h-5 w-5" />
+              
               <h3 className="text-lg font-semibold">Price Information</h3>
             </div>
 
@@ -468,17 +464,19 @@ export default function AddProductPage() {
                     onValueChange={(value) => setProduct({ ...product, discountType: value })}
                   >
                     <SelectTrigger id="discountType" className="border-gray-300">
-                      <SelectValue placeholder="Percent" />
+                      <SelectValue placeholder="Amount" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Percent">Percent</SelectItem>
-                      <SelectItem value="Fixed">Fixed</SelectItem>
+                      <SelectItem value="Percentage">Percentage</SelectItem>
+                      <SelectItem value="Amount">Amount</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="discountValue">Discount (%)</Label>
+                  <Label htmlFor="discountValue">
+                    {product.discountType === "Percentage" ? "Discount (%)" : "Discount"}
+                  </Label>
                   <Input
                     id="discountValue"
                     type="text"
@@ -495,17 +493,17 @@ export default function AddProductPage() {
                   <Label htmlFor="taxType">Tax Type</Label>
                   <Select value={product.taxType} onValueChange={(value) => setProduct({ ...product, taxType: value })}>
                     <SelectTrigger id="taxType" className="border-gray-300">
-                      <SelectValue placeholder="Percent" />
+                      <SelectValue placeholder="Amount" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Percent">Percent</SelectItem>
-                      <SelectItem value="Fixed">Fixed</SelectItem>
+                      <SelectItem value="Percentage">Percentage</SelectItem>
+                      <SelectItem value="Amount">Amount</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="taxRate">Tax Rate (%)</Label>
+                  <Label htmlFor="taxRate">{product.taxType === "Percentage" ? "Tax Rate (%)" : "Tax Rate"}</Label>
                   <Input
                     id="taxRate"
                     type="text"
