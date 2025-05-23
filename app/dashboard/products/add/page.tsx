@@ -65,18 +65,11 @@ export default function AddProductPage() {
     description: "",
     category: "",
     subCategory: "",
-    unit: "Kg",
-    capacity: "1",
-    maxOrderQuantity: "1",
-    weight: "",
+    
     visibility: true,
     image: "",
-    price: "0",
-    stock: "0",
-    discountType: "Amount", // Changed from "Percent" to "Amount"
-    discountValue: "0",
-    taxType: "Amount", // Changed from "Percent" to "Amount"
-    taxRate: "0",
+    
+   
   })
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -46,7 +46,7 @@ export default function CategoriesPage() {
 
   async function fetchCategories() {
     try {
-      const res = await axios.get("http://localhost:7000/api/categories")
+      const res = await axios.get("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories")
       setCategories(res.data)
     } catch (error) {
       console.error("Failed to fetch categories", error)
@@ -113,7 +113,7 @@ export default function CategoriesPage() {
     try {
       // Send request to backend to update status
       console.log(id)
-      await axios.patch(`http://localhost:7000/api/categories/${id}`, {
+      await axios.patch(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories/${id}`, {
         status: updatedStatus,
       })
 
@@ -148,7 +148,7 @@ export default function CategoriesPage() {
     }
 
     try {
-      const res = await axios.put(`http://localhost:7000/api/categories/${editCategory._id}`, formData, {
+      const res = await axios.put(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories/${editCategory._id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
 
@@ -167,7 +167,7 @@ export default function CategoriesPage() {
     if (!confirm("Are you sure you want to delete this category?")) return
 
     try {
-      await axios.delete(`http://localhost:7000/api/categories/${id}`)
+      await axios.delete(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories/${id}`)
       setCategories(categories.filter((cat) => cat._id !== id))
     } catch (error) {
       console.error("Failed to delete category", error)

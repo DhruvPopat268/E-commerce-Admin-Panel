@@ -28,7 +28,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     // In a real app, you would handle login with a backend service
-    const response = await axios.post('http://localhost:7000/auth/admin/login', formData, {
+    const response = await axios.post('https://e-commerce-admin-panel-backend-bvvc.onrender.com/auth/admin/login', formData, {
       withCredentials: true,
     })
 

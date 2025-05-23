@@ -31,7 +31,7 @@ export default function SubCategoriesPage() {
   // Fetch categories from backend
   const fetchCategories = async () => {
     try {
-      const { data } = await axios.get("http://localhost:7000/api/categories")
+      const { data } = await axios.get("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories")
       setCategories(data)
     } catch (err) {
       console.error("Failed to fetch categories", err)
@@ -41,7 +41,7 @@ export default function SubCategoriesPage() {
   // Fetch subcategories from backend
   const fetchSubCategories = async () => {
     try {
-      const { data } = await axios.get("http://localhost:7000/api/subcategories")
+      const { data } = await axios.get("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/subcategories")
       setSubCategories(data)
     } catch (err) {
       console.error("Failed to fetch subcategories", err)
@@ -95,7 +95,7 @@ export default function SubCategoriesPage() {
   // Toggle subcategory status via API PATCH
   const toggleStatus = async (id, currentStatus) => {
     try {
-      const { data } = await axios.patch(`http://localhost:7000/api/subcategories/${id}`, {
+      const { data } = await axios.patch(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/subcategories/${id}`, {
         status: !currentStatus,
       })
 
@@ -112,7 +112,7 @@ export default function SubCategoriesPage() {
     if (!confirm("Are you sure you want to delete this subcategory?")) return
 
     try {
-      await axios.delete(`http://localhost:7000/api/subcategories/${id}`)
+      await axios.delete(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/subcategories/${id}`)
       setSubCategories((prev) => prev.filter((sc) => sc._id !== id))
     } catch (err) {
       console.error(err)
