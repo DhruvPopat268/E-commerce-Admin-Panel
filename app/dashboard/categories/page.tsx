@@ -34,7 +34,7 @@ export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("")
 
   const [isMounted, setIsMounted] = useState(false)
-  
+
   // Fetch categories from backend on component mount
   useEffect(() => {
     setIsMounted(true)
@@ -50,9 +50,10 @@ export default function CategoriesPage() {
     }
   }
 
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const filteredCategories = categories.filter(
+  (category) => category && category.name?.toLowerCase().includes(searchQuery.toLowerCase())
+)
+
 
   const handleAddCategory = async () => {
     if (newCategory.name.trim() === "") return
