@@ -6,6 +6,8 @@ const connectToDb = require('./database/db');
 
 const AdminauthRoutes = require('./routes/AdminAuth');
 const categoryRoutes = require('./routes/categoryRoutes'); // import category routes
+const subCategoryRoutes = require('./routes/subCategoryRoutes');
+const attributeRoutes = require("./routes/attributeRoutes");
 const path = require('path');
 
 const app = express();
@@ -29,6 +31,10 @@ app.use('/auth/admin', AdminauthRoutes);
 
 // New category routes
 app.use('/api/categories', categoryRoutes);
+
+app.use('/api/subcategories', subCategoryRoutes);
+
+app.use("/api/attributes", attributeRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { useEffect, useState } from "react"
+import axios from "axios"
+import { Pencil, Plus, Search, Trash2, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,30 +17,100 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Settings } from "lucide-react"
 
-// Sample data for attributes
-const initialAttributes = [
-  { id: 1, name: "BOX" },
-  { id: 2, name: "CARTOON" },
-  { id: 3, name: "PSC" },
-]
+type Attribute = {
+  _id: string
+  name: string
+}
 
 export default function AttributesPage() {
-  const [attributes, setAttributes] = useState(initialAttributes)
+  const [attributes, setAttributes] = useState<Attribute[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newAttribute, setNewAttribute] = useState({ name: "" })
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  // For editing
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editName, setEditName] = useState("")
+
+  useEffect(() => {
+    fetchAttributes()
+  }, [])
+
+  async function fetchAttributes() {
+    setLoading(true)
+    setError("")
+    try {
+      const response = await axios.get("http://localhost:7000/api/attributes")
+      setAttributes(response.data)
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch attributes")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredAttributes = attributes.filter((attribute) =>
     attribute.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleAddAttribute = () => {
+  const handleAddAttribute = async () => {
     if (newAttribute.name.trim() === "") return
+    setLoading(true)
+    setError("")
+    try {
+      const response = await axios.post("http://localhost:7000/api/attributes", newAttribute)
+      setAttributes((prev) => [...prev, response.data])
+      setNewAttribute({ name: "" })
+      setIsAddDialogOpen(false)
+    } catch (err: any) {
+      setError(err.message || "Failed to add attribute")
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    const newId = Math.max(0, ...attributes.map((c) => c.id)) + 1
-    setAttributes([...attributes, { id: newId, name: newAttribute.name }])
-    setNewAttribute({ name: "" })
-    setIsAddDialogOpen(false)
+  const startEdit = (attribute: Attribute) => {
+    setEditId(attribute._id)
+    setEditName(attribute.name)
+  }
+
+  const cancelEdit = () => {
+    setEditId(null)
+    setEditName("")
+  }
+
+  const saveEdit = async (id: string) => {
+    if (editName.trim() === "") return
+    setLoading(true)
+    setError("")
+    try {
+      const response = await axios.put(`http://localhost:7000/api/attributes/${id}`, { name: editName })
+      setAttributes((prev) =>
+        prev.map((attr) => (attr._id === id ? response.data : attr)),
+      )
+      setEditId(null)
+      setEditName("")
+    } catch (err: any) {
+      setError(err.message || "Failed to update attribute")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteAttribute = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this attribute?")) return
+    setLoading(true)
+    setError("")
+    try {
+      await axios.delete(`http://localhost:7000/api/attributes/${id}`)
+      setAttributes((prev) => prev.filter((attr) => attr._id !== id))
+    } catch (err: any) {
+      setError(err.message || "Failed to delete attribute")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -55,6 +126,8 @@ export default function AttributesPage() {
         </div>
       </div>
 
+      {error && <div className="text-red-600">{error}</div>}
+
       <div className="bg-white rounded-lg shadow">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -69,9 +142,14 @@ export default function AttributesPage() {
                   className="pl-10 w-[300px]"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  disabled={loading}
                 />
               </div>
-              <Button onClick={() => setIsAddDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+                disabled={loading}
+              >
                 <Plus className="mr-2 h-4 w-4" /> Add Attribute
               </Button>
             </div>
@@ -88,19 +166,68 @@ export default function AttributesPage() {
               </TableHeader>
               <TableBody>
                 {filteredAttributes.map((attribute, index) => (
-                  <TableRow key={attribute.id}>
+                  <TableRow key={attribute._id}>
                     <TableCell>{index + 1}</TableCell>
-                    <TableCell>{attribute.name}</TableCell>
+                    <TableCell>
+                      {editId === attribute._id ? (
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          disabled={loading}
+                        />
+                      ) : (
+                        attribute.name
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="icon" className="h-8 w-8 border-blue-500 text-blue-500">
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 border-red-500 text-red-500">
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
+                        {editId === attribute._id ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 border-green-500 text-green-500"
+                              onClick={() => saveEdit(attribute._id)}
+                              disabled={loading}
+                            >
+                              <Check className="h-4 w-4" />
+                              <span className="sr-only">Save</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 border-gray-500 text-gray-500"
+                              onClick={cancelEdit}
+                              disabled={loading}
+                            >
+                              <X className="h-4 w-4" />
+                              <span className="sr-only">Cancel</span>
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 border-blue-500 text-blue-500"
+                              onClick={() => startEdit(attribute)}
+                              disabled={loading}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 border-red-500 text-red-500"
+                              onClick={() => deleteAttribute(attribute._id)}
+                              disabled={loading}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -125,14 +252,15 @@ export default function AttributesPage() {
                 value={newAttribute.name}
                 onChange={(e) => setNewAttribute({ name: e.target.value })}
                 placeholder="e.g. BOX"
+                disabled={loading}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={handleAddAttribute} className="bg-teal-600 hover:bg-teal-700">
+            <Button onClick={handleAddAttribute} className="bg-teal-600 hover:bg-teal-700" disabled={loading}>
               Add Attribute
             </Button>
           </DialogFooter>

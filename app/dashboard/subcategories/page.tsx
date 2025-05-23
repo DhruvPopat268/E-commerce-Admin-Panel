@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import axios from "axios"
 import { Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,62 +18,105 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 
-// Sample data for categories
-const categories = [
-  { id: 1, name: "Personal Care" },
-  { id: 2, name: "Cleaning" },
-  { id: 3, name: "Health Care" },
-  { id: 4, name: "Beverages" },
-  { id: 5, name: "Breakfast" },
-]
-
-// Sample data for subcategories
-const initialSubCategories = [
-  { id: 1, category: "Personal Care", name: "Women's Care", status: true },
-  { id: 2, category: "Cleaning", name: "Cleaning Supplies", status: true },
-  { id: 3, category: "Health Care", name: "Antiseptics", status: true },
-  { id: 4, category: "Beverages", name: "Soft Drinks", status: true },
-  { id: 5, category: "Beverages", name: "Tea & Coffee", status: true },
-  { id: 6, category: "Beverages", name: "Juice", status: true },
-  { id: 7, category: "Breakfast", name: "Dairy", status: true },
-]
-
 export default function SubCategoriesPage() {
-  const [subCategories, setSubCategories] = useState(initialSubCategories)
+  const [subCategories, setSubCategories] = useState([])
+  const [categories, setCategories] = useState([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newSubCategory, setNewSubCategory] = useState({ category: "", name: "", status: true })
+  const [newSubCategory, setNewSubCategory] = useState({ categoryId: "", name: "", status: true })
   const [searchQuery, setSearchQuery] = useState("")
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+
+
+  // Fetch categories from backend
+  const fetchCategories = async () => {
+    try {
+      const { data } = await axios.get("http://localhost:7000/api/categories")
+      setCategories(data)
+    } catch (err) {
+      console.error("Failed to fetch categories", err)
+    }
+  }
+
+  // Fetch subcategories from backend
+  const fetchSubCategories = async () => {
+    try {
+      const { data } = await axios.get("http://localhost:7000/api/subcategories")
+      setSubCategories(data)
+    } catch (err) {
+      console.error("Failed to fetch subcategories", err)
+    }
+  }
+
+  useEffect(() => {
+    fetchCategories()
+    fetchSubCategories()
+  })
 
   const filteredSubCategories = subCategories.filter(
     (subCategory) =>
       subCategory.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      subCategory.category.toLowerCase().includes(searchQuery.toLowerCase()),
+      (subCategory.category?.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleAddSubCategory = () => {
-    if (newSubCategory.name.trim() === "" || newSubCategory.category.trim() === "") return
+  // Add new subcategory via API
+  const handleSaveSubCategory = async () => {
+    if (!newSubCategory.name.trim() || !newSubCategory.categoryId) return
 
-    const newId = Math.max(0, ...subCategories.map((sc) => sc.id)) + 1
-    setSubCategories([
-      ...subCategories,
-      {
-        id: newId,
-        category: newSubCategory.category,
-        name: newSubCategory.name,
-        status: newSubCategory.status,
-      },
-    ])
+    try {
+      if (isEditMode) {
+        const { data } = await axios.patch(`http://localhost:7000/api/subcategories/${editingId}`, {
+          categoryId: newSubCategory.categoryId,
+          name: newSubCategory.name,
+          status: newSubCategory.status,
+        })
 
-    setNewSubCategory({ category: "", name: "", status: true })
-    setIsAddDialogOpen(false)
+        setSubCategories((prev) => prev.map((sc) => sc._id === editingId ? data : sc))
+      } else {
+        const { data } = await axios.post("http://localhost:7000/api/subcategories", {
+          categoryId: newSubCategory.categoryId,
+          name: newSubCategory.name,
+          status: newSubCategory.status,
+        })
+
+        setSubCategories((prev) => [...prev, data])
+      }
+
+      setNewSubCategory({ categoryId: "", name: "", status: true })
+      setIsAddDialogOpen(false)
+      setIsEditMode(false)
+      setEditingId(null)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  const toggleStatus = (id: number) => {
-    setSubCategories(
-      subCategories.map((subCategory) =>
-        subCategory.id === id ? { ...subCategory, status: !subCategory.status } : subCategory,
-      ),
-    )
+
+  // Toggle subcategory status via API PATCH
+  const toggleStatus = async (id, currentStatus) => {
+    try {
+      const { data } = await axios.patch(`http://localhost:7000/api/subcategories/${id}`, {
+        status: !currentStatus,
+      })
+
+      setSubCategories((prev) =>
+        prev.map((sc) => (sc._id === id ? data : sc)),
+      )
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // Delete subcategory via API DELETE
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this subcategory?")) return
+
+    try {
+      await axios.delete(`http://localhost:7000/api/subcategories/${id}`)
+      setSubCategories((prev) => prev.filter((sc) => sc._id !== id))
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   return (
@@ -82,7 +126,10 @@ export default function SubCategoriesPage() {
           <h2 className="text-3xl font-bold tracking-tight">Sub Categories</h2>
           <p className="text-muted-foreground">Manage your product sub categories</p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+        <Button
+          onClick={() => setIsAddDialogOpen(true)}
+          className="bg-teal-600 hover:bg-teal-700 text-white"
+        >
           <Plus className="mr-2 h-4 w-4" /> Add Sub Category
         </Button>
       </div>
@@ -103,7 +150,10 @@ export default function SubCategoriesPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button onClick={() => {}} className="bg-teal-600 hover:bg-teal-700 text-white">
+              <Button
+                onClick={() => { }}
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+              >
                 Search
               </Button>
             </div>
@@ -122,24 +172,45 @@ export default function SubCategoriesPage() {
               </TableHeader>
               <TableBody>
                 {filteredSubCategories.map((subCategory, index) => (
-                  <TableRow key={subCategory.id}>
+                  <TableRow key={subCategory._id || subCategory.id}>
                     <TableCell>{index + 1}</TableCell>
-                    <TableCell>{subCategory.category}</TableCell>
+                    <TableCell>{subCategory.category?.name || "N/A"}</TableCell>
+
                     <TableCell>{subCategory.name}</TableCell>
                     <TableCell>
                       <Switch
                         checked={subCategory.status}
-                        onCheckedChange={() => toggleStatus(subCategory.id)}
+                        onCheckedChange={() => toggleStatus(subCategory._id || subCategory.id, subCategory.status)}
                         className="data-[state=checked]:bg-teal-500"
                       />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="icon" className="h-8 w-8 border-blue-500 text-blue-500">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 border-blue-500 text-blue-500"
+                          onClick={() => {
+                            setNewSubCategory({
+                              categoryId: subCategory.category?._id || "",
+                              name: subCategory.name,
+                              status: subCategory.status,
+                            })
+                            setEditingId(subCategory._id)
+                            setIsEditMode(true)
+                            setIsAddDialogOpen(true)
+                          }}
+                        >
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 border-red-500 text-red-500">
+
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 border-red-500 text-red-500"
+                          onClick={() => handleDelete(subCategory._id || subCategory.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
                         </Button>
@@ -163,15 +234,15 @@ export default function SubCategoriesPage() {
             <div className="grid gap-2">
               <Label htmlFor="category">Main Category</Label>
               <Select
-                value={newSubCategory.category}
-                onValueChange={(value) => setNewSubCategory({ ...newSubCategory, category: value })}
+                value={newSubCategory.categoryId}
+                onValueChange={(value) => setNewSubCategory({ ...newSubCategory, categoryId: value })}
               >
                 <SelectTrigger id="category">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.name}>
+                    <SelectItem key={category._id || category.id} value={category._id || category.id}>
                       {category.name}
                     </SelectItem>
                   ))}
@@ -203,9 +274,10 @@ export default function SubCategoriesPage() {
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddSubCategory} className="bg-teal-600 hover:bg-teal-700">
-              Add Sub Category
+            <Button onClick={handleSaveSubCategory} className="bg-teal-600 hover:bg-teal-700">
+              {isEditMode ? "Update Sub Category" : "Add Sub Category"}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

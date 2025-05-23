@@ -32,6 +32,9 @@ export default function CategoriesPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editCategory, setEditCategory] = useState<Category | null>(null)
+
 
   const [isMounted, setIsMounted] = useState(false)
 
@@ -39,7 +42,7 @@ export default function CategoriesPage() {
   useEffect(() => {
     setIsMounted(true)
     fetchCategories()
-  }, [])
+  })
 
   async function fetchCategories() {
     try {
@@ -51,9 +54,8 @@ export default function CategoriesPage() {
   }
 
   const filteredCategories = categories.filter(
-  (category) => category && category.name?.toLowerCase().includes(searchQuery.toLowerCase())
-)
-
+    (category) => category && category.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const handleAddCategory = async () => {
     if (newCategory.name.trim() === "") return
@@ -103,15 +105,75 @@ export default function CategoriesPage() {
   }
 
   const toggleStatus = async (id: string) => {
-    // Optionally implement API call to update status on backend
-    // For now just update frontend state
-    setCategories(
-      categories.map((cat) =>
-        cat._id === id ? { ...cat, status: !cat.status } : cat,
-      ),
-    )
+    const category = categories.find((cat) => cat._id === id)
+    if (!category) return
+
+    const updatedStatus = !category.status
+
+    try {
+      // Send request to backend to update status
+      console.log(id)
+      await axios.patch(`http://localhost:7000/api/categories/${id}`, {
+        status: updatedStatus,
+      })
+
+      // Update frontend state
+      setCategories(
+        categories.map((cat) =>
+          cat._id === id ? { ...cat, status: updatedStatus } : cat
+        )
+      )
+    } catch (error) {
+      console.error("Failed to update status", error)
+      alert("Failed to update status")
+    }
   }
 
+  // Add these above the return statement
+
+  const handleEditClick = (category: Category) => {
+    setEditCategory(category)
+    setPreviewImage(category.image)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateCategory = async () => {
+    if (!editCategory) return
+
+    const formData = new FormData()
+    formData.append("name", editCategory.name)
+    formData.append("status", String(editCategory.status))
+    if (imageFile) {
+      formData.append("image", imageFile)
+    }
+
+    try {
+      const res = await axios.put(`http://localhost:7000/api/categories/${editCategory._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+
+      setCategories(categories.map((cat) => (cat._id === editCategory._id ? res.data.updatedCategory : cat)))
+      setEditCategory(null)
+      setPreviewImage(null)
+      setImageFile(null)
+      setIsEditDialogOpen(false)
+    } catch (error) {
+      console.error("Failed to update category", error)
+      alert("Update failed")
+    }
+  }
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this category?")) return
+
+    try {
+      await axios.delete(`http://localhost:7000/api/categories/${id}`)
+      setCategories(categories.filter((cat) => cat._id !== id))
+    } catch (error) {
+      console.error("Failed to delete category", error)
+      alert("Delete failed")
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -182,14 +244,25 @@ export default function CategoriesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="icon" className="h-8 w-8 border-blue-500 text-blue-500">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 border-blue-500 text-blue-500"
+                          onClick={() => handleEditClick(category)}
+                        >
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 border-red-500 text-red-500">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 border-red-500 text-red-500"
+                          onClick={() => handleDeleteCategory(category._id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
                         </Button>
+
                       </div>
                     </TableCell>
                   </TableRow>
@@ -263,6 +336,87 @@ export default function CategoriesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Category</DialogTitle>
+            <DialogDescription>Update category details</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="editName">Category Name</Label>
+              <Input
+                id="editName"
+                value={editCategory?.name || ""}
+                onChange={(e) =>
+                  setEditCategory((prev) =>
+                    prev ? { ...prev, name: e.target.value } : prev
+                  )
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="editImage">Category Image</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="editImage"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="flex-1"
+                />
+                {previewImage && (
+                  <div className="relative h-16 w-16">
+                    <Image
+                      src={previewImage}
+                      alt="Preview"
+                      fill
+                      className="rounded-md object-cover"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-background"
+                      onClick={() => {
+                        setPreviewImage(null)
+                        setImageFile(null)
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Remove image</span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={editCategory?.status || false}
+                  onCheckedChange={(checked) =>
+                    setEditCategory((prev) =>
+                      prev ? { ...prev, status: checked } : prev
+                    )
+                  }
+                  className="data-[state=checked]:bg-teal-500"
+                />
+                <Label>{editCategory?.status ? "Active" : "Inactive"}</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateCategory} className="bg-teal-600 hover:bg-teal-700 text-white">
+              Update Category
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }
