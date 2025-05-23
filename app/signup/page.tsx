@@ -29,7 +29,7 @@ export default function SignupPage() {
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault()
     // In a real app, you would handle signup with a backend service
-    const response = await axios.post(`${process.env.BASE_URL}/auth/admin/signup`,formData)
+    const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/signup`,formData)
 
     if(response.status === 200){
       router.push("/login")
