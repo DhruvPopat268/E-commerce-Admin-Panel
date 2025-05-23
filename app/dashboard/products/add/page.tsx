@@ -164,9 +164,13 @@ export default function AddProductPage() {
           {/* Left Column - Name and Description */}
           <div className="space-y-6">
             <div>
+              <div className="flex border-b mb-4">
+                <div className="px-4 py-2 border-b-2 border-teal-500 text-teal-500">English(EN)</div>
+                <div className="px-4 py-2 text-gray-600">Arabic - العربية(AR)</div>
+              </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">Name (EN)</Label>
                 <Input
                   id="name"
                   value={product.name}
@@ -178,7 +182,7 @@ export default function AddProductPage() {
               </div>
 
               <div className="space-y-2 mt-6">
-                <Label htmlFor="description">Short Description</Label>
+                <Label htmlFor="description">Short Description (EN)</Label>
                 <div className="border rounded-md">
                   <div className="flex items-center border-b p-2 bg-gray-50">
                     <div className="flex space-x-1">
@@ -264,11 +268,66 @@ export default function AddProductPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit</Label>
+                  <Select value={product.unit} onValueChange={(value) => setProduct({ ...product, unit: value })}>
+                    <SelectTrigger id="unit" className="border-gray-300">
+                      <SelectValue placeholder="Kg" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Kg">Kg</SelectItem>
+                      <SelectItem value="Liter">Liter</SelectItem>
+                      <SelectItem value="Piece">Piece</SelectItem>
+                      <SelectItem value="Box">Box</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="capacity">Capacity</Label>
+                  <Input
+                    id="capacity"
+                    type="text"
+                    value={product.capacity}
+                    onChange={(e) => setProduct({ ...product, capacity: e.target.value })}
+                    placeholder="1"
+                    className="border-gray-300"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maxOrderQuantity">Maximum Order Quantity</Label>
+                  <Input
+                    id="maxOrderQuantity"
+                    type="text"
+                    value={product.maxOrderQuantity}
+                    onChange={(e) => setProduct({ ...product, maxOrderQuantity: e.target.value })}
+                    placeholder="1"
+                    className="border-gray-300"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight (Kg)</Label>
+                  <Input
+                    id="weight"
+                    type="text"
+                    value={product.weight}
+                    onChange={(e) => setProduct({ ...product, weight: e.target.value })}
+                    placeholder="Ex : 1"
+                    className="border-gray-300"
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                <div className="text-sm mt-20 text-gray-600">
+                <div className="text-sm text-gray-600">
                   Turning Visibility off will not show this product in the user app and website
                 </div>
-                <div className="flex items-center gap-2 mt-20">
+                <div className="flex items-center gap-2">
                   <span className="font-medium">Visibility</span>
                   <Switch
                     checked={product.visibility}
@@ -366,8 +425,101 @@ export default function AddProductPage() {
         </div>
 
         {/* Price Information and Attributes Section */}
-        <div className="w-[50%]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column - Price Information */}
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
+            <div className="flex items-center mb-4">
+              <DollarSign className="mr-2 h-5 w-5" />
+              <h3 className="text-lg font-semibold">Price Information</h3>
+            </div>
+
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price">Default Unit Price</Label>
+                  <Input
+                    id="price"
+                    type="text"
+                    value={product.price}
+                    onChange={(e) => setProduct({ ...product, price: e.target.value })}
+                    placeholder="0"
+                    className="border-gray-300"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Product Stock</Label>
+                  <Input
+                    id="stock"
+                    type="text"
+                    value={product.stock}
+                    onChange={(e) => setProduct({ ...product, stock: e.target.value })}
+                    placeholder="0"
+                    className="border-gray-300"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="discountType">Discount Type</Label>
+                  <Select
+                    value={product.discountType}
+                    onValueChange={(value) => setProduct({ ...product, discountType: value })}
+                  >
+                    <SelectTrigger id="discountType" className="border-gray-300">
+                      <SelectValue placeholder="Amount" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Percentage">Percentage</SelectItem>
+                      <SelectItem value="Amount">Amount</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="discountValue">
+                    {product.discountType === "Percentage" ? "Discount (%)" : "Discount"}
+                  </Label>
+                  <Input
+                    id="discountValue"
+                    type="text"
+                    value={product.discountValue}
+                    onChange={(e) => setProduct({ ...product, discountValue: e.target.value })}
+                    placeholder="0"
+                    className="border-gray-300"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="taxType">Tax Type</Label>
+                  <Select value={product.taxType} onValueChange={(value) => setProduct({ ...product, taxType: value })}>
+                    <SelectTrigger id="taxType" className="border-gray-300">
+                      <SelectValue placeholder="Amount" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Percentage">Percentage</SelectItem>
+                      <SelectItem value="Amount">Amount</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="taxRate">{product.taxType === "Percentage" ? "Tax Rate (%)" : "Tax Rate"}</Label>
+                  <Input
+                    id="taxRate"
+                    type="text"
+                    value={product.taxRate}
+                    onChange={(e) => setProduct({ ...product, taxRate: e.target.value })}
+                    placeholder="0"
+                    className="border-gray-300"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Right Column - Attributes */}
           <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -409,17 +561,13 @@ export default function AddProductPage() {
                           <X className="h-4 w-4" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <Input value={attr.name} readOnly className="border-gray-300 bg-gray-50" />
                         <Input
-                          placeholder="Enter price"
+                          placeholder="Enter choice values"
                           value={attr.values}
                           onChange={(e) => updateAttributeValues(attr.name, e.target.value)}
                           className="border-gray-300"
-                        />
-                        <Input
-                          className="border-gray-300"
-                          placeholder="Enter After Discount price"
                         />
                       </div>
                     </div>

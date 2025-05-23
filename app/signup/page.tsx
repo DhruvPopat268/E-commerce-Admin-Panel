@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import axios from 'axios'
 
 export default function SignupPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
-    name: "",
+    
     email: "",
     password: "",
   })
@@ -25,13 +26,16 @@ export default function SignupPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault()
     // In a real app, you would handle signup with a backend service
-    console.log("Signup data:", formData)
+    const response = await axios.post('http://localhost:7000/auth/admin/signup',formData)
 
-    // For demo purposes, we'll just redirect to login
-    router.push("/login")
+    if(response.status === 200){
+      router.push("/login")
+    }
+
+    
   }
 
   return (
@@ -43,17 +47,7 @@ export default function SignupPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="John Doe"
-                required
-                value={formData.name}
-                onChange={handleChange}
-              />
-            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

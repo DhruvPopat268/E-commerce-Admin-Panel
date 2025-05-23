@@ -1,8 +1,7 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
+import axios from "axios"
 import Image from "next/image"
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -19,81 +18,81 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
 
-// Sample data for categories
-const initialCategories = [
-  {
-    id: 1,
-    name: "Meat and Fish",
-    image: "/placeholder.svg?height=60&width=60",
-    status: true,
-  },
-  {
-    id: 2,
-    name: "Fruits and Vegetables",
-    image: "/placeholder.svg?height=60&width=60",
-    status: false,
-  },
-  {
-    id: 3,
-    name: "Breakfast",
-    image: "/placeholder.svg?height=60&width=60",
-    status: true,
-  },
-  {
-    id: 4,
-    name: "Beverages",
-    image: "/placeholder.svg?height=60&width=60",
-    status: true,
-  },
-  {
-    id: 5,
-    name: "Health Care",
-    image: "/placeholder.svg?height=60&width=60",
-    status: true,
-  },
-  {
-    id: 6,
-    name: "Cleaning",
-    image: "/placeholder.svg?height=60&width=60",
-    status: true,
-  },
-]
+type Category = {
+  _id: string
+  name: string
+  image: string
+  status: boolean
+}
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState(initialCategories)
+  const [categories, setCategories] = useState<Category[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newCategory, setNewCategory] = useState({ name: "", image: "", status: true })
+  const [newCategory, setNewCategory] = useState({ name: "", status: true })
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+
+  const [isMounted, setIsMounted] = useState(false)
+  
+  // Fetch categories from backend on component mount
+  useEffect(() => {
+    setIsMounted(true)
+    fetchCategories()
+  }, [])
+
+  async function fetchCategories() {
+    try {
+      const res = await axios.get("http://localhost:7000/api/categories")
+      setCategories(res.data)
+    } catch (error) {
+      console.error("Failed to fetch categories", error)
+    }
+  }
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCategory.name.trim() === "") return
 
-    const newId = Math.max(0, ...categories.map((c) => c.id)) + 1
-    const imageUrl = previewImage || "/placeholder.svg?height=60&width=60"
+    if (!imageFile) {
+      alert("Please select an image")
+      return
+    }
 
-    setCategories([
-      ...categories,
-      {
-        id: newId,
-        name: newCategory.name,
-        image: imageUrl,
-        status: newCategory.status,
-      },
-    ])
+    const formData = new FormData()
+    formData.append("name", newCategory.name)
+    formData.append("status", String(newCategory.status))
+    formData.append("image", imageFile)
 
-    setNewCategory({ name: "", image: "", status: true })
-    setPreviewImage(null)
-    setIsAddDialogOpen(false)
+    try {
+      const res = await axios.post("http://localhost:7000/api/categories", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+
+      // Append new category from response
+      setCategories([...categories, res.data.category])
+
+      // Reset form
+      setNewCategory({ name: "", status: true })
+      setImageFile(null)
+      setPreviewImage(null)
+      setIsAddDialogOpen(false)
+    } catch (error) {
+      console.error("Error adding category", error)
+      alert("Error adding category")
+    }
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setImageFile(file)
+
       const reader = new FileReader()
       reader.onload = (event) => {
         setPreviewImage(event.target?.result as string)
@@ -102,11 +101,16 @@ export default function CategoriesPage() {
     }
   }
 
-  const toggleStatus = (id: number) => {
+  const toggleStatus = async (id: string) => {
+    // Optionally implement API call to update status on backend
+    // For now just update frontend state
     setCategories(
-      categories.map((category) => (category.id === id ? { ...category, status: !category.status } : category)),
+      categories.map((cat) =>
+        cat._id === id ? { ...cat, status: !cat.status } : cat,
+      ),
     )
   }
+
 
   return (
     <div className="space-y-6">
@@ -136,7 +140,7 @@ export default function CategoriesPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button onClick={() => {}} className="bg-teal-600 hover:bg-teal-700 text-white">
+              <Button onClick={() => { }} className="bg-teal-600 hover:bg-teal-700 text-white">
                 Search
               </Button>
             </div>
@@ -155,7 +159,7 @@ export default function CategoriesPage() {
               </TableHeader>
               <TableBody>
                 {filteredCategories.map((category, index) => (
-                  <TableRow key={category.id}>
+                  <TableRow key={category._id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       <div className="relative h-16 w-16 border rounded-md overflow-hidden">
@@ -171,7 +175,7 @@ export default function CategoriesPage() {
                     <TableCell>
                       <Switch
                         checked={category.status}
-                        onCheckedChange={() => toggleStatus(category.id)}
+                        onCheckedChange={() => toggleStatus(category._id)}
                         className="data-[state=checked]:bg-teal-500"
                       />
                     </TableCell>
@@ -215,7 +219,7 @@ export default function CategoriesPage() {
               <Label htmlFor="image">Category Image</Label>
               <div className="flex items-center gap-4">
                 <Input id="image" type="file" accept="image/*" onChange={handleImageChange} className="flex-1" />
-                {previewImage && (
+                {isMounted && previewImage && (
                   <div className="relative h-16 w-16">
                     <Image
                       src={previewImage || "/placeholder.svg"}

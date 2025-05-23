@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import axios from 'axios'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -24,13 +25,19 @@ export default function LoginPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     // In a real app, you would handle login with a backend service
-    console.log("Login data:", formData)
+    const response = await axios.post('http://localhost:7000/auth/admin/login', formData, {
+      withCredentials: true,
+    })
+
+    if (response.status === 200) {
+      router.push("/dashboard")
+    }
 
     // For demo purposes, we'll just redirect to dashboard
-    router.push("/dashboard")
+
   }
 
   return (
