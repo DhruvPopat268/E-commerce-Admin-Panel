@@ -8,6 +8,7 @@ const AdminauthRoutes = require('./routes/AdminAuth');
 const categoryRoutes = require('./routes/categoryRoutes'); // import category routes
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
 const attributeRoutes = require("./routes/attributeRoutes");
+const productRoutes = require('./routes/productRoutes');
 const path = require('path');
 
 const app = express();
@@ -35,6 +36,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subCategoryRoutes);
 
 app.use("/api/attributes", attributeRoutes);
+
+app.use('/api/products', productRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);

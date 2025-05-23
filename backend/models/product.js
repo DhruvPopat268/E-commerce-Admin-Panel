@@ -1,29 +1,40 @@
-// models/Product.js
-import mongoose from "mongoose";
+import mongoose, { Schema, Document, model } from "mongoose"
 
-const AttributeSchema = new mongoose.Schema({
-  name: String,
-  values: String,
-});
+export interface IAttribute {
+  name: string
+  values: string // comma-separated or pipe-separated string (e.g., "Red,Blue,Green")
+}
 
-const ProductSchema = new mongoose.Schema(
+export interface IProduct extends Document {
+  name: string
+  description: string
+  category: string
+  subCategory: string
+  image: string
+  visibility: boolean
+  tags: string[]
+  attributes: IAttribute[]
+}
+
+const AttributeSchema = new Schema<IAttribute>({
+  name: { type: String, required: true },
+  values: { type: String, required: true },
+})
+
+const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true },
-    description: String,
-    category: String,
-    subCategory: String,
-    visibility: Boolean,
-    image: String,
-    price: String,
-    stock: String,
-    discountType: String,
-    discountValue: String,
-    taxType: String,
-    taxRate: String,
-    tags: [String],
-    attributes: [AttributeSchema],
+    description: { type: String, required: true },
+    category: { type: String, required: true },
+    subCategory: { type: String, required: true },
+    image: { type: String, required: true }, // store URL or base64
+    visibility: { type: Boolean, default: true },
+    tags: { type: [String], default: [] },
+    attributes: { type: [AttributeSchema], default: [] },
   },
-  { timestamps: true }
-);
+  {
+    timestamps: true,
+  }
+)
 
-export default mongoose.models.Product || mongoose.model("Product", ProductSchema);
+export default mongoose.models.Product || model<IProduct>("Product", ProductSchema)

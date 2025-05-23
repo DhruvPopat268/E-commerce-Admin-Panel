@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import axios from "axios"
 
 // Sample data for categories
 const categories = [
@@ -65,11 +66,11 @@ export default function AddProductPage() {
     description: "",
     category: "",
     subCategory: "",
-    
+
     visibility: true,
     image: "",
-    
-   
+
+
   })
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,19 +131,30 @@ export default function AddProductPage() {
     setSelectedAttributes(selectedAttributes.map((attr) => (attr.name === attrName ? { ...attr, values } : attr)))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // In a real app, you would save the product to your database here
-    console.log("Product data:", {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const productData = {
       ...product,
-      image: previewImage,
+      image: previewImage, // this should be a URL or base64 string
       tags,
       attributes: selectedAttributes,
-    })
+    };
 
-    // Redirect back to the products list
-    router.push("/dashboard/products")
-  }
+    try {
+      const response = await axios.post("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/products", productData, {
+        withCredentials: true, // if your backend uses cookies for auth
+      });
+
+      console.log("Product saved:", response.data);
+
+      // Redirect after success
+      router.push("/dashboard/products");
+    } catch (error: any) {
+      console.error("Error saving product:", error.response?.data || error.message);
+      alert("Failed to create product. Check console for details.");
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -157,7 +169,7 @@ export default function AddProductPage() {
           {/* Left Column - Name and Description */}
           <div className="space-y-6">
             <div>
-             
+
 
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
