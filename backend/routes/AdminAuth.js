@@ -25,6 +25,7 @@ router.post('/signup', async (req, res) => {
       message: "Admin SignUp Successfully"
     });
   } catch (err) {
+    console.log(err)
     res.status(500).json({ message: 'Signup failed', error: err.message });
   }
 });
