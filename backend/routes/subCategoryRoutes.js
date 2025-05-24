@@ -17,49 +17,39 @@ router.get("/", async (req, res) => {
 });
 
 // Add a new subcategory
-router.post('/', upload.single('image'), async (req, res) => {
+// PATCH /api/subcategories/:id
+router.patch('/:id', upload.single('image'), async (req, res) => {
   const { categoryId, name, status } = req.body;
-  const imageFile = req.file; // Get the uploaded file
-
-  if (!categoryId || !name) {
-    return res.status(400).json({ message: "Category and name are required" });
-  }
+  const imageFile = req.file;
 
   try {
-    // Create subcategory object with or without image
-    const subCategoryData = {
-      category: categoryId,
-      name,
-      status: status !== undefined ? status : true,
-    };
+    const updateData = {};
 
-    // If image was uploaded, add it to the data
+    if (categoryId) updateData.category = categoryId;
+    if (name) updateData.name = name;
+    if (status !== undefined) updateData.status = status;
     if (imageFile) {
-      // Here you would typically:
-      // 1. Upload to Cloudinary/S3
-      // 2. Get the image URL
-      // 3. Add to subCategoryData
-      subCategoryData.image = `/uploads/${imageFile.filename}`; // Temporary local path
-      // For production, use something like:
-      // subCategoryData.image = await uploadToCloudinary(imageFile);
+      updateData.image = `/uploads/${imageFile.filename}`;
+      // Or Cloudinary upload, if applicable
     }
 
-    const subCategory = new SubCategory(subCategoryData);
-    const savedSubCategory = await subCategory.save();
+    const updatedSubCategory = await SubCategory.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    ).populate('category', 'name');
 
-    // Populate category name and return the saved subcategory
-    const populatedSubCategory = await SubCategory.findById(savedSubCategory._id)
-      .populate('category', 'name');
+    if (!updatedSubCategory) {
+      return res.status(404).json({ message: 'Subcategory not found' });
+    }
 
-    res.status(201).json(populatedSubCategory);
+    res.json(updatedSubCategory);
   } catch (err) {
-    console.error('Error creating subcategory:', err);
-    res.status(500).json({
-      message: "Server error",
-      error: err.message
-    });
+    console.error('Error updating subcategory:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
+
 
 // Update subcategory (name/status)
 router.patch('/:id', async (req, res) => {
