@@ -8,7 +8,7 @@ const AdminauthRoutes = require('./routes/AdminAuth');
 const categoryRoutes = require('./routes/categoryRoutes'); // import category routes
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
 const attributeRoutes = require("./routes/attributeRoutes");
-const productRoutes = require('./routes/productRoutes');
+const productRoutes = require('./routes/ProductRoutes');
 const path = require('path');
 
 const app = express();
@@ -22,7 +22,9 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
 
 // Serve uploads folder statically for images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

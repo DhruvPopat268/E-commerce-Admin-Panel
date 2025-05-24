@@ -16,7 +16,6 @@ export default function SignupPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
-    
     email: "",
     password: "",
   })

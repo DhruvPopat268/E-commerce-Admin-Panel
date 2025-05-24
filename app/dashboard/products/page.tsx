@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Pencil, Trash2, Download, Package } from "lucide-react"
@@ -8,74 +8,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import axios from 'axios'
+import { useRouter } from 'next/navigation'
 
-// Sample data for products
-const initialProducts = [
-  {
-    id: 1,
-    name: "Premium Quality Body...",
-    image: "/placeholder.svg?height=60&width=60",
-    price: "470.00",
-    totalSale: 7,
-    showInDailyNeeds: false,
-    featured: false,
-    status: true,
-  },
-  {
-    id: 2,
-    name: "Glass cleaner Mop",
-    image: "/placeholder.svg?height=60&width=60",
-    price: "180.00",
-    totalSale: 5,
-    showInDailyNeeds: false,
-    featured: false,
-    status: true,
-  },
-  {
-    id: 3,
-    name: "Rok Cleaner - Super...",
-    image: "/placeholder.svg?height=60&width=60",
-    price: "205.00",
-    totalSale: 9,
-    showInDailyNeeds: true,
-    featured: false,
-    status: true,
-  },
-  {
-    id: 4,
-    name: "78% Alcohol Hand San...",
-    image: "/placeholder.svg?height=60&width=60",
-    price: "120.00",
-    totalSale: 2,
-    showInDailyNeeds: false,
-    featured: false,
-    status: true,
-  },
-  {
-    id: 5,
-    name: "Natural Bio Yogurt",
-    image: "/placeholder.svg?height=60&width=60",
-    price: "200.00",
-    totalSale: 4,
-    showInDailyNeeds: true,
-    featured: true,
-    status: true,
-  },
-  {
-    id: 6,
-    name: "Pure Mixed Fruits Ja...",
-    image: "/placeholder.svg?height=60&width=60",
-    price: "230.00",
-    totalSale: 2,
-    showInDailyNeeds: false,
-    featured: false,
-    status: true,
-  },
-]
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState(initialProducts)
+  const [products, setProducts] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
+
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`)
+        setProducts(response.data)
+      } catch (error) {
+        console.error("Failed to fetch products:", error)
+      }
+    }
+    fetchProducts()
+  },)
 
   const filteredProducts = products.filter(
     (product) =>
@@ -85,6 +37,7 @@ export default function ProductsPage() {
   const toggleShowInDailyNeeds = (id: number) => {
     setProducts(
       products.map((product) =>
+
         product.id === id ? { ...product, showInDailyNeeds: !product.showInDailyNeeds } : product,
       ),
     )
@@ -94,8 +47,42 @@ export default function ProductsPage() {
     setProducts(products.map((product) => (product.id === id ? { ...product, featured: !product.featured } : product)))
   }
 
-  const toggleStatus = (id: number) => {
-    setProducts(products.map((product) => (product.id === id ? { ...product, status: !product.status } : product)))
+  const toggleStatus = async (id: string) => {
+    // Find the product to toggle
+    const product = products.find(p => p._id === id)
+    if (!product) return
+
+    // Optimistic update of UI
+    const updatedProducts = products.map(p =>
+      p._id === id ? { ...p, status: !p.status } : p
+    )
+    setProducts(updatedProducts)
+
+    try {
+      // Make PATCH request to update status in backend
+      await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${id}/status`, {
+        status: !product.status,
+      })
+    } catch (error) {
+      console.error("Failed to update status:", error)
+      // Revert UI update on failure
+      setProducts(products)
+    }
+  }
+
+
+  const handleDelete = async (id: string) => {
+    try {
+      await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${id}`)
+      setProducts(products.filter((product) => product._id !== id))
+    } catch (error) {
+      console.error("Failed to delete product:", error)
+    }
+  }
+
+  const handleEdit = (id: string) => {
+    router.push(`/dashboard/products/add?id=${id}`)
+
   }
 
   return (
@@ -117,7 +104,7 @@ export default function ProductsPage() {
               className="pl-3"
             />
           </div>
-          <Button onClick={() => {}} className="bg-teal-600 hover:bg-teal-700 text-white">
+          <Button onClick={() => { }} className="bg-teal-600 hover:bg-teal-700 text-white">
             Search
           </Button>
         </div>
@@ -139,7 +126,7 @@ export default function ProductsPage() {
               <TableHead className="w-[60px]">SL</TableHead>
               <TableHead>Product Name</TableHead>
               <TableHead>Selling Price</TableHead>
-              <TableHead>Total Sale</TableHead>
+              <TableHead>Discounted Price</TableHead>
               <TableHead>Show In Daily Needs</TableHead>
               <TableHead>Featured</TableHead>
               <TableHead>Status</TableHead>
@@ -148,7 +135,7 @@ export default function ProductsPage() {
           </TableHeader>
           <TableBody>
             {filteredProducts.map((product, index) => (
-              <TableRow key={product.id}>
+              <TableRow key={product._id}>
                 <TableCell>{index + 1}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -163,8 +150,20 @@ export default function ProductsPage() {
                     <span>{product.name}</span>
                   </div>
                 </TableCell>
-                <TableCell>{product.price}$</TableCell>
-                <TableCell>{product.totalSale}</TableCell>
+                <TableCell>
+                  {(() => {
+                    const unitAttr = product.attributes?.find(attr => attr.name === "Unit");
+                    return unitAttr ? `${unitAttr.price}` : "N/A";
+                  })()}
+                </TableCell>
+                <TableCell>
+                  {(() => {
+                    const unitAttr = product.attributes?.find(attr => attr.name === "Unit");
+                    return unitAttr ? `${unitAttr.discountedPrice}` : "N/A";
+                  })()}
+                </TableCell>
+
+
                 <TableCell>
                   <Switch
                     checked={product.showInDailyNeeds}
@@ -182,22 +181,34 @@ export default function ProductsPage() {
                 <TableCell>
                   <Switch
                     checked={product.status}
-                    onCheckedChange={() => toggleStatus(product.id)}
+                    onCheckedChange={() => toggleStatus(product._id)}
                     className="data-[state=checked]:bg-teal-500"
                   />
+
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8 border-blue-500 text-blue-500">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 border-blue-500 text-blue-500"
+                      onClick={() => handleEdit(product._id)}
+                    >
                       <Pencil className="h-4 w-4" />
                       <span className="sr-only">Edit</span>
                     </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8 border-red-500 text-red-500">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 border-red-500 text-red-500"
+                      onClick={() => handleDelete(product._id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                       <span className="sr-only">Delete</span>
                     </Button>
                   </div>
                 </TableCell>
+
               </TableRow>
             ))}
           </TableBody>

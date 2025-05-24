@@ -46,7 +46,7 @@ export default function CategoriesPage() {
 
   async function fetchCategories() {
     try {
-      const res = await axios.get("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories")
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
       setCategories(res.data)
     } catch (error) {
       console.error("Failed to fetch categories", error)
@@ -113,7 +113,7 @@ export default function CategoriesPage() {
     try {
       // Send request to backend to update status
       console.log(id)
-      await axios.patch(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories/${id}`, {
+      await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${id}`, {
         status: updatedStatus,
       })
 

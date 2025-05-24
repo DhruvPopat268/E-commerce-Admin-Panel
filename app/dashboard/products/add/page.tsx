@@ -1,11 +1,11 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useRef, type KeyboardEvent } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useRef, useEffect, type KeyboardEvent } from "react"
+import { useRouter, useParams } from "next/navigation"
 import Image from "next/image"
-import { Cloud, Package, Tag, DollarSign, Settings, User, X } from "lucide-react"
+import axios from "axios"
+
+import { Package, Cloud, User, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,9 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import axios from "axios"
+import { Tag } from "lucide-react";
+import { Settings } from "lucide-react";
 
-// Sample data for categories
 const categories = [
   { id: 1, name: "Fruits and Vegetables" },
   { id: 2, name: "Meat and Fish" },
@@ -25,7 +25,6 @@ const categories = [
   { id: 6, name: "Cleaning" },
 ]
 
-// Sample data for subcategories
 const subcategories = {
   "Fruits and Vegetables": ["Vegetables", "Fruits", "Organic"],
   "Meat and Fish": ["Chicken", "Beef", "Fish"],
@@ -35,43 +34,117 @@ const subcategories = {
   Cleaning: ["Cleaning Supplies", "Detergents", "Air Fresheners"],
 }
 
-// Sample data for attributes
-const attributeOptions = [
-  { id: 1, name: "Size" },
-  { id: 2, name: "Color" },
-  { id: 3, name: "BOX" },
-  { id: 4, name: "CARTOON" },
-  { id: 5, name: "PSC" },
-]
-
-interface AttributeItem {
-  id: number
+interface AttributeOption {
+  _id: string
   name: string
-  values: string
+}
+
+interface AttributeItem extends AttributeOption {
+  price: string
+  discountedPrice: string
 }
 
 export default function AddProductPage() {
   const router = useRouter()
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState("")
-  const [selectedAttributes, setSelectedAttributes] = useState<AttributeItem[]>([])
-  const [currentAttribute, setCurrentAttribute] = useState<string>("")
-  const tagInputRef = useRef<HTMLInputElement>(null)
+  const params = useParams()
+  const productId = params?.productId as string | undefined
 
   const [product, setProduct] = useState({
     name: "",
     description: "",
     category: "",
     subCategory: "",
-
     visibility: true,
     image: "",
-
-
   })
+
+  const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([])
+  const [selectedAttributes, setSelectedAttributes] = useState<AttributeItem[]>([])
+  const [currentAttribute, setCurrentAttribute] = useState("")
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [fetchedCategories, setFetchedCategories] = useState<Category[]>([])
+  const [fetchedSubcategories, setFetchedSubcategories] = useState<Subcategory[]>([])
+
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState("")
+
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null)
+
+  const tagInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const attrRes = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`)
+        setAttributeOptions(attrRes.data)
+      } catch (err) {
+        console.error("Error fetching attributes:", err)
+      }
+
+      if (productId) {
+        try {
+          const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`)
+          const p = res.data
+
+          setProduct({
+            name: p.name || "",
+            description: p.description || "",
+            category: p.category || "",
+            subCategory: p.subCategory || "",
+            visibility: p.visibility ?? true,
+            image: p.image || "",
+          })
+
+          setPreviewImage(p.image || "")
+          setTags(p.tags || [])
+
+          if (p.category) {
+            setSelectedCategory(p.category)
+          }
+
+          if (p.subCategory) {
+            setSelectedSubCategory(p.subCategory)
+          }
+
+          if (p.attributes && Array.isArray(p.attributes)) {
+            const attrs = p.attributes.map((attr: any) => ({
+              _id: attr._id || "",
+              name: attr.name,
+              price: attr.price,
+              discountedPrice: attr.discountedPrice,
+            }))
+            setSelectedAttributes(attrs)
+          }
+
+        } catch (err) {
+          console.error("Failed to load product:", err)
+        }
+      }
+    }
+    fetchInitialData()
+
+    const fetchCategories = async () => {
+      try {
+        const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`) // Adjust if your API base path is different
+        setFetchedCategories(data)
+      } catch (err) {
+        console.error("Failed to fetch categories:", err)
+      }
+    }
+
+    const fetchSubcategories = async () => {
+      try {
+        const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+        setFetchedSubcategories(data)
+      } catch (err) {
+        console.error("Failed to fetch subcategories:", err)
+      }
+    }
+
+    fetchCategories()
+    fetchSubcategories()
+  }, [productId])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -79,10 +152,12 @@ export default function AddProductPage() {
       const reader = new FileReader()
       reader.onload = (event) => {
         setPreviewImage(event.target?.result as string)
+        setProduct(prev => ({ ...prev, image: "" })) // Clear product.image since we show preview
       }
       reader.readAsDataURL(file)
     }
   }
+
 
   const handleCategoryChange = (value: string) => {
     setProduct({ ...product, category: value, subCategory: "" })
@@ -105,57 +180,60 @@ export default function AddProductPage() {
     }
   }
 
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove))
+
+
+
+  const removeTag = (tag: string) => {
+    setTags(tags.filter(t => t !== tag))
   }
 
-  const handleAttributeSelect = (value: string) => {
-    setCurrentAttribute("")
-
-    // Find the attribute in options
-    const attributeOption = attributeOptions.find((attr) => attr.name === value)
-    if (!attributeOption) return
-
-    // Check if attribute is already selected
-    if (selectedAttributes.some((attr) => attr.name === value)) return
-
-    // Add the new attribute
-    setSelectedAttributes([...selectedAttributes, { id: attributeOption.id, name: value, values: "" }])
+  const handleAttributeSelect = (name: string) => {
+    const attr = attributeOptions.find(a => a.name === name)
+    if (attr && !selectedAttributes.some(a => a.name === name)) {
+      setSelectedAttributes([...selectedAttributes, { ...attr, price: "", discountedPrice: "" }])
+      setCurrentAttribute("")
+    }
   }
 
-  const removeAttribute = (attrName: string) => {
-    setSelectedAttributes(selectedAttributes.filter((attr) => attr.name !== attrName))
+  const removeAttribute = (name: string) => {
+    setSelectedAttributes(selectedAttributes.filter(a => a.name !== name))
   }
 
-  const updateAttributeValues = (attrName: string, values: string) => {
-    setSelectedAttributes(selectedAttributes.map((attr) => (attr.name === attrName ? { ...attr, values } : attr)))
+  const updateAttributeValues = (
+    name: string,
+    field: "price" | "discountedPrice",
+    value: string
+  ) => {
+    setSelectedAttributes(prev =>
+      prev.map(attr => attr.name === name ? { ...attr, [field]: value } : attr)
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
     const productData = {
       ...product,
-      image: previewImage, // this should be a URL or base64 string
+      image: previewImage,
       tags,
       attributes: selectedAttributes,
-    };
+    }
 
     try {
-      const response = await axios.post("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/products", productData, {
-        withCredentials: true, // if your backend uses cookies for auth
-      });
+      if (productId) {
+        // Update product
+        await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, productData)
+      } else {
+        // Create product
+        await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`, productData)
+      }
 
-      console.log("Product saved:", response.data);
-
-      // Redirect after success
-      router.push("/dashboard/products");
-    } catch (error: any) {
-      console.error("Error saving product:", error.response?.data || error.message);
-      alert("Failed to create product. Check console for details.");
+      router.push("/dashboard/products")
+    } catch (err: any) {
+      console.error("Save failed:", err.response?.data || err.message)
+      alert("Failed to save product.")
     }
-  };
-
+  }
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-2">
@@ -239,13 +317,14 @@ export default function AddProductPage() {
                       <SelectValue placeholder="---Select---" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.name}>
+                      {fetchedCategories.map((category) => (
+                        <SelectItem key={category._id} value={category._id}>
                           {category.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+
                 </div>
 
                 <div className="space-y-2">
@@ -259,14 +338,17 @@ export default function AddProductPage() {
                       <SelectValue placeholder="---Select---" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedCategory &&
-                        subcategories[selectedCategory as keyof typeof subcategories]?.map((subcat) => (
-                          <SelectItem key={subcat} value={subcat}>
-                            {subcat}
+                      {fetchedSubcategories
+                        .filter((subcat) => subcat.category === selectedCategory)
+                        .map((subcat) => (
+                          <SelectItem key={subcat._id} value={subcat.name}>
+                            {subcat.name}
                           </SelectItem>
                         ))}
+
                     </SelectContent>
                   </Select>
+
                 </div>
               </div>
 
@@ -343,9 +425,9 @@ export default function AddProductPage() {
             </div>
 
             <div className="border rounded-md p-2 flex flex-wrap gap-2 min-h-[42px]">
-              {tags.map((tag, index) => (
+              {tags.map((tag) => (
                 <Badge
-                  key={index}
+                  key={tag}
                   className="bg-green-500 hover:bg-green-600 px-3 py-1 text-white flex items-center gap-1"
                 >
                   {tag}
@@ -358,6 +440,7 @@ export default function AddProductPage() {
                   </button>
                 </Badge>
               ))}
+
               <input
                 ref={tagInputRef}
                 type="text"
@@ -418,16 +501,18 @@ export default function AddProductPage() {
                         <Input value={attr.name} readOnly className="border-gray-300 bg-gray-50" />
                         <Input
                           placeholder="Enter Price"
-                          value={attr.values}
-                          onChange={(e) => updateAttributeValues(attr.name, e.target.value)}
+                          value={attr.price}
+                          onChange={(e) => updateAttributeValues(attr.name, 'price', e.target.value)}
                           className="border-gray-300"
                         />
+
                         <Input
                           placeholder="Enter Price After Discount"
-                          value={attr.values}
-                          onChange={(e) => updateAttributeValues(attr.name, e.target.value)}
+                          value={attr.discountedPrice}
+                          onChange={(e) => updateAttributeValues(attr.name, 'discountedPrice', e.target.value)}
                           className="border-gray-300"
                         />
+
                       </div>
                     </div>
                   ))}

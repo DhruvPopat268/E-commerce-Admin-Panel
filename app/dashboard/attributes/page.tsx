@@ -42,7 +42,7 @@ export default function AttributesPage() {
     setLoading(true)
     setError("")
     try {
-      const response = await axios.get("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/attributes")
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`)
       setAttributes(response.data)
     } catch (err: any) {
       setError(err.message || "Failed to fetch attributes")
@@ -60,7 +60,7 @@ export default function AttributesPage() {
     setLoading(true)
     setError("")
     try {
-      const response = await axios.post("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/attributes", newAttribute)
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`, newAttribute)
       setAttributes((prev) => [...prev, response.data])
       setNewAttribute({ name: "" })
       setIsAddDialogOpen(false)
@@ -86,7 +86,7 @@ export default function AttributesPage() {
     setLoading(true)
     setError("")
     try {
-      const response = await axios.put(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/attributes/${id}`, { name: editName })
+      const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes/${id}`, { name: editName })
       setAttributes((prev) =>
         prev.map((attr) => (attr._id === id ? response.data : attr)),
       )
@@ -104,7 +104,7 @@ export default function AttributesPage() {
     setLoading(true)
     setError("")
     try {
-      await axios.delete(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/attributes/${id}`)
+      await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes/${id}`)
       setAttributes((prev) => prev.filter((attr) => attr._id !== id))
     } catch (err: any) {
       setError(err.message || "Failed to delete attribute")

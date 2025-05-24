@@ -42,8 +42,6 @@ router.post('/', async (req, res) => {
     }
 });
 
-
-
 // Update subcategory (name/status)
 router.patch('/:id', async (req, res) => {
   const { name, status } = req.body;

@@ -31,7 +31,7 @@ export default function SubCategoriesPage() {
   // Fetch categories from backend
   const fetchCategories = async () => {
     try {
-      const { data } = await axios.get("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories")
+      const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
       setCategories(data)
     } catch (err) {
       console.error("Failed to fetch categories", err)
@@ -41,7 +41,7 @@ export default function SubCategoriesPage() {
   // Fetch subcategories from backend
   const fetchSubCategories = async () => {
     try {
-      const { data } = await axios.get("https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/subcategories")
+      const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
       setSubCategories(data)
     } catch (err) {
       console.error("Failed to fetch subcategories", err)
@@ -65,7 +65,7 @@ export default function SubCategoriesPage() {
 
     try {
       if (isEditMode) {
-        const { data } = await axios.patch(`http://localhost:7000/api/subcategories/${editingId}`, {
+        const { data } = await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${editingId}`, {
           categoryId: newSubCategory.categoryId,
           name: newSubCategory.name,
           status: newSubCategory.status,
@@ -73,7 +73,7 @@ export default function SubCategoriesPage() {
 
         setSubCategories((prev) => prev.map((sc) => sc._id === editingId ? data : sc))
       } else {
-        const { data } = await axios.post("http://localhost:7000/api/subcategories", {
+        const { data } = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`, {
           categoryId: newSubCategory.categoryId,
           name: newSubCategory.name,
           status: newSubCategory.status,
@@ -95,7 +95,7 @@ export default function SubCategoriesPage() {
   // Toggle subcategory status via API PATCH
   const toggleStatus = async (id, currentStatus) => {
     try {
-      const { data } = await axios.patch(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/subcategories/${id}`, {
+      const { data } = await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${id}`, {
         status: !currentStatus,
       })
 
@@ -112,7 +112,7 @@ export default function SubCategoriesPage() {
     if (!confirm("Are you sure you want to delete this subcategory?")) return
 
     try {
-      await axios.delete(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/subcategories/${id}`)
+      await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${id}`)
       setSubCategories((prev) => prev.filter((sc) => sc._id !== id))
     } catch (err) {
       console.error(err)
