@@ -26,6 +26,8 @@ export default function SubCategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [loadingSubCategories, setLoadingSubCategories] = useState(true)
+
 
 
   // Fetch categories from backend
@@ -39,14 +41,25 @@ export default function SubCategoriesPage() {
   }
 
   // Fetch subcategories from backend
-  const fetchSubCategories = async () => {
-    try {
-      const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
-      setSubCategories(data)
-    } catch (err) {
-      console.error("Failed to fetch subcategories", err)
+  const fetchSubCategories = async (retries = 5, delay = 1000) => {
+  try {
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+    if (response.status === 200) {
+      setSubCategories(response.data)
+      setLoadingSubCategories(false) // ✅ Done loading
+    } else {
+      throw new Error("Non-200 status")
+    }
+  } catch (err) {
+    console.error("Failed to fetch subcategories", err)
+    if (retries > 0) {
+      setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
+    } else {
+      setLoadingSubCategories(false) // ❌ Stop loader after retries fail
     }
   }
+}
+
 
   useEffect(() => {
     fetchCategories()
@@ -118,6 +131,15 @@ export default function SubCategoriesPage() {
       console.error(err)
     }
   }
+
+  if (loadingSubCategories) {
+  return (
+    <div className="flex justify-center items-center h-[70vh]">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+    </div>
+  )
+}
+
 
   return (
     <div className="space-y-6">

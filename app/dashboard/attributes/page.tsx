@@ -29,6 +29,8 @@ export default function AttributesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+ 
+
 
   // For editing
   const [editId, setEditId] = useState<string | null>(null)
@@ -38,18 +40,28 @@ export default function AttributesPage() {
     fetchAttributes()
   }, [])
 
-  async function fetchAttributes() {
-    setLoading(true)
-    setError("")
-    try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`)
+  const fetchAttributes = async (retries = 5, delay = 1000) => {
+  setLoading(true)
+  setError("")
+  try {
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`)
+    if (response.status === 200) {
       setAttributes(response.data)
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch attributes")
-    } finally {
+      setLoading(false)
+    } else {
+      throw new Error("Non-200 status")
+    }
+  } catch (err: any) {
+    console.error("Failed to fetch attributes:", err)
+    if (retries > 0) {
+      setTimeout(() => fetchAttributes(retries - 1, delay * 2), delay)
+    } else {
+      setError(err.message || "Failed to fetch attributes after retries")
       setLoading(false)
     }
   }
+}
+
 
   const filteredAttributes = attributes.filter((attribute) =>
     attribute.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -112,6 +124,14 @@ export default function AttributesPage() {
       setLoading(false)
     }
   }
+
+  if (loading) {
+  return (
+    <div className="flex justify-center items-center h-[70vh]">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+    </div>
+  )
+}
 
   return (
     <div className="space-y-6">

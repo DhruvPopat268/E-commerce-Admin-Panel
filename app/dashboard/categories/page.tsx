@@ -37,6 +37,8 @@ export default function CategoriesPage() {
 
 
   const [isMounted, setIsMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
 
   // Fetch categories from backend on component mount
   useEffect(() => {
@@ -45,14 +47,19 @@ export default function CategoriesPage() {
   },[])
 
   async function fetchCategories() {
-    try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
+  try {
+    setIsLoading(true)
+    const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
+    if (res.status === 200) {
       setCategories(res.data)
-      console.log(res.data)
-    } catch (error) {
-      console.error("Failed to fetch categories", error)
     }
+  } catch (error) {
+    console.error("Failed to fetch categories", error)
+  } finally {
+    setIsLoading(false)
   }
+}
+
 
   const filteredCategories = categories.filter(
     (category) => category && category.name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -175,6 +182,15 @@ export default function CategoriesPage() {
       alert("Delete failed")
     }
   }
+
+ if (isLoading) {
+  return (
+    <div className="flex justify-center items-center h-[70vh]">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+    </div>
+  )
+}
+
 
   return (
     <div className="space-y-6">

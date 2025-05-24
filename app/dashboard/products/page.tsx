@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect , useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Pencil, Trash2, Download, Package } from "lucide-react"
@@ -15,24 +15,38 @@ import { useRouter } from 'next/navigation'
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+
   const router = useRouter()
 
   useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`)
+  async function fetchProducts() {
+    try {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`)
+      
+      if (response.status === 200) {
         setProducts(response.data)
-      } catch (error) {
-        console.error("Failed to fetch products:", error)
+      } else {
+        console.error("Unexpected response:", response)
       }
+    } catch (error) {
+      console.error("Failed to fetch products:", error)
+    } finally {
+      setIsLoading(false)
     }
-    fetchProducts()
-  },)
+  }
+  fetchProducts()
+}, [])
 
-  const filteredProducts = products.filter(
+
+  const filteredProducts = useMemo(() => {
+  return products.filter(
     (product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) || product.id.toString().includes(searchQuery),
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.id?.toString().includes(searchQuery),
   )
+}, [products, searchQuery])
+
 
   const toggleShowInDailyNeeds = (id: number) => {
     setProducts(
@@ -85,7 +99,16 @@ export default function ProductsPage() {
 
   }
 
+  if (isLoading) {
   return (
+    <div className="flex justify-center items-center h-[70vh]">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+    </div>
+  )
+}
+
+  return (
+    
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Package className="h-8 w-8 text-amber-600" />

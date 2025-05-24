@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
     try {
         let products = await Product.find({})
 
-        res.json(products);
+        res.status(200).json(products);
     } catch (err) {
         console.log("Error: " + err);
     }

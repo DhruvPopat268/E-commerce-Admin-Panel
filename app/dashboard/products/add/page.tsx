@@ -128,6 +128,7 @@ export default function AddProductPage() {
       try {
         const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`) // Adjust if your API base path is different
         setFetchedCategories(data)
+
       } catch (err) {
         console.error("Failed to fetch categories:", err)
       }
@@ -137,6 +138,8 @@ export default function AddProductPage() {
       try {
         const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         setFetchedSubcategories(data)
+
+
       } catch (err) {
         console.error("Failed to fetch subcategories:", err)
       }
@@ -144,7 +147,11 @@ export default function AddProductPage() {
 
     fetchCategories()
     fetchSubcategories()
-  }, [productId])
+
+    console.log("Selected Category ID:", selectedCategory)
+    console.log("All Subcategories:", fetchedSubcategories)
+
+  }, [productId, selectedCategory])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -307,7 +314,7 @@ export default function AddProductPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 ">
                 <div className="space-y-2">
                   <Label htmlFor="category">
                     Category <span className="text-red-500">*</span>
@@ -339,32 +346,42 @@ export default function AddProductPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {fetchedSubcategories
-                        .filter((subcat) => subcat.category === selectedCategory)
+                        .filter((subcat) => subcat.category._id === selectedCategory)
                         .map((subcat) => (
                           <SelectItem key={subcat._id} value={subcat.name}>
                             {subcat.name}
                           </SelectItem>
                         ))}
-
                     </SelectContent>
                   </Select>
 
+
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                <div className="text-sm text-gray-600 mt-20">
+              {/* <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-gray-600 ">
                   Turning Visibility off will not show this product in the user app and website
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium mt-20">Visibility</span>
+                  <span className="font-medium mt-20 mr-20">Visibility</span>
                   <Switch
                     checked={product.visibility}
                     onCheckedChange={(checked) => setProduct({ ...product, visibility: checked })}
-                    className="data-[state=checked]:bg-teal-500 mt-20"
+                    className="data-[state=checked]:bg-teal-500 mt-20 mr-40"
+                  />
+                </div>
+              </div> */}
+              <div className="">
+                <div className="mt-5 relative top-11 text-sm text-gray-600">Turning Visibility off will not show this product in the user app and website</div>
+                <div className="flex items-center">
+                  <span className="font-medium relative top-14">Visibility</span>
+                  <Switch checked={product.visibility} onCheckedChange={(checked) => setProduct({ ...product, visibility: checked })}
+                    className="data-[state=checked]:bg-teal-500 relative top-14 ml-3 "
                   />
                 </div>
               </div>
+
             </div>
           </div>
         </div>
