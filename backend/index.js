@@ -8,7 +8,7 @@ const AdminauthRoutes = require('./routes/AdminAuth');
 const categoryRoutes = require('./routes/categoryRoutes'); // import category routes
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
 const attributeRoutes = require("./routes/attributeRoutes");
-const productRoutes = require('./routes/ProductRoutes');
+const productRoutes = require('./routes/product');
 const path = require('path');
 
 const app = express();
