@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import axios from "axios"
-import { Pencil, Plus, Search, Trash2 } from "lucide-react"
+import Image from "next/image"
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,13 +23,17 @@ export default function SubCategoriesPage() {
   const [subCategories, setSubCategories] = useState([])
   const [categories, setCategories] = useState([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [newSubCategory, setNewSubCategory] = useState({ categoryId: "", name: "", status: true })
+  const [newSubCategory, setNewSubCategory] = useState({ 
+    categoryId: "", 
+    name: "", 
+    status: true 
+  })
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [loadingSubCategories, setLoadingSubCategories] = useState(true)
-
-
 
   // Fetch categories from backend
   const fetchCategories = async () => {
@@ -42,29 +47,28 @@ export default function SubCategoriesPage() {
 
   // Fetch subcategories from backend
   const fetchSubCategories = async (retries = 5, delay = 1000) => {
-  try {
-    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
-    if (response.status === 200) {
-      setSubCategories(response.data)
-      setLoadingSubCategories(false) // ✅ Done loading
-    } else {
-      throw new Error("Non-200 status")
-    }
-  } catch (err) {
-    console.error("Failed to fetch subcategories", err)
-    if (retries > 0) {
-      setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
-    } else {
-      setLoadingSubCategories(false) // ❌ Stop loader after retries fail
+    try {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+      if (response.status === 200) {
+        setSubCategories(response.data)
+        setLoadingSubCategories(false)
+      } else {
+        throw new Error("Non-200 status")
+      }
+    } catch (err) {
+      console.error("Failed to fetch subcategories", err)
+      if (retries > 0) {
+        setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
+      } else {
+        setLoadingSubCategories(false)
+      }
     }
   }
-}
-
 
   useEffect(() => {
     fetchCategories()
     fetchSubCategories()
-  })
+  }, [])
 
   const filteredSubCategories = subCategories.filter(
     (subCategory) =>
@@ -72,30 +76,61 @@ export default function SubCategoriesPage() {
       (subCategory.category?.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setPreviewImage(event.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   // Add new subcategory via API
   const handleSaveSubCategory = async () => {
     if (!newSubCategory.name.trim() || !newSubCategory.categoryId) return
 
+    const formData = new FormData()
+    formData.append("categoryId", newSubCategory.categoryId)
+    formData.append("name", newSubCategory.name)
+    formData.append("status", String(newSubCategory.status))
+    if (imageFile) {
+      formData.append("image", imageFile)
+    }
+
     try {
       if (isEditMode) {
-        const { data } = await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${editingId}`, {
-          categoryId: newSubCategory.categoryId,
-          name: newSubCategory.name,
-          status: newSubCategory.status,
-        })
+        const { data } = await axios.patch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${editingId}`, 
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        )
 
         setSubCategories((prev) => prev.map((sc) => sc._id === editingId ? data : sc))
       } else {
-        const { data } = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`, {
-          categoryId: newSubCategory.categoryId,
-          name: newSubCategory.name,
-          status: newSubCategory.status,
-        })
+        const { data } = await axios.post(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`, 
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        )
 
         setSubCategories((prev) => [...prev, data])
       }
 
       setNewSubCategory({ categoryId: "", name: "", status: true })
+      setImageFile(null)
+      setPreviewImage(null)
       setIsAddDialogOpen(false)
       setIsEditMode(false)
       setEditingId(null)
@@ -103,7 +138,6 @@ export default function SubCategoriesPage() {
       console.error(err)
     }
   }
-
 
   // Toggle subcategory status via API PATCH
   const toggleStatus = async (id, currentStatus) => {
@@ -133,13 +167,12 @@ export default function SubCategoriesPage() {
   }
 
   if (loadingSubCategories) {
-  return (
-    <div className="flex justify-center items-center h-[70vh]">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
-    </div>
-  )
-}
-
+    return (
+      <div className="flex justify-center items-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -186,6 +219,7 @@ export default function SubCategoriesPage() {
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead className="w-[80px]">SL</TableHead>
+                  <TableHead className="w-[150px]">Image</TableHead>
                   <TableHead>Main Category</TableHead>
                   <TableHead>Sub Category</TableHead>
                   <TableHead>Status</TableHead>
@@ -196,8 +230,19 @@ export default function SubCategoriesPage() {
                 {filteredSubCategories.map((subCategory, index) => (
                   <TableRow key={subCategory._id || subCategory.id}>
                     <TableCell>{index + 1}</TableCell>
+                    <TableCell>
+                      {subCategory.image && (
+                        <div className="relative h-16 w-16 border rounded-md overflow-hidden">
+                          <Image
+                            src={subCategory.image || "/placeholder.svg"}
+                            alt={subCategory.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>{subCategory.category?.name || "N/A"}</TableCell>
-
                     <TableCell>{subCategory.name}</TableCell>
                     <TableCell>
                       <Switch
@@ -218,6 +263,7 @@ export default function SubCategoriesPage() {
                               name: subCategory.name,
                               status: subCategory.status,
                             })
+                            setPreviewImage(subCategory.image || null)
                             setEditingId(subCategory._id)
                             setIsEditMode(true)
                             setIsAddDialogOpen(true)
@@ -249,8 +295,10 @@ export default function SubCategoriesPage() {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add New Sub Category</DialogTitle>
-            <DialogDescription>Create a new sub category for your products.</DialogDescription>
+            <DialogTitle>{isEditMode ? "Edit" : "Add New"} Sub Category</DialogTitle>
+            <DialogDescription>
+              {isEditMode ? "Update" : "Create"} a sub category for your products.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -281,6 +329,40 @@ export default function SubCategoriesPage() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="image">Sub Category Image</Label>
+              <div className="flex items-center gap-4">
+                <Input 
+                  id="image" 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleImageChange} 
+                  className="flex-1" 
+                />
+                {previewImage && (
+                  <div className="relative h-16 w-16">
+                    <Image
+                      src={previewImage}
+                      alt="Preview"
+                      fill
+                      className="rounded-md object-cover"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-background"
+                      onClick={() => {
+                        setPreviewImage(null)
+                        setImageFile(null)
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Remove image</span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-2">
               <Label>Status</Label>
               <div className="flex items-center space-x-2">
                 <Switch
@@ -293,13 +375,16 @@ export default function SubCategoriesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsAddDialogOpen(false)
+              setPreviewImage(null)
+              setImageFile(null)
+            }}>
               Cancel
             </Button>
             <Button onClick={handleSaveSubCategory} className="bg-teal-600 hover:bg-teal-700">
               {isEditMode ? "Update Sub Category" : "Add Sub Category"}
             </Button>
-
           </DialogFooter>
         </DialogContent>
       </Dialog>
