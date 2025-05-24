@@ -79,7 +79,7 @@ export default function CategoriesPage() {
     formData.append("image", imageFile)
 
     try {
-      const res = await axios.post("http://localhost:7000/api/categories", formData, {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

@@ -19,22 +19,26 @@ const upload = multer({ storage });
 // POST create category with image upload
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, status } = req.body;
-    let imageUrl = "";
+    // const { name, status } = req.body;
+    // let imageUrl = "";
 
-    if (req.file) {
-      imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    }
+    // if (req.file) {
+    //   imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    // }
 
-    const category = new Category({
-      name,
-      image: imageUrl,
-      status: status === 'true',
-    });
+    // const category = new Category({
+    //   name,
+    //   image: imageUrl,
+    //   status: status === 'true',
+    // });
 
-    await category.save();
+    // await category.save();
 
+    // res.status(201).json(category);
+    const category = new Category(req.body)
+    await category.save()
     res.status(201).json(category);
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
