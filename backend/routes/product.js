@@ -3,6 +3,21 @@ const router = express.Router();
 const Product = require('../models/product');
 
 // POST /api/products - create new product
+
+router.get("/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    res.status(200).json(product);
+  } catch (error) {
+    console.error("Error fetching product by ID:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     // You can pass all fields from req.body including status or omit it (it will default to true)
@@ -81,6 +96,10 @@ router.patch("/:id/status", async (req, res) => {
     res.status(500).json({ error: "Server error." });
   }
 });
+
+// GET /api/products/:id - get a single product by ID
+
+
 
 
 module.exports = router;

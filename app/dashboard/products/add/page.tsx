@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, type KeyboardEvent } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import axios from "axios"
 
@@ -16,38 +16,37 @@ import { Badge } from "@/components/ui/badge"
 import { Tag } from "lucide-react";
 import { Settings } from "lucide-react";
 
-const categories = [
-  { id: 1, name: "Fruits and Vegetables" },
-  { id: 2, name: "Meat and Fish" },
-  { id: 3, name: "Dairy" },
-  { id: 4, name: "Beverages" },
-  { id: 5, name: "Health Care" },
-  { id: 6, name: "Cleaning" },
-]
+interface Category {
+  _id: string;
+  name: string;
+}
 
-const subcategories = {
-  "Fruits and Vegetables": ["Vegetables", "Fruits", "Organic"],
-  "Meat and Fish": ["Chicken", "Beef", "Fish"],
-  Dairy: ["Milk", "Cheese", "Yogurt"],
-  Beverages: ["Soft Drinks", "Tea & Coffee", "Juice"],
-  "Health Care": ["Antiseptics", "Medicines", "Personal Care"],
-  Cleaning: ["Cleaning Supplies", "Detergents", "Air Fresheners"],
+interface Subcategory {
+  _id: string;
+  name: string;
+  category: {
+    _id: string;
+    name: string;
+  };
 }
 
 interface AttributeOption {
-  _id: string
-  name: string
+  _id: string;
+  name: string;
 }
 
 interface AttributeItem extends AttributeOption {
-  price: string
-  discountedPrice: string
+  price: string;
+  discountedPrice: string;
 }
 
 export default function AddProductPage() {
-  const router = useRouter()
-  const params = useParams()
-  const productId = params?.productId as string | undefined
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const productId = searchParams.get('productId');
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [product, setProduct] = useState({
     name: "",
@@ -56,155 +55,141 @@ export default function AddProductPage() {
     subCategory: "",
     visibility: true,
     image: "",
-  })
+  });
 
-  const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([])
-  const [selectedAttributes, setSelectedAttributes] = useState<AttributeItem[]>([])
-  const [currentAttribute, setCurrentAttribute] = useState("")
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const [fetchedCategories, setFetchedCategories] = useState<Category[]>([])
-  const [fetchedSubcategories, setFetchedSubcategories] = useState<Subcategory[]>([])
+  const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([]);
+  const [selectedAttributes, setSelectedAttributes] = useState<AttributeItem[]>([]);
+  const [currentAttribute, setCurrentAttribute] = useState("");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [fetchedCategories, setFetchedCategories] = useState<Category[]>([]);
+  const [fetchedSubcategories, setFetchedSubcategories] = useState<Subcategory[]>([]);
 
-  const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState("")
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
 
-  const tagInputRef = useRef<HTMLInputElement>(null)
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
+  // Update your useEffect for data fetching
   useEffect(() => {
     const fetchInitialData = async () => {
+      setIsLoading(true);
+      setError(null);
+
       try {
-        const attrRes = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`)
-        setAttributeOptions(attrRes.data)
-      } catch (err) {
-        console.error("Error fetching attributes:", err)
-      }
+        // Fetch all necessary data in parallel
+        const [attrRes, categoriesRes, subcategoriesRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`),
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`),
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+        ]);
 
-      if (productId) {
-        try {
-          const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`)
-          const p = res.data
+        setAttributeOptions(attrRes.data);
+        setFetchedCategories(categoriesRes.data);
+        setFetchedSubcategories(subcategoriesRes.data);
 
+        // If we're in edit mode, fetch the product data
+        if (productId) {
+          const productRes = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`);
+          const productData = productRes.data;
+
+          // Set the product state first
           setProduct({
-            name: p.name || "",
-            description: p.description || "",
-            category: p.category || "",
-            subCategory: p.subCategory || "",
-            visibility: p.visibility ?? true,
-            image: p.image || "",
-          })
+            name: productData.name || "",
+            description: productData.description || "",
+            category: productData.category?._id || productData.category || "",
+            subCategory: productData.subCategory?._id || productData.subCategory || "",
+            visibility: productData.visibility ?? true,
+            image: productData.image || "",
+          });
 
-          setPreviewImage(p.image || "")
-          setTags(p.tags || [])
+          setPreviewImage(productData.image || null);
+          setTags(productData.tags || []);
 
-          if (p.category) {
-            setSelectedCategory(p.category)
+          // Now set the selected category and subcategory
+          if (productData.category) {
+            const categoryId = productData.category._id || productData.category;
+            setSelectedCategory(categoryId);
+
+            // If subcategory exists, set it after a small delay to ensure category is set
+            if (productData.subCategory) {
+              setTimeout(() => {
+                setSelectedSubCategory(productData.subCategory._id || productData.subCategory);
+              }, 100);
+            }
           }
 
-          if (p.subCategory) {
-            setSelectedSubCategory(p.subCategory)
-          }
-
-          if (p.attributes && Array.isArray(p.attributes)) {
-            const attrs = p.attributes.map((attr: any) => ({
+          if (productData.attributes && Array.isArray(productData.attributes)) {
+            const attrs = productData.attributes.map((attr: any) => ({
               _id: attr._id || "",
               name: attr.name,
-              price: attr.price,
-              discountedPrice: attr.discountedPrice,
-            }))
-            setSelectedAttributes(attrs)
+              price: attr.price.toString(),
+              discountedPrice: attr.discountedPrice.toString(),
+            }));
+            setSelectedAttributes(attrs);
           }
-
-        } catch (err) {
-          console.error("Failed to load product:", err)
         }
-      }
-    }
-    fetchInitialData()
-
-    const fetchCategories = async () => {
-      try {
-        const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`) // Adjust if your API base path is different
-        setFetchedCategories(data)
-
       } catch (err) {
-        console.error("Failed to fetch categories:", err)
+        console.error("Error loading data:", err);
+        setError("Failed to load product data. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    const fetchSubcategories = async () => {
-      try {
-        const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
-        setFetchedSubcategories(data)
-
-
-      } catch (err) {
-        console.error("Failed to fetch subcategories:", err)
-      }
-    }
-
-    fetchCategories()
-    fetchSubcategories()
-
-    console.log("Selected Category ID:", selectedCategory)
-    console.log("All Subcategories:", fetchedSubcategories)
-
-  }, [productId, selectedCategory])
+    fetchInitialData();
+  }, [productId]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (event) => {
-        setPreviewImage(event.target?.result as string)
-        setProduct(prev => ({ ...prev, image: "" })) // Clear product.image since we show preview
-      }
-      reader.readAsDataURL(file)
+        setPreviewImage(event.target?.result as string);
+        setProduct(prev => ({ ...prev, image: "" }));
+      };
+      reader.readAsDataURL(file);
     }
-  }
-
+  };
 
   const handleCategoryChange = (value: string) => {
-    setProduct({ ...product, category: value, subCategory: "" })
-    setSelectedCategory(value)
-    setSelectedSubCategory(null)
-  }
+    setProduct({ ...product, category: value, subCategory: "" });
+    setSelectedCategory(value);
+    setSelectedSubCategory(null);
+  };
 
   const handleSubCategoryChange = (value: string) => {
-    setProduct({ ...product, subCategory: value })
-    setSelectedSubCategory(value)
-  }
+    setProduct({ ...product, subCategory: value });
+    setSelectedSubCategory(value);
+  };
 
   const handleTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && tagInput.trim()) {
-      e.preventDefault()
+      e.preventDefault();
       if (!tags.includes(tagInput.trim())) {
-        setTags([...tags, tagInput.trim()])
+        setTags([...tags, tagInput.trim()]);
       }
-      setTagInput("")
+      setTagInput("");
     }
-  }
-
-
-
+  };
 
   const removeTag = (tag: string) => {
-    setTags(tags.filter(t => t !== tag))
-  }
+    setTags(tags.filter(t => t !== tag));
+  };
 
   const handleAttributeSelect = (name: string) => {
-    const attr = attributeOptions.find(a => a.name === name)
+    const attr = attributeOptions.find(a => a.name === name);
     if (attr && !selectedAttributes.some(a => a.name === name)) {
-      setSelectedAttributes([...selectedAttributes, { ...attr, price: "", discountedPrice: "" }])
-      setCurrentAttribute("")
+      setSelectedAttributes([...selectedAttributes, { ...attr, price: "", discountedPrice: "" }]);
+      setCurrentAttribute("");
     }
-  }
+  };
 
   const removeAttribute = (name: string) => {
-    setSelectedAttributes(selectedAttributes.filter(a => a.name !== name))
-  }
+    setSelectedAttributes(selectedAttributes.filter(a => a.name !== name));
+  };
 
   const updateAttributeValues = (
     name: string,
@@ -213,40 +198,60 @@ export default function AddProductPage() {
   ) => {
     setSelectedAttributes(prev =>
       prev.map(attr => attr.name === name ? { ...attr, [field]: value } : attr)
-    )
-  }
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
     const productData = {
       ...product,
       image: previewImage,
       tags,
       attributes: selectedAttributes,
-    }
+    };
 
     try {
       if (productId) {
-        // Update product
-        await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, productData)
+        // Update existing product
+        await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, productData);
       } else {
-        // Create product
-        await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`, productData)
+        // Create new product
+        await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`, productData);
       }
-
-      router.push("/dashboard/products")
-    } catch (err: any) {
-      console.error("Save failed:", err.response?.data || err.message)
-      alert("Failed to save product.")
+      router.push("/dashboard/products");
+    } catch (err) {
+      console.error("Save failed:", err);
+      setError("Failed to save product. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+      </div>
+    );
   }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-2">
         <Package className="h-8 w-8 text-amber-600" />
-        <h2 className="text-3xl font-bold tracking-tight">Add New Product</h2>
+        <h2 className="text-3xl font-bold tracking-tight">
+          {productId ? "Edit Product" : "Add New Product"}
+        </h2>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Name and Category Section */}
@@ -254,8 +259,6 @@ export default function AddProductPage() {
           {/* Left Column - Name and Description */}
           <div className="space-y-6">
             <div>
-
-
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input
@@ -314,12 +317,16 @@ export default function AddProductPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4 ">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="category">
                     Category <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={product.category} onValueChange={handleCategoryChange} required>
+                  <Select
+                    value={product.category}
+                    onValueChange={handleCategoryChange}
+                    required
+                  >
                     <SelectTrigger id="category" className="border-gray-300">
                       <SelectValue placeholder="---Select---" />
                     </SelectTrigger>
@@ -331,57 +338,44 @@ export default function AddProductPage() {
                       ))}
                     </SelectContent>
                   </Select>
-
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="subcategory">Sub Category</Label>
                   <Select
-                    value={product.subCategory}
-                    onValueChange={handleSubCategoryChange}
-                    disabled={!selectedCategory}
-                  >
-                    <SelectTrigger id="subcategory" className="border-gray-300">
-                      <SelectValue placeholder="---Select---" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fetchedSubcategories
-                        .filter((subcat) => subcat.category._id === selectedCategory)
-                        .map((subcat) => (
-                          <SelectItem key={subcat._id} value={subcat.name}>
-                            {subcat.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-
-
+  value={product.subCategory}
+  onValueChange={handleSubCategoryChange}
+  disabled={!selectedCategory}
+>
+  <SelectTrigger id="subcategory" className="border-gray-300">
+    <SelectValue placeholder="---Select---" />
+  </SelectTrigger>
+  <SelectContent>
+    {fetchedSubcategories
+      .filter((subcat) => subcat.category._id === selectedCategory)
+      .map((subcat) => (
+        <SelectItem key={subcat._id} value={subcat._id}>
+          {subcat.name}
+        </SelectItem>
+      ))}
+  </SelectContent>
+</Select>
                 </div>
               </div>
 
-              {/* <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                <div className="text-sm text-gray-600 ">
+              <div className="">
+                <div className="mt-5 relative top-11 text-sm text-gray-600">
                   Turning Visibility off will not show this product in the user app and website
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium mt-20 mr-20">Visibility</span>
+                <div className="flex items-center">
+                  <span className="font-medium relative top-14">Visibility</span>
                   <Switch
                     checked={product.visibility}
                     onCheckedChange={(checked) => setProduct({ ...product, visibility: checked })}
-                    className="data-[state=checked]:bg-teal-500 mt-20 mr-40"
-                  />
-                </div>
-              </div> */}
-              <div className="">
-                <div className="mt-5 relative top-11 text-sm text-gray-600">Turning Visibility off will not show this product in the user app and website</div>
-                <div className="flex items-center">
-                  <span className="font-medium relative top-14">Visibility</span>
-                  <Switch checked={product.visibility} onCheckedChange={(checked) => setProduct({ ...product, visibility: checked })}
-                    className="data-[state=checked]:bg-teal-500 relative top-14 ml-3 "
+                    className="data-[state=checked]:bg-teal-500 relative top-14 ml-3"
                   />
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -427,7 +421,7 @@ export default function AddProductPage() {
                     accept="image/*"
                     onChange={handleImageChange}
                     className="max-w-xs border-gray-300"
-                    required
+                    required={!productId} // Only require image for new products
                   />
                 </>
               )}
@@ -471,11 +465,9 @@ export default function AddProductPage() {
           </div>
         </div>
 
-        {/* Price Information and Attributes Section */}
-        <div className="grid  grid-cols-1 md:grid-cols-2 gap-8">
-
-          {/* Right Column - Attributes */}
-          <div className="bg-white  rounded-lg p-6 border border-gray-200">
+        {/* Attributes Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
             <div className="flex items-center mb-4">
               <Settings className="mr-2 h-5 w-5" />
               <h3 className="text-lg font-semibold">Attribute</h3>
@@ -492,7 +484,7 @@ export default function AddProductPage() {
                     {attributeOptions
                       .filter((attr) => !selectedAttributes.some((selected) => selected.name === attr.name))
                       .map((attr) => (
-                        <SelectItem key={attr.id} value={attr.name}>
+                        <SelectItem key={attr._id} value={attr.name}>
                           {attr.name}
                         </SelectItem>
                       ))}
@@ -521,15 +513,15 @@ export default function AddProductPage() {
                           value={attr.price}
                           onChange={(e) => updateAttributeValues(attr.name, 'price', e.target.value)}
                           className="border-gray-300"
+                          type="number"
                         />
-
                         <Input
                           placeholder="Enter Price After Discount"
                           value={attr.discountedPrice}
                           onChange={(e) => updateAttributeValues(attr.name, 'discountedPrice', e.target.value)}
                           className="border-gray-300"
+                          type="number"
                         />
-
                       </div>
                     </div>
                   ))}
@@ -540,14 +532,23 @@ export default function AddProductPage() {
         </div>
 
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.push("/dashboard/products")}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/dashboard/products")}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button type="submit" className="bg-teal-600 hover:bg-teal-700">
-            Submit
+          <Button
+            type="submit"
+            className="bg-teal-600 hover:bg-teal-700"
+            disabled={isLoading}
+          >
+            {isLoading ? "Saving..." : (productId ? "Update Product" : "Add Product")}
           </Button>
         </div>
-      </form>``
+      </form>
     </div>
-  )
+  );
 }

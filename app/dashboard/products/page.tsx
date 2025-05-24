@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect , useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Pencil, Trash2, Download, Package } from "lucide-react"
@@ -11,47 +11,66 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
 
-
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([]) // New state for categories
+  const [subcategories, setSubcategories] = useState([]) // New state for subcategories
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
 
   const router = useRouter()
 
   useEffect(() => {
-  async function fetchProducts() {
-    try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`)
-      
-      if (response.status === 200) {
-        setProducts(response.data)
-      } else {
-        console.error("Unexpected response:", response)
-      }
-    } catch (error) {
-      console.error("Failed to fetch products:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-  fetchProducts()
-}, [])
+    async function fetchData() {
+      try {
+        // Fetch all data in parallel
+        const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`),
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`),
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+        ])
 
+        if (productsRes.status === 200) {
+          setProducts(productsRes.data)
+        }
+        if (categoriesRes.status === 200) {
+          setCategories(categoriesRes.data)
+        }
+        if (subcategoriesRes.status === 200) {
+          setSubcategories(subcategoriesRes.data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  // Helper function to get category name by ID
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(cat => cat._id === categoryId)
+    return category ? category.name : 'N/A'
+  }
+
+  // Helper function to get subcategory name by ID
+  const getSubcategoryName = (subcategoryId) => {
+    const subcategory = subcategories.find(sub => sub._id === subcategoryId)
+    return subcategory ? subcategory.name : 'N/A'
+  }
 
   const filteredProducts = useMemo(() => {
-  return products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.id?.toString().includes(searchQuery),
-  )
-}, [products, searchQuery])
-
+    return products.filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.id?.toString().includes(searchQuery),
+    )
+  }, [products, searchQuery])
 
   const toggleShowInDailyNeeds = (id: number) => {
     setProducts(
       products.map((product) =>
-
         product.id === id ? { ...product, showInDailyNeeds: !product.showInDailyNeeds } : product,
       ),
     )
@@ -62,28 +81,23 @@ export default function ProductsPage() {
   }
 
   const toggleStatus = async (id: string) => {
-    // Find the product to toggle
     const product = products.find(p => p._id === id)
     if (!product) return
 
-    // Optimistic update of UI
     const updatedProducts = products.map(p =>
       p._id === id ? { ...p, status: !p.status } : p
     )
     setProducts(updatedProducts)
 
     try {
-      // Make PATCH request to update status in backend
       await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${id}/status`, {
         status: !product.status,
       })
     } catch (error) {
       console.error("Failed to update status:", error)
-      // Revert UI update on failure
       setProducts(products)
     }
   }
-
 
   const handleDelete = async (id: string) => {
     try {
@@ -94,21 +108,19 @@ export default function ProductsPage() {
     }
   }
 
-  const handleEdit = (id: string) => {
-    router.push(`/dashboard/products/add?id=${id}`)
-
+  const handleEdit = (productId: string) => {
+    router.push(`/dashboard/products/add?productId=${productId}`)
   }
 
   if (isLoading) {
-  return (
-    <div className="flex justify-center items-center h-[70vh]">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
-    </div>
-  )
-}
+    return (
+      <div className="flex justify-center items-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+      </div>
+    )
+  }
 
   return (
-    
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Package className="h-8 w-8 text-amber-600" />
@@ -148,6 +160,8 @@ export default function ProductsPage() {
             <TableRow>
               <TableHead className="w-[60px]">SL</TableHead>
               <TableHead>Product Name</TableHead>
+              <TableHead>Category</TableHead> {/* New column */}
+              <TableHead>Subcategory</TableHead> {/* New column */}
               <TableHead>Selling Price</TableHead>
               <TableHead>Discounted Price</TableHead>
               <TableHead>Show In Daily Needs</TableHead>
@@ -174,6 +188,12 @@ export default function ProductsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
+                  {getCategoryName(product.category)}
+                </TableCell>
+                <TableCell>
+                  {getSubcategoryName(product.subCategory)}
+                </TableCell>
+                <TableCell>
                   {(() => {
                     const unitAttr = product.attributes?.find(attr => attr.name === "Unit");
                     return unitAttr ? `${unitAttr.price}` : "N/A";
@@ -185,8 +205,6 @@ export default function ProductsPage() {
                     return unitAttr ? `${unitAttr.discountedPrice}` : "N/A";
                   })()}
                 </TableCell>
-
-
                 <TableCell>
                   <Switch
                     checked={product.showInDailyNeeds}
@@ -207,7 +225,6 @@ export default function ProductsPage() {
                     onCheckedChange={() => toggleStatus(product._id)}
                     className="data-[state=checked]:bg-teal-500"
                   />
-
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
@@ -231,7 +248,6 @@ export default function ProductsPage() {
                     </Button>
                   </div>
                 </TableCell>
-
               </TableRow>
             ))}
           </TableBody>
