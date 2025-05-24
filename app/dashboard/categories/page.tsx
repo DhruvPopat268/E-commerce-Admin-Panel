@@ -42,12 +42,13 @@ export default function CategoriesPage() {
   useEffect(() => {
     setIsMounted(true)
     fetchCategories()
-  })
+  },[])
 
   async function fetchCategories() {
     try {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
       setCategories(res.data)
+      console.log(res.data)
     } catch (error) {
       console.error("Failed to fetch categories", error)
     }
