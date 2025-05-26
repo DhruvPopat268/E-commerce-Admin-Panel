@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// POST: Create new banner
+
 router.post("/", upload.single("image"), async (req, res) => {
   try {
     const { title, type, categoryId, subcategoryId, status } = req.body;
@@ -28,13 +28,22 @@ router.post("/", upload.single("image"), async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    // Clean up subcategoryId: convert empty string to null
+    // Clean up categoryId and subcategoryId - convert empty strings to null
+    const cleanCategoryId = categoryId && categoryId.trim() !== "" ? categoryId : null;
     const cleanSubcategoryId = subcategoryId && subcategoryId.trim() !== "" ? subcategoryId : null;
+
+    // Optionally validate ObjectId format:
+    if (cleanCategoryId && !mongoose.Types.ObjectId.isValid(cleanCategoryId)) {
+      return res.status(400).json({ success: false, message: "Invalid categoryId" });
+    }
+    if (cleanSubcategoryId && !mongoose.Types.ObjectId.isValid(cleanSubcategoryId)) {
+      return res.status(400).json({ success: false, message: "Invalid subcategoryId" });
+    }
 
     const bannerData = {
       title,
       type,
-      categoryId,
+      categoryId: cleanCategoryId,
       subcategoryId: cleanSubcategoryId,
       status: status === "true",
       image: imageFile.originalname,
@@ -48,7 +57,6 @@ router.post("/", upload.single("image"), async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 });
-
 
 
 // GET: Fetch all banners
@@ -65,7 +73,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // PUT: Toggle status
 router.put('/toggle/:id', async (req, res) => {

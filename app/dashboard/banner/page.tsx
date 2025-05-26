@@ -70,7 +70,7 @@ export default function BannersPage() {
     const fetchData = async () => {
       try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`);
-        console.log(res.data)
+        console.log("banners are" , res.data)
 
         setBanners(res.data);
       } catch (err) {
@@ -157,7 +157,7 @@ export default function BannersPage() {
 
       if (editId) {
         // Edit (PUT request)
-        console.log(formData)
+        
         response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/${editId}`, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -174,7 +174,7 @@ export default function BannersPage() {
         }
       } else {
         // Create (POST request)
-        console.log(formData)
+      
         response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
