@@ -90,12 +90,21 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 
 // DELETE /api/categories/:id
 router.delete('/:id', async (req, res) => {
-  try {
-    await Category.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Category deleted' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to delete category' });
-  }
+    try {
+        const id = req.params.id;
+        
+        // Validate the ID is a valid MongoDB ID
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid banner ID' });
+        }
+
+        const banner = await Banner.findByIdAndDelete(id);
+        if (!banner) return res.status(404).json({ error: 'Banner not found' });
+        res.json({ message: 'Banner deleted successfully' });
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;

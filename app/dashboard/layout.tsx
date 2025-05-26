@@ -16,12 +16,11 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  ImageIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-import axios from 'axios'
-import { useRouter } from "next/navigation"
 
 type NavItem = {
   label: string
@@ -33,7 +32,6 @@ type NavItem = {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [navItems, setNavItems] = useState<NavItem[]>([
@@ -116,17 +114,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       href: "/dashboard/analytics",
       active: pathname === "/dashboard/analytics",
     },
+    {
+      label: "Banner",
+      icon: ImageIcon,
+      href: "/dashboard/banner",
+      active: pathname === "/dashboard/banner",
+    },
   ])
-
-  const handleLogout = async () => {
-    try {
-      await axios.post(`http://localhost:7000/auth/admin/logout`, {}, { withCredentials: true });
-      // Navigate to login page
-      router.push("/login")
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   const toggleExpand = (index: number) => {
     setNavItems((prev) => prev.map((item, i) => (i === index ? { ...item, expanded: !item.expanded } : item)))
@@ -205,16 +199,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           </div>
           <div className="flex-1 flex flex-col px-6 py-4 space-y-1">{renderNavItems(navItems)}</div>
-          <div className="p-6 ml-10">
-            <Button
-              variant="outline"
-              onClick={handleLogout}
-              className="w-[60%] justify-start text-white bg-gray-800 hover:bg-gray-700 hover:text-white"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-
+          <div className="p-6">
+            <Link href="/">
+              <Button
+                variant="outline"
+                className="w-full justify-start text-white bg-gray-800 hover:bg-gray-700 hover:text-white"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

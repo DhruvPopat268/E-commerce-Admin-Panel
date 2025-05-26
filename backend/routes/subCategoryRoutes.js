@@ -91,4 +91,34 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+router.post('/', upload.single('image'), async (req, res) => {
+  try {
+    const { categoryId, name, status } = req.body
+
+    if (!categoryId || !name) {
+      return res.status(400).json({ error: "categoryId and name are required" })
+    }
+
+    // Prepare new subcategory object
+    const newSubCategory = new SubCategory({
+      category: categoryId,
+      name,
+      status: status === "true" || status === true, // convert string "true"/"false" to boolean
+      image: req.file ? `/uploads/subcategories/${req.file.filename}` : null,
+    })
+
+    // Save to DB
+    const savedSubCategory = await newSubCategory.save()
+
+    // Optionally populate category for frontend use
+   await savedSubCategory.populate("category")
+
+
+    res.status(201).json(savedSubCategory)
+  } catch (error) {
+    console.error("Error creating subcategory:", error)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
 module.exports = router;

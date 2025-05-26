@@ -9,6 +9,7 @@ const categoryRoutes = require('./routes/categoryRoutes'); // import category ro
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
 const attributeRoutes = require("./routes/attributeRoutes");
 const productRoutes = require('./routes/product');
+const bannerRoutes = require('./routes/bannerRoutes')
 const path = require('path');
 
 const app = express();
@@ -39,6 +40,8 @@ app.use('/api/subcategories', subCategoryRoutes);
 app.use("/api/attributes", attributeRoutes);
 
 app.use('/api/products', productRoutes);
+
+app.use("/api/banners", bannerRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
