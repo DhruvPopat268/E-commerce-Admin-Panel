@@ -526,7 +526,7 @@ export default function BannersPage() {
                   </TableCell>
                   <TableCell>
                     <span className="text-gray-600">
-                      {banner.type === "Category" ? banner.categoryId?.name : banner.subcategoryName}
+                      {banner.type === "Category" ? banner.categoryId.name : banner.subcategoryId.name}
                     </span>
                   </TableCell>
 

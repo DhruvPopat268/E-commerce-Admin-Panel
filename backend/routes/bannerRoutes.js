@@ -46,7 +46,8 @@ router.post("/", upload.single("image"), async (req, res) => {
       categoryId: cleanCategoryId,
       subcategoryId: cleanSubcategoryId,
       status: status === "true",
-      image: imageFile.originalname,
+      // Store the filename that will be served by the static middleware
+      image: imageFile.filename, // Changed from originalname to filename
     };
 
     const newBanner = await Banner.create(bannerData);
@@ -67,7 +68,13 @@ router.get('/', async (req, res) => {
       .populate('categoryId', 'name')    // Only fetch the 'name' field from Category
       .populate('subcategoryId', 'name'); // Only fetch the 'name' field from Subcategory
 
-    res.status(200).json(banners);
+    // Add full image URL to each banner
+    const bannersWithImageUrl = banners.map(banner => ({
+      ...banner.toObject(),
+      imageUrl: banner.image ? `/uploads/${banner.image}` : null
+    }));
+
+    res.status(200).json(bannersWithImageUrl);
   } catch (err) {
     console.log(err)
     res.status(500).json({ error: err.message });
@@ -91,31 +98,57 @@ router.put('/toggle/:id', async (req, res) => {
 
 // PUT: Edit banner
 router.put('/:id', upload.single('image'), async (req, res) => {
-    try {
-        const id = req.params.id;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ error: 'Invalid banner ID' });
-        }
-
-        const data = req.body;
-        const updatedData = { ...data };
-
-        // Convert empty string subcategoryId to null
-        if (updatedData.subcategoryId === '') {
-            updatedData.subcategoryId = null;
-        }
-
-        if (req.file) {
-            updatedData.image = `/uploads/${req.file.filename}`;
-        }
-
-        const banner = await Banner.findByIdAndUpdate(id, updatedData, { new: true });
-        if (!banner) return res.status(404).json({ error: 'Banner not found' });
-        res.json(banner);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+  try {
+    const id = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid banner ID' });
     }
+
+    // Extract fields from req.body
+    const { title, type, categoryId, subcategoryId, status } = req.body;
+
+    const updatedData = {
+      title,
+      type,
+      status: status === 'true',
+    };
+
+    // Only include categoryId if it exists and is a valid ObjectId
+    // Also check that it's not an empty string or just whitespace
+    if (categoryId && categoryId.trim() !== '' && mongoose.Types.ObjectId.isValid(categoryId)) {
+      updatedData.categoryId = categoryId;
+    } else if (categoryId === '' || categoryId === null || categoryId === undefined) {
+      // If categoryId is explicitly empty, set it to null to clear the field
+      updatedData.categoryId = null;
+    }
+
+    // Only include subcategoryId if it exists and is a valid ObjectId
+    // Also check that it's not an empty string or just whitespace
+    if (subcategoryId && subcategoryId.trim() !== '' && mongoose.Types.ObjectId.isValid(subcategoryId)) {
+      updatedData.subcategoryId = subcategoryId;
+    } else if (subcategoryId === '' || subcategoryId === null || subcategoryId === undefined) {
+      // If subcategoryId is explicitly empty, set it to null to clear the field
+      updatedData.subcategoryId = null;
+    }
+
+    // Handle file upload
+    if (req.file) {
+      // Store only the filename, not the full path
+      updatedData.image = req.file.filename;
+    }
+
+    const banner = await Banner.findByIdAndUpdate(id, updatedData, { new: true });
+
+    if (!banner) return res.status(404).json({ error: 'Banner not found' });
+
+    res.json(banner);
+  } catch (err) {
+    console.error('Update banner error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
+
 // DELETE: Delete banner
 
 
