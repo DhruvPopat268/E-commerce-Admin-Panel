@@ -19,9 +19,9 @@ interface Banner {
   _id: string; // MongoDB ID
   title: string;
   type: "Category" | "Subcategory";
-  categoryId?: number;
+  categoryId?: any; // Changed to any to handle populated objects
   categoryName?: string;
-  subcategoryId?: number;
+  subcategoryId?: any; // Changed to any to handle populated objects
   subcategoryName?: string;
   image: string;
   status: boolean;
@@ -29,31 +29,22 @@ interface Banner {
 }
 
 interface Category {
-  id: number
+  _id: string; // Fixed: using _id instead of id
   name: string
 }
 
 interface Subcategory {
-  id: number
+  _id: string; // Fixed: using _id instead of id
   name: string
   categoryId: number
 }
 
 export default function BannersPage() {
   const [isMounted, setIsMounted] = useState(false)
-  // const [banners, setBanners] = useState<Banner[]>([]);
-  const [banners, setBanners] = useState<Banner[]>([
-
-  ])
-
-
+  const [banners, setBanners] = useState<Banner[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-
-
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
-
   const [editId, setEditId] = useState<string | null>(null);
-
 
   const [formData, setFormData] = useState({
     title: "",
@@ -71,12 +62,12 @@ export default function BannersPage() {
       try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`);
         console.log("banners are" , res.data)
-
         setBanners(res.data);
       } catch (err) {
         console.error("Failed to fetch banners:", err);
       }
     };
+    
     const fetchCategories = async () => {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
       console.log('categories', res.data)
@@ -93,7 +84,6 @@ export default function BannersPage() {
     fetchCategories();
     fetchSubCategories()
   }, [])
-
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -157,7 +147,6 @@ export default function BannersPage() {
 
       if (editId) {
         // Edit (PUT request)
-        
         response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/${editId}`, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -174,7 +163,6 @@ export default function BannersPage() {
         }
       } else {
         // Create (POST request)
-      
         response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -207,7 +195,6 @@ export default function BannersPage() {
     }
   };
 
-
   const handleReset = () => {
     setFormData({
       title: "",
@@ -224,26 +211,29 @@ export default function BannersPage() {
     }
   }
 
+  // Fixed toggle function - using string ID and making API call
   const toggleStatus = async (id: string) => {
-    // Add validation
-    if (!id || typeof id !== 'string') {
-      console.error('Invalid ID for toggle:', id);
-      alert('Invalid banner ID');
-      return;
-    }
-
     try {
+      // Make API call to toggle status using your specific toggle route
       const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/toggle/${id}`);
-      if (response.data.success) {
-        setBanners((prev) =>
-          prev.map((banner) =>
-            banner._id === id ? { ...banner, status: response.data.data.status } : banner
+
+      // Your backend returns the updated banner directly
+      if (response.data) {
+        // Update local state with the returned banner data
+        setBanners((prev) => 
+          prev.map((banner) => 
+            banner._id === id ? { ...banner, status: response.data.status } : banner
           )
         );
+        console.log(`Banner status updated to: ${response.data.status}`);
+      } else {
+        console.error('Failed to update banner status:', response.data);
+        alert('Failed to update banner status');
       }
-    } catch (error) {
-      console.error('Error toggling status:', error);
-      alert('Error updating banner status');
+    } catch (error: any) {
+      console.error('Error updating banner status:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error updating banner status';
+      alert(`Error updating banner status: ${errorMessage}`);
     }
   };
 
@@ -307,11 +297,10 @@ export default function BannersPage() {
   const filteredBanners = banners.filter(
     (banner) =>
       banner.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      banner._id.toString().includes(searchTerm) // Changed from banner.id to banner._id
+      banner._id.toString().includes(searchTerm)
   )
 
   const handleEdit = (banner: Banner) => {
-
     setEditId(banner._id);
     setFormData({
       title: banner.title || "",
@@ -323,7 +312,26 @@ export default function BannersPage() {
     setImagePreview(banner.image);
   };
 
-
+  // Helper function to get category/subcategory name
+  const getCategorySubcategoryName = (banner: Banner) => {
+    if (banner.type === "Category") {
+      // Handle both populated object and ID cases
+      if (typeof banner.categoryId === 'object' && banner.categoryId?.name) {
+        return banner.categoryId.name;
+      }
+      // If it's just an ID, find the name from categories array
+      const category = categories.find(cat => cat._id === banner.categoryId);
+      return category?.name || 'Unknown Category';
+    } else {
+      // Handle subcategory
+      if (typeof banner.subcategoryId === 'object' && banner.subcategoryId?.name) {
+        return banner.subcategoryId.name;
+      }
+      // If it's just an ID, find the name from subcategories array
+      const subcategory = subcategories.find(sub => sub._id === banner.subcategoryId);
+      return subcategory?.name || 'Unknown Subcategory';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -382,7 +390,6 @@ export default function BannersPage() {
                       ))}
                     </SelectContent>
                   </Select>
-
                 </div>
               )}
 
@@ -526,14 +533,13 @@ export default function BannersPage() {
                   </TableCell>
                   <TableCell>
                     <span className="text-gray-600">
-                      {banner.type === "Category" ? banner.categoryId.name : banner.subcategoryId.name}
+                      {getCategorySubcategoryName(banner)}
                     </span>
                   </TableCell>
-
                   <TableCell>
                     <Switch
                       checked={banner.status}
-                      onCheckedChange={() => toggleStatus(banner._id)} // Fixed: using banner._id
+                      onCheckedChange={() => toggleStatus(banner._id)}
                     />
                   </TableCell>
                   <TableCell>
@@ -546,7 +552,7 @@ export default function BannersPage() {
                         size="sm"
                         onClick={() => {
                           console.log('Deleting banner with ID:', banner._id);
-                          deleteBanner(banner._id) // This was already correct
+                          deleteBanner(banner._id)
                         }}
                       >
                         <Trash2 className="h-4 w-4" />
