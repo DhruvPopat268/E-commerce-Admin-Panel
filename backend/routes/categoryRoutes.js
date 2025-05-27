@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const Category = require('../models/category');
-
+const mongoose = require('mongoose')
 const router = express.Router();
 
 // Setup multer storage
@@ -92,7 +92,7 @@ router.delete('/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid banner ID' });
         }
 
-        const banner = await Banner.findByIdAndDelete(id);
+        const banner = await Category.findByIdAndDelete(id);
         if (!banner) return res.status(404).json({ error: 'Banner not found' });
         res.json({ message: 'Banner deleted successfully' });
     } catch (err) {
