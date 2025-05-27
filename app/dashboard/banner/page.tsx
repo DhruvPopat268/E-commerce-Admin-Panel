@@ -45,6 +45,8 @@ export default function BannersPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [editId, setEditId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
 
   const [formData, setFormData] = useState({
     title: "",
@@ -59,15 +61,19 @@ export default function BannersPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`);
-        console.log("banners are" , res.data)
+        console.log("banners are", res.data);
         setBanners(res.data);
       } catch (err) {
         console.error("Failed to fetch banners:", err);
+      } finally {
+        setLoading(false);
       }
     };
-    
+
+
     const fetchCategories = async () => {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
       console.log('categories', res.data)
@@ -220,8 +226,8 @@ export default function BannersPage() {
       // Your backend returns the updated banner directly
       if (response.data) {
         // Update local state with the returned banner data
-        setBanners((prev) => 
-          prev.map((banner) => 
+        setBanners((prev) =>
+          prev.map((banner) =>
             banner._id === id ? { ...banner, status: response.data.status } : banner
           )
         );
@@ -332,6 +338,14 @@ export default function BannersPage() {
       return subcategory?.name || 'Unknown Subcategory';
     }
   };
+
+ if (loading) {
+  return (
+    <div className="flex justify-center items-center h-[70vh]">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+    </div>
+  )
+}
 
   return (
     <div className="space-y-6">
