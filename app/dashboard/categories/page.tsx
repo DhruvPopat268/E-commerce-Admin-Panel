@@ -246,7 +246,7 @@ const handleDeleteCategory = async (id: string) => {
                     <TableCell>
                       <div className="relative h-16 w-16 border rounded-md overflow-hidden">
                         <Image
-                          src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${category.image}` || "/placeholder.svg"}
+                          src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${category.image}`}
                           alt={category.name}
                           fill
                           className="object-cover"
