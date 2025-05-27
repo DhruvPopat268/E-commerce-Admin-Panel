@@ -89,7 +89,7 @@ export default function BannersPage() {
     fetchData();
     fetchCategories();
     fetchSubCategories()
-  })
+  },[])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
