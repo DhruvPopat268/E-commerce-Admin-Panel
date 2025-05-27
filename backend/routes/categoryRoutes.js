@@ -8,7 +8,7 @@ const router = express.Router();
 // Setup multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, "./uploads");
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
@@ -19,24 +19,16 @@ const upload = multer({ storage });
 // POST create category with image upload
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    // const { name, status } = req.body;
-    // let imageUrl = "";
+    const imageUrl = req.file.filename
+    // const imageUrl = `http://localhost:7000/uploads/${imagename}`
 
-    // if (req.file) {
-    //   imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    // }
+    const category = new Category({
+      ...req.body,
+      image: imageUrl // Save image URL or path
+    });
 
-    // const category = new Category({
-    //   name,
-    //   image: imageUrl,
-    //   status: status === 'true',
-    // });
-
-    // await category.save();
-
-    // res.status(201).json(category);
-    const category = new Category(req.body)
     await category.save()
+
     res.status(201).json(category);
 
   } catch (error) {
@@ -74,16 +66,18 @@ router.patch('/:id', async (req, res) => {
 // PUT /api/categories/:id
 router.put('/:id', upload.single('image'), async (req, res) => {
   const { name, status } = req.body;
+
   const updateData = { name, status };
 
   if (req.file) {
-    updateData.image = `/uploads/${req.file.filename}`; // or your actual image path logic
+    updateData.image = req.file.filename; // Correct key name
   }
 
   try {
     const category = await Category.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json({ success: true, category });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, message: 'Failed to update category' });
   }
 });

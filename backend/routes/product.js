@@ -1,8 +1,97 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../models/product');
+const multer = require('multer');
+const path = require('path');
 
 // POST /api/products - create new product
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "./uploads");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+const upload = multer({ storage });
+
+// In your product route (product.js)
+router.post('/', upload.single('image'), async (req, res) => {
+  try {
+    // Parse JSON strings back to objects
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      req.body.tags = JSON.parse(req.body.tags);
+    }
+    
+    if (req.body.attributes && typeof req.body.attributes === 'string') {
+      req.body.attributes = JSON.parse(req.body.attributes);
+    }
+
+    // Convert string values to appropriate types for attributes
+    if (req.body.attributes && Array.isArray(req.body.attributes)) {
+      req.body.attributes = req.body.attributes.map(attr => ({
+        ...attr,
+        price: Number(attr.price),
+        discountedPrice: Number(attr.discountedPrice)
+      }));
+    }
+
+    // Convert visibility string to boolean
+    if (typeof req.body.visibility === 'string') {
+      req.body.visibility = req.body.visibility === 'true';
+    }
+
+    const product = new Product(req.body);
+    if (req.file) {
+      product.image = req.file.filename; // or however you handle image storage
+    }
+    
+    await product.save();
+    res.status(201).json(product);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Similar fix for PUT route
+router.put('/:id', upload.single('image'), async (req, res) => {
+  try {
+    // Parse JSON strings back to objects
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      req.body.tags = JSON.parse(req.body.tags);
+    }
+    
+    if (req.body.attributes && typeof req.body.attributes === 'string') {
+      req.body.attributes = JSON.parse(req.body.attributes);
+    }
+
+    // Convert string values to appropriate types for attributes
+    if (req.body.attributes && Array.isArray(req.body.attributes)) {
+      req.body.attributes = req.body.attributes.map(attr => ({
+        ...attr,
+        price: Number(attr.price),
+        discountedPrice: Number(attr.discountedPrice)
+      }));
+    }
+
+    // Convert visibility string to boolean
+    if (typeof req.body.visibility === 'string') {
+      req.body.visibility = req.body.visibility === 'true';
+    }
+
+    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (req.file) {
+      product.image = req.file.filename;
+      await product.save();
+    }
+    
+    res.json(product);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+});
 
 router.get("/:id", async (req, res) => {
   try {
@@ -18,16 +107,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
-  try {
-    // You can pass all fields from req.body including status or omit it (it will default to true)
-    const product = new Product(req.body);
-    await product.save();
-    res.status(201).json(product);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+
 
 router.get("/", async (req, res) => {
     try {
@@ -52,25 +132,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
-  try {
-    const updateData = req.body; // Expect the whole updated product data here
 
-    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateData, {
-      new: true, // return the updated document
-      runValidators: true,
-    });
-
-    if (!updatedProduct) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    res.json(updatedProduct);
-  } catch (error) {
-    console.error('Update product error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 router.patch("/:id/status", async (req, res) => {
   const productId = req.params.id;

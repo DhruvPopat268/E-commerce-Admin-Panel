@@ -145,43 +145,45 @@ export default function CategoriesPage() {
     setIsEditDialogOpen(true)
   }
 
-  const handleUpdateCategory = async () => {
-    if (!editCategory) return
+ const handleUpdateCategory = async () => {
+  if (!editCategory) return
 
-    const formData = new FormData()
-    formData.append("name", editCategory.name)
-    formData.append("status", String(editCategory.status))
-    if (imageFile) {
-      formData.append("image", imageFile)
-    }
-
-    try {
-      const res = await axios.put(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories/${editCategory._id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-
-      setCategories(categories.map((cat) => (cat._id === editCategory._id ? res.data.updatedCategory : cat)))
-      setEditCategory(null)
-      setPreviewImage(null)
-      setImageFile(null)
-      setIsEditDialogOpen(false)
-    } catch (error) {
-      console.error("Failed to update category", error)
-      alert("Update failed")
-    }
+  const formData = new FormData()
+  formData.append("name", editCategory.name)
+  formData.append("status", String(editCategory.status))
+  if (imageFile) {
+    formData.append("image", imageFile)
   }
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this category?")) return
+  try {
+    // Use environment variable instead of hardcoded URL
+    const res = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${editCategory._id}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
 
-    try {
-      await axios.delete(`https://e-commerce-admin-panel-backend-bvvc.onrender.com/api/categories/${id}`)
-      setCategories(categories.filter((cat) => cat._id !== id))
-    } catch (error) {
-      console.error("Failed to delete category", error)
-      alert("Delete failed")
-    }
+    setCategories(categories.map((cat) => (cat._id === editCategory._id ? res.data.category : cat)))
+    setEditCategory(null)
+    setPreviewImage(null)
+    setImageFile(null)
+    setIsEditDialogOpen(false)
+  } catch (error) {
+    console.error("Failed to update category", error)
+    alert("Update failed")
   }
+}
+
+const handleDeleteCategory = async (id: string) => {
+  if (!confirm("Are you sure you want to delete this category?")) return
+
+  try {
+    // Use environment variable instead of hardcoded URL
+    await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${id}`)
+    setCategories(categories.filter((cat) => cat._id !== id))
+  } catch (error) {
+    console.error("Failed to delete category", error)
+    alert("Delete failed")
+  }
+}
 
  if (isLoading) {
   return (
@@ -244,7 +246,7 @@ export default function CategoriesPage() {
                     <TableCell>
                       <div className="relative h-16 w-16 border rounded-md overflow-hidden">
                         <Image
-                          src={category.image || "/placeholder.svg"}
+                          src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${category.image}` || "/placeholder.svg"}
                           alt={category.name}
                           fill
                           className="object-cover"

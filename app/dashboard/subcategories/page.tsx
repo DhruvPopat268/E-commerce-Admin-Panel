@@ -234,7 +234,7 @@ export default function SubCategoriesPage() {
                       {subCategory.image && (
                         <div className="relative h-16 w-16 border rounded-md overflow-hidden">
                           <Image
-                            src={subCategory.image || "/placeholder.svg"}
+                            src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${subCategory.image}` || "/placeholder.svg"}
                             alt={subCategory.name}
                             fill
                             className="object-cover"

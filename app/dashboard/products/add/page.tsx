@@ -72,6 +72,8 @@ export default function AddProductPage() {
 
   const tagInputRef = useRef<HTMLInputElement>(null);
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
   // Update your useEffect for data fetching
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -145,10 +147,10 @@ export default function AddProductPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file); // Save the file for submission
       const reader = new FileReader();
       reader.onload = (event) => {
         setPreviewImage(event.target?.result as string);
-        setProduct(prev => ({ ...prev, image: "" }));
       };
       reader.readAsDataURL(file);
     }
@@ -206,25 +208,80 @@ export default function AddProductPage() {
     setIsLoading(true);
     setError(null);
 
-    const productData = {
-      ...product,
-      image: previewImage,
-      tags,
-      attributes: selectedAttributes,
-    };
-
     try {
       if (productId) {
-        // Update existing product
-        await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, productData);
+        // UPDATE EXISTING PRODUCT
+        if (imageFile) {
+          // If new image is selected, use FormData for update
+          const formData = new FormData();
+          formData.append("name", product.name);
+          formData.append("description", product.description);
+          formData.append("category", product.category);
+          formData.append("subCategory", product.subCategory); // Fixed field name
+          formData.append("visibility", product.visibility.toString());
+          formData.append("image", imageFile);
+          formData.append("tags", JSON.stringify(tags));
+          formData.append("attributes", JSON.stringify(selectedAttributes));
+
+          await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+        } else {
+          // Update without new image
+          const updatedProduct = {
+            name: product.name,
+            description: product.description,
+            category: product.category,
+            subCategory: product.subCategory, // Fixed field name
+            visibility: product.visibility,
+            tags,
+            attributes: selectedAttributes,
+            // Keep existing image
+            image: product.image
+          };
+          
+          await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, updatedProduct);
+        }
       } else {
-        // Create new product
-        await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`, productData);
+        // CREATE NEW PRODUCT
+        if (!imageFile) {
+          setError("Please select an image for the product.");
+          setIsLoading(false);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("name", product.name);
+        formData.append("description", product.description);
+        formData.append("category", product.category);
+        formData.append("subCategory", product.subCategory); // Fixed field name
+        formData.append("visibility", product.visibility.toString()); // Fixed field name
+        formData.append("image", imageFile);
+        formData.append("tags", JSON.stringify(tags));
+        formData.append("attributes", JSON.stringify(selectedAttributes));
+
+        console.log("FormData contents:");
+        for (let [key, value] of formData.entries()) {
+          console.log(key, value);
+        }
+
+        await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
       }
+
       router.push("/dashboard/products");
     } catch (err) {
       console.error("Save failed:", err);
-      setError("Failed to save product. Please try again.");
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.message || "Failed to save product. Please try again.");
+      } else {
+        setError("Failed to save product. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -343,23 +400,23 @@ export default function AddProductPage() {
                 <div className="space-y-2">
                   <Label htmlFor="subcategory">Sub Category</Label>
                   <Select
-  value={product.subCategory}
-  onValueChange={handleSubCategoryChange}
-  disabled={!selectedCategory}
->
-  <SelectTrigger id="subcategory" className="border-gray-300">
-    <SelectValue placeholder="---Select---" />
-  </SelectTrigger>
-  <SelectContent>
-    {fetchedSubcategories
-      .filter((subcat) => subcat.category._id === selectedCategory)
-      .map((subcat) => (
-        <SelectItem key={subcat._id} value={subcat._id}>
-          {subcat.name}
-        </SelectItem>
-      ))}
-  </SelectContent>
-</Select>
+                    value={product.subCategory}
+                    onValueChange={handleSubCategoryChange}
+                    disabled={!selectedCategory}
+                  >
+                    <SelectTrigger id="subcategory" className="border-gray-300">
+                      <SelectValue placeholder="---Select---" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fetchedSubcategories
+                        .filter((subcat) => subcat.category._id === selectedCategory)
+                        .map((subcat) => (
+                          <SelectItem key={subcat._id} value={subcat._id}>
+                            {subcat.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -406,7 +463,13 @@ export default function AddProductPage() {
                     variant="ghost"
                     size="icon"
                     className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-white shadow"
-                    onClick={() => setPreviewImage(null)}
+                    onClick={() => {
+                      setPreviewImage(null);
+                      setImageFile(null);
+                      // Reset the file input
+                      const fileInput = document.getElementById('product-image') as HTMLInputElement;
+                      if (fileInput) fileInput.value = '';
+                    }}
                   >
                     <span className="sr-only">Remove image</span>×
                   </Button>

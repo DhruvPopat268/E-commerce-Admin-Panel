@@ -2,7 +2,50 @@ const express = require('express');
 const router = express.Router();
 const SubCategory = require('../models/SubCategory');
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
+const path = require('path');
+
+
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "./uploads");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+const upload = multer({ storage });
+
+
+router.post('/', upload.single('image'), async (req, res) => {
+  try {
+    const { categoryId, name, status } = req.body
+    const imageUrl = req.file.filename
+
+    if (!categoryId || !name) {
+      return res.status(400).json({ error: "categoryId and name are required" })
+    }
+
+    // Prepare new subcategory object
+    const newSubCategory = new SubCategory({
+      category: categoryId,
+      name,
+      status: status === "true" || status === true, // convert string "true"/"false" to boolean
+      image: imageUrl
+    })
+
+    // Save to DB
+    const savedSubCategory = await newSubCategory.save()
+
+    // Optionally populate category for frontend use
+   await savedSubCategory.populate("category")
+
+    res.status(201).json(savedSubCategory)
+  } catch (error) {
+    console.error("Error creating subcategory:", error)
+    res.status(500).json({ error: "Server error" })
+  }
+})
 
 // Get all subcategories with populated category name
 // GET /api/subcategories
@@ -29,7 +72,7 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
     if (name) updateData.name = name;
     if (status !== undefined) updateData.status = status;
     if (imageFile) {
-      updateData.image = `/uploads/${imageFile.filename}`;
+      updateData.image = imageFile.filename;
       // Or Cloudinary upload, if applicable
     }
 
@@ -52,27 +95,27 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
 
 
 // Update subcategory (name/status)
-router.patch('/:id', async (req, res) => {
-  const { name, status } = req.body;
+// router.patch('/:id', async (req, res) => {
+//   const { name, status } = req.body;
 
-  try {
-    const subCategory = await SubCategory.findById(req.params.id);
-    if (!subCategory) {
-      return res.status(404).json({ message: "SubCategory not found" });
-    }
+//   try {
+//     const subCategory = await SubCategory.findById(req.params.id);
+//     if (!subCategory) {
+//       return res.status(404).json({ message: "SubCategory not found" });
+//     }
 
-    if (name !== undefined) subCategory.name = name;
-    if (status !== undefined) subCategory.status = status;
+//     if (name !== undefined) subCategory.name = name;
+//     if (status !== undefined) subCategory.status = status;
 
-    const updatedSubCategory = await subCategory.save();
-    const populatedUpdated = await updatedSubCategory.populate("category", "name");
+//     const updatedSubCategory = await subCategory.save();
+//     const populatedUpdated = await updatedSubCategory.populate("category", "name");
 
-    res.json(populatedUpdated);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-});
+//     res.json(populatedUpdated);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: err.message });
+//   }
+// });
 
 
 // Delete subcategory
@@ -91,34 +134,5 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-router.post('/', upload.single('image'), async (req, res) => {
-  try {
-    const { categoryId, name, status } = req.body
-
-    if (!categoryId || !name) {
-      return res.status(400).json({ error: "categoryId and name are required" })
-    }
-
-    // Prepare new subcategory object
-    const newSubCategory = new SubCategory({
-      category: categoryId,
-      name,
-      status: status === "true" || status === true, // convert string "true"/"false" to boolean
-      image: req.file ? `/uploads/subcategories/${req.file.filename}` : null,
-    })
-
-    // Save to DB
-    const savedSubCategory = await newSubCategory.save()
-
-    // Optionally populate category for frontend use
-   await savedSubCategory.populate("category")
-
-
-    res.status(201).json(savedSubCategory)
-  } catch (error) {
-    console.error("Error creating subcategory:", error)
-    res.status(500).json({ error: "Server error" })
-  }
-})
 
 module.exports = router;
