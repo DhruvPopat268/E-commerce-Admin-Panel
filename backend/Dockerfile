@@ -5,14 +5,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-
-# Install pnpm and dependencies
-RUN npm install -g pnpm
-RUN pnpm install --frozen-lockfile
+# Install dependencies with npm
+RUN npm install
 
 # Copy source code
 COPY . .
 
-EXPOSE 5000
+# Expose port
+EXPOSE 3000
 
-CMD ["pnpm", "start"]
+# Start the application
+CMD ["npm", "start"]
