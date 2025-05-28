@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const SalesAgent = require('../models/SalesAgent');
+const SalesAgent = require('../models/salesAgent');
 
 // Configure Cloudinary
 cloudinary.config({
