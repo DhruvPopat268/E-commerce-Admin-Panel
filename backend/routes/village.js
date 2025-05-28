@@ -11,6 +11,7 @@ router.get('/', async (req, res) => {
     const formattedVillages = villages.map((village, index) => ({
       id: village._id,
       name: village.name,
+      villageCode: village.villageCode, // Include village code
       status: village.status,
       createdAt: village.createdAt.toISOString().split('T')[0] // Format as YYYY-MM-DD
     }));
@@ -55,9 +56,13 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Generate unique village code
+    const villageCode = await Village.generateUniqueVillageCode(name.trim());
+
     // Create new village
     const village = new Village({
       name: name.trim(),
+      villageCode: villageCode,
       status: true
     });
 
@@ -67,6 +72,7 @@ router.post('/', async (req, res) => {
     const formattedVillage = {
       id: savedVillage._id,
       name: savedVillage.name,
+      villageCode: savedVillage.villageCode,
       status: savedVillage.status,
       createdAt: savedVillage.createdAt.toISOString().split('T')[0]
     };
@@ -80,10 +86,18 @@ router.post('/', async (req, res) => {
     console.error('Error creating village:', error);
     
     if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Village with this name already exists'
-      });
+      // Check if the duplicate is for name or villageCode
+      if (error.keyPattern && error.keyPattern.name) {
+        return res.status(400).json({
+          success: false,
+          message: 'Village with this name already exists'
+        });
+      } else if (error.keyPattern && error.keyPattern.villageCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Village code conflict occurred. Please try again.'
+        });
+      }
     }
 
     res.status(500).json({
@@ -108,6 +122,15 @@ router.put('/:id', async (req, res) => {
       });
     }
 
+    // Get current village to check if name is changing
+    const currentVillage = await Village.findById(id);
+    if (!currentVillage) {
+      return res.status(404).json({
+        success: false,
+        message: 'Village not found'
+      });
+    }
+
     // Check if another village with the same name exists
     const existingVillage = await Village.findOne({
       name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
@@ -121,30 +144,33 @@ router.put('/:id', async (req, res) => {
       });
     }
 
+    // Generate new village code if name is changing
+    let updateData = {
+      name: name.trim(),
+      status: status !== undefined ? status : true,
+      updatedAt: Date.now()
+    };
+
+    // If name is changing, generate new village code
+    if (currentVillage.name.toLowerCase() !== name.trim().toLowerCase()) {
+      const newVillageCode = await Village.generateUniqueVillageCode(name.trim());
+      updateData.villageCode = newVillageCode;
+    }
+
     const updatedVillage = await Village.findByIdAndUpdate(
       id,
-      {
-        name: name.trim(),
-        status: status !== undefined ? status : true,
-        updatedAt: Date.now()
-      },
+      updateData,
       {
         new: true,
         runValidators: true
       }
     );
 
-    if (!updatedVillage) {
-      return res.status(404).json({
-        success: false,
-        message: 'Village not found'
-      });
-    }
-
     // Format response
     const formattedVillage = {
       id: updatedVillage._id,
       name: updatedVillage.name,
+      villageCode: updatedVillage.villageCode,
       status: updatedVillage.status,
       createdAt: updatedVillage.createdAt.toISOString().split('T')[0]
     };
@@ -158,10 +184,17 @@ router.put('/:id', async (req, res) => {
     console.error('Error updating village:', error);
     
     if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Village with this name already exists'
-      });
+      if (error.keyPattern && error.keyPattern.name) {
+        return res.status(400).json({
+          success: false,
+          message: 'Village with this name already exists'
+        });
+      } else if (error.keyPattern && error.keyPattern.villageCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Village code conflict occurred. Please try again.'
+        });
+      }
     }
 
     res.status(500).json({
@@ -208,6 +241,7 @@ router.patch('/:id/status', async (req, res) => {
     const formattedVillage = {
       id: updatedVillage._id,
       name: updatedVillage.name,
+      villageCode: updatedVillage.villageCode,
       status: updatedVillage.status,
       createdAt: updatedVillage.createdAt.toISOString().split('T')[0]
     };
@@ -246,7 +280,8 @@ router.delete('/:id', async (req, res) => {
       message: 'Village deleted successfully',
       data: {
         id: deletedVillage._id,
-        name: deletedVillage.name
+        name: deletedVillage.name,
+        villageCode: deletedVillage.villageCode
       }
     });
   } catch (error) {
@@ -277,6 +312,7 @@ router.get('/:id', async (req, res) => {
     const formattedVillage = {
       id: village._id,
       name: village.name,
+      villageCode: village.villageCode,
       status: village.status,
       createdAt: village.createdAt.toISOString().split('T')[0]
     };

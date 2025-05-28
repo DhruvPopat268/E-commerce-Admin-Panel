@@ -32,25 +32,25 @@ export default function VillagePage() {
   const [error, setError] = useState("")
 
   // Fetch villages from API
- const fetchVillages = async () => {
-  try {
-    setLoading(true)
-    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages`)
-    const result = response.data
+  const fetchVillages = async () => {
+    try {
+      setLoading(true)
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages`)
+      const result = response.data
 
-    if (result.success) {
-      setVillages(result.data)
-      setError("")
-    } else {
-      setError(result.message || "Failed to fetch villages")
+      if (result.success) {
+        setVillages(result.data)
+        setError("")
+      } else {
+        setError(result.message || "Failed to fetch villages")
+      }
+    } catch (error) {
+      console.error("Error fetching villages:", error)
+      setError("Failed to connect to server")
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error("Error fetching villages:", error)
-    setError("Failed to connect to server")
-  } finally {
-    setLoading(false)
   }
-}
 
 
   useEffect(() => {
@@ -61,112 +61,112 @@ export default function VillagePage() {
     setFilteredVillages(villages.filter((village) => village.name.toLowerCase().includes(searchTerm.toLowerCase())))
   }, [searchTerm, villages])
 
-const handleAddVillage = async () => {
-  if (newVillage.trim() === "") return
+  const handleAddVillage = async () => {
+    if (newVillage.trim() === "") return
 
-  try {
-    setLoading(true)
-    const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages`, {
-      name: newVillage.trim(),
-    })
+    try {
+      setLoading(true)
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages`, {
+        name: newVillage.trim(),
+      })
 
-    const result = response.data
+      const result = response.data
 
-    if (result.success) {
-      setVillages([result.data, ...villages])
-      setNewVillage("")
-      setIsAddDialogOpen(false)
-      setError("")
-    } else {
-      setError(result.message || "Failed to add village")
+      if (result.success) {
+        setVillages([result.data, ...villages])
+        setNewVillage("")
+        setIsAddDialogOpen(false)
+        setError("")
+      } else {
+        setError(result.message || "Failed to add village")
+      }
+    } catch (error) {
+      console.error("Error adding village:", error)
+      setError("Failed to connect to server")
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error("Error adding village:", error)
-    setError("Failed to connect to server")
-  } finally {
-    setLoading(false)
   }
-}
 
 
-const handleEditVillage = async () => {
-  if (!editingVillage || editingVillage.name.trim() === "") return
+  const handleEditVillage = async () => {
+    if (!editingVillage || editingVillage.name.trim() === "") return
 
-  try {
-    setLoading(true)
-    const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${editingVillage.id}`, {
-      name: editingVillage.name.trim(),
-      status: editingVillage.status,
-    })
+    try {
+      setLoading(true)
+      const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${editingVillage.id}`, {
+        name: editingVillage.name.trim(),
+        status: editingVillage.status,
+      })
 
-    const result = response.data
+      const result = response.data
 
-    if (result.success) {
-      setVillages(villages.map(village => 
-        village.id === editingVillage.id ? result.data : village
-      ))
-      setEditingVillage(null)
-      setIsEditDialogOpen(false)
-      setError("")
-    } else {
-      setError(result.message || "Failed to update village")
+      if (result.success) {
+        setVillages(villages.map(village =>
+          village.id === editingVillage.id ? result.data : village
+        ))
+        setEditingVillage(null)
+        setIsEditDialogOpen(false)
+        setError("")
+      } else {
+        setError(result.message || "Failed to update village")
+      }
+    } catch (error) {
+      console.error("Error updating village:", error)
+      setError("Failed to connect to server")
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error("Error updating village:", error)
-    setError("Failed to connect to server")
-  } finally {
-    setLoading(false)
   }
-}
 
 
- const handleToggleStatus = async (id: string) => {
-  const village = villages.find(v => v.id === id)
-  if (!village) return
+  const handleToggleStatus = async (id: string) => {
+    const village = villages.find(v => v.id === id)
+    if (!village) return
 
-  try {
-    const response = await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${id}/status`, {
-      status: !village.status,
-    })
+    try {
+      const response = await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${id}/status`, {
+        status: !village.status,
+      })
 
-    const result = response.data
+      const result = response.data
 
-    if (result.success) {
-      setVillages(villages.map(v =>
-        v.id === id ? { ...v, status: !v.status } : v
-      ))
-      setError("")
-    } else {
-      setError(result.message || "Failed to update status")
+      if (result.success) {
+        setVillages(villages.map(v =>
+          v.id === id ? { ...v, status: !v.status } : v
+        ))
+        setError("")
+      } else {
+        setError(result.message || "Failed to update status")
+      }
+    } catch (error) {
+      console.error("Error updating status:", error)
+      setError("Failed to connect to server")
     }
-  } catch (error) {
-    console.error("Error updating status:", error)
-    setError("Failed to connect to server")
   }
-}
 
 
- const handleDeleteVillage = async (id: string) => {
-  if (!confirm("Are you sure you want to delete this village?")) return
+  const handleDeleteVillage = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this village?")) return
 
-  try {
-    setLoading(true)
-    const response = await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${id}`)
-    const result = response.data
+    try {
+      setLoading(true)
+      const response = await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${id}`)
+      const result = response.data
 
-    if (result.success) {
-      setVillages(villages.filter(village => village.id !== id))
-      setError("")
-    } else {
-      setError(result.message || "Failed to delete village")
+      if (result.success) {
+        setVillages(villages.filter(village => village.id !== id))
+        setError("")
+      } else {
+        setError(result.message || "Failed to delete village")
+      }
+    } catch (error) {
+      console.error("Error deleting village:", error)
+      setError("Failed to connect to server")
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error("Error deleting village:", error)
-    setError("Failed to connect to server")
-  } finally {
-    setLoading(false)
   }
-}
 
 
   const openEditDialog = (village: Village) => {
@@ -204,8 +204,8 @@ const handleEditVillage = async () => {
                 <div className="text-red-500 text-sm">{error}</div>
               )}
               <div className="flex justify-end space-x-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setIsAddDialogOpen(false)
                     setNewVillage("")
@@ -237,7 +237,7 @@ const handleEditVillage = async () => {
                 id="edit-village"
                 placeholder="Enter village name"
                 value={editingVillage?.name || ""}
-                onChange={(e) => setEditingVillage(prev => 
+                onChange={(e) => setEditingVillage(prev =>
                   prev ? { ...prev, name: e.target.value } : null
                 )}
                 onKeyPress={(e) => e.key === 'Enter' && handleEditVillage()}
@@ -247,8 +247,8 @@ const handleEditVillage = async () => {
               <div className="text-red-500 text-sm">{error}</div>
             )}
             <div className="flex justify-end space-x-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setIsEditDialogOpen(false)
                   setEditingVillage(null)
@@ -290,6 +290,7 @@ const handleEditVillage = async () => {
             <TableRow>
               <TableHead className="w-[80px]">SL</TableHead>
               <TableHead>Village Name</TableHead>
+              <TableHead>Village Code</TableHead>
               <TableHead>Created Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -313,18 +314,21 @@ const handleEditVillage = async () => {
                 <TableRow key={village.id}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell className="font-medium">{village.name}</TableCell>
+                  <TableCell>{village.villageCode}</TableCell>
+
                   <TableCell>{village.createdAt}</TableCell>
+
                   <TableCell>
-                    <Switch 
-                      checked={village.status} 
+                    <Switch
+                      checked={village.status}
                       onCheckedChange={() => handleToggleStatus(village.id)}
                       disabled={loading}
                     />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end space-x-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="icon"
                         onClick={() => openEditDialog(village)}
                         disabled={loading}

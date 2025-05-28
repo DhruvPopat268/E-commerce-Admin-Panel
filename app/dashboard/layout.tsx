@@ -129,7 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       active: pathname === "/dashboard/villages",
     },
     {
-      label: "Sales Agent",
+      label: "Customers",
       icon: UserCheck,
       href: "/dashboard/sales-agents",
       active: pathname === "/dashboard/sales-agents",

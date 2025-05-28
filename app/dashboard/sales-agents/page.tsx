@@ -375,7 +375,7 @@ export default function SalesAgentPage() {
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                     <UserCheck className="h-8 w-8" />
-                    Sales Agent List
+                    Customer List
                     <span className="ml-2 rounded-full bg-blue-100 px-2.5 py-0.5 text-sm text-blue-800">
                         {salesAgents.length}
                     </span>
@@ -384,7 +384,7 @@ export default function SalesAgentPage() {
                     <DialogTrigger asChild>
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Sales Agent
+                            Add Customer
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[600px]">
