@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Village = require('../models/Village'); // Adjust path as needed
+const Village = require('../models/village'); // Adjust path as needed
 
 // GET - Get all villages
 router.get('/', async (req, res) => {
