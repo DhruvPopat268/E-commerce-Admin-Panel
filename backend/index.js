@@ -10,6 +10,8 @@ const subCategoryRoutes = require('./routes/subCategoryRoutes');
 const attributeRoutes = require("./routes/attributeRoutes");
 const productRoutes = require('./routes/product');
 const bannerRoutes = require('./routes/bannerRoutes')
+const villageRoutes = require('./routes/village')
+const salesAgentRoutes = require('./routes/salesAgentRoute')
 const path = require('path');
 
 const app = express();
@@ -43,6 +45,10 @@ app.use("/api/attributes", attributeRoutes);
 app.use('/api/products', productRoutes);
 
 app.use("/api/banners", bannerRoutes);
+
+app.use("/api/villages", villageRoutes);
+
+app.use("/api/salesAgents", salesAgentRoutes)
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);

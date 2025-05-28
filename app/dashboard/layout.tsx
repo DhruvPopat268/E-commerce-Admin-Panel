@@ -17,6 +17,8 @@ import {
   ChevronDown,
   ChevronRight,
   ImageIcon,
+  MapPin,
+  UserCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -119,6 +121,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: ImageIcon,
       href: "/dashboard/banner",
       active: pathname === "/dashboard/banner",
+    },
+    {
+      label: "Village",
+      icon: MapPin,
+      href: "/dashboard/villages",
+      active: pathname === "/dashboard/villages",
+    },
+    {
+      label: "Sales Agent",
+      icon: UserCheck,
+      href: "/dashboard/sales-agents",
+      active: pathname === "/dashboard/sales-agents",
     },
   ])
 
