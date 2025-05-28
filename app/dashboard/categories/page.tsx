@@ -44,21 +44,21 @@ export default function CategoriesPage() {
   useEffect(() => {
     setIsMounted(true)
     fetchCategories()
-  },[])
+  }, [])
 
   async function fetchCategories() {
-  try {
-    setIsLoading(true)
-    const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
-    if (res.status === 200) {
-      setCategories(res.data)
+    try {
+      setIsLoading(true)
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
+      if (res.status === 200) {
+        setCategories(res.data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories", error)
+    } finally {
+      setIsLoading(false)
     }
-  } catch (error) {
-    console.error("Failed to fetch categories", error)
-  } finally {
-    setIsLoading(false)
   }
-}
 
 
   const filteredCategories = categories.filter(
@@ -145,53 +145,53 @@ export default function CategoriesPage() {
     setIsEditDialogOpen(true)
   }
 
- const handleUpdateCategory = async () => {
-  if (!editCategory) return
+  const handleUpdateCategory = async () => {
+    if (!editCategory) return
 
-  const formData = new FormData()
-  formData.append("name", editCategory.name)
-  formData.append("status", String(editCategory.status))
-  if (imageFile) {
-    formData.append("image", imageFile)
+    const formData = new FormData()
+    formData.append("name", editCategory.name)
+    formData.append("status", String(editCategory.status))
+    if (imageFile) {
+      formData.append("image", imageFile)
+    }
+
+    try {
+      // Use environment variable instead of hardcoded URL
+      const res = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${editCategory._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+
+      setCategories(categories.map((cat) => (cat._id === editCategory._id ? res.data.category : cat)))
+      setEditCategory(null)
+      setPreviewImage(null)
+      setImageFile(null)
+      setIsEditDialogOpen(false)
+    } catch (error) {
+      console.error("Failed to update category", error)
+      alert("Update failed")
+    }
   }
 
-  try {
-    // Use environment variable instead of hardcoded URL
-    const res = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${editCategory._id}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    })
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this category?")) return
 
-    setCategories(categories.map((cat) => (cat._id === editCategory._id ? res.data.category : cat)))
-    setEditCategory(null)
-    setPreviewImage(null)
-    setImageFile(null)
-    setIsEditDialogOpen(false)
-  } catch (error) {
-    console.error("Failed to update category", error)
-    alert("Update failed")
+    try {
+      // Use environment variable instead of hardcoded URL
+      await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${id}`)
+      setCategories(categories.filter((cat) => cat._id !== id))
+    } catch (error) {
+      console.error("Failed to delete category", error)
+      alert("Delete failed")
+    }
   }
-}
 
-const handleDeleteCategory = async (id: string) => {
-  if (!confirm("Are you sure you want to delete this category?")) return
-
-  try {
-    // Use environment variable instead of hardcoded URL
-    await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${id}`)
-    setCategories(categories.filter((cat) => cat._id !== id))
-  } catch (error) {
-    console.error("Failed to delete category", error)
-    alert("Delete failed")
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+      </div>
+    )
   }
-}
-
- if (isLoading) {
-  return (
-    <div className="flex justify-center items-center h-[70vh]">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
-    </div>
-  )
-}
 
 
   return (
@@ -244,9 +244,18 @@ const handleDeleteCategory = async (id: string) => {
                   <TableRow key={category._id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
-                      <div className="relative h-16 w-16 border rounded-md overflow-hidden">
+                      {/* <div className="relative h-16 w-16 border rounded-md overflow-hidden">
                         <Image
                           src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${category.image}`}
+                          alt={category.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div> */}
+                  
+                      <div className="relative h-16 w-16 border rounded-md overflow-hidden">
+                        <Image
+                          src={category.image || '/placeholder-image.jpg'} // Direct Cloudinary URL
                           alt={category.name}
                           fill
                           className="object-cover"

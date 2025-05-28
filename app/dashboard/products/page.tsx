@@ -178,7 +178,7 @@ export default function ProductsPage() {
                   <div className="flex items-center gap-3">
                     <div className="relative h-12 w-12 border rounded-md overflow-hidden">
                       <Image
-                        src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${product.image}` || "/placeholder.svg"}
+                        src={product.image || "/placeholder.svg"}
                         alt={product.name}
                         fill
                         className="object-cover"

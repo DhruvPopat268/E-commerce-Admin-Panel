@@ -3,34 +3,81 @@ const multer = require('multer');
 const path = require('path');
 const Category = require('../models/category');
 const mongoose = require('mongoose')
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const router = express.Router();
 
-// Setup multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "./uploads");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
-const upload = multer({ storage });
+
+// Setup multer storage
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, "./uploads");
+//   },
+//   filename: (req, file, cb) => {
+//     cb(null, Date.now() + path.extname(file.originalname));
+//   },
+// });
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'categories', // Folder name in Cloudinary
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [
+      { width: 500, height: 500, crop: 'limit' }, // Optional: resize images
+      { quality: 'auto' } // Optional: optimize quality
+    ]
+  }
+});
+// const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // POST create category with image upload
+// router.post('/', upload.single('image'), async (req, res) => {
+//   try {
+//     const imageUrl = req.file.filename
+//     // const imageUrl = `http://localhost:7000/uploads/${imagename}`
+
+//     const category = new Category({
+//       ...req.body,
+//       image: imageUrl // Save image URL or path
+//     });
+
+//     await category.save()
+
+//     res.status(201).json(category);
+
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
+
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const imageUrl = req.file.filename
-    // const imageUrl = `http://localhost:7000/uploads/${imagename}`
-
+    let imageUrl = null;
+    
+    if (req.file) {
+      imageUrl = req.file.path; // Cloudinary URL
+    }
+    
     const category = new Category({
       ...req.body,
-      image: imageUrl // Save image URL or path
+      image: imageUrl // Save Cloudinary URL
     });
-
-    await category.save()
-
+    
+    await category.save();
     res.status(201).json(category);
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -66,15 +113,30 @@ router.patch('/:id', async (req, res) => {
 // PUT /api/categories/:id
 router.put('/:id', upload.single('image'), async (req, res) => {
   const { name, status } = req.body;
-
   const updateData = { name, status };
-
-  if (req.file) {
-    updateData.image = req.file.filename; // Correct key name
-  }
-
+  
   try {
-    const category = await Category.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    // If new image is uploaded
+    if (req.file) {
+      // Get the old category to delete old image from Cloudinary
+      const oldCategory = await Category.findById(req.params.id);
+      
+      // Delete old image from Cloudinary if it exists
+      if (oldCategory && oldCategory.image) {
+        // Extract public_id from Cloudinary URL
+        const publicId = oldCategory.image.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`categories/${publicId}`);
+      }
+      
+      updateData.image = req.file.path; // New Cloudinary URL
+    }
+    
+    const category = await Category.findByIdAndUpdate(
+      req.params.id, 
+      updateData, 
+      { new: true }
+    );
+    
     res.json({ success: true, category });
   } catch (err) {
     console.error(err);
@@ -84,21 +146,21 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 
 // DELETE /api/categories/:id
 router.delete('/:id', async (req, res) => {
-    try {
-        const id = req.params.id;
-        
-        // Validate the ID is a valid MongoDB ID
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ error: 'Invalid banner ID' });
-        }
-
-        const banner = await Category.findByIdAndDelete(id);
-        if (!banner) return res.status(404).json({ error: 'Banner not found' });
-        res.json({ message: 'Banner deleted successfully' });
-    } catch (err) {
-        console.log(err)
-        res.status(500).json({ error: err.message });
+  try {
+    const category = await Category.findById(req.params.id);
+    
+    // Delete image from Cloudinary if it exists
+    if (category && category.image) {
+      const publicId = category.image.split('/').pop().split('.')[0];
+      await cloudinary.uploader.destroy(`categories/${publicId}`);
     }
+    
+    await Category.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Category deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to delete category' });
+  }
 });
 
 module.exports = router;

@@ -103,7 +103,7 @@ export default function SubCategoriesPage() {
 
     try {
       if (isEditMode) {
-        const { data } = await axios.patch(
+        const { data } = await axios.put(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${editingId}`, 
           formData,
           {
@@ -234,7 +234,7 @@ export default function SubCategoriesPage() {
                       {subCategory.image && (
                         <div className="relative h-16 w-16 border rounded-md overflow-hidden">
                           <Image
-                            src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${subCategory.image}` || "/placeholder.svg"}
+                            src={subCategory.image || "/placeholder.svg"}
                             alt={subCategory.name}
                             fill
                             className="object-cover"

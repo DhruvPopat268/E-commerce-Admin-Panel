@@ -534,7 +534,7 @@ export default function BannersPage() {
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>
                     <Image
-                      src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${banner.image}` || "/placeholder.svg"}
+                      src={banner.image || "/placeholder.svg"}
                       alt={banner.title}
                       width={80}
                       height={40}
