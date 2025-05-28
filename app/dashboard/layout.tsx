@@ -19,6 +19,7 @@ import {
   ImageIcon,
   MapPin,
   UserCheck,
+  Route,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -133,6 +134,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: UserCheck,
       href: "/dashboard/sales-agents",
       active: pathname === "/dashboard/sales-agents",
+    },
+    {
+      label: "Routes",
+      icon: Route,
+      href: "/dashboard/routes/setup",
+      active: pathname === "/dashboard/routes/setup",
     },
   ])
 
