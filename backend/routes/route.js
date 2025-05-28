@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Route = require('../models/Route');
+const Route = require('../models/route');
 
 // GET /api/routes - Get all routes
 router.get('/', async (req, res) => {
