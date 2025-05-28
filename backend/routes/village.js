@@ -10,8 +10,10 @@ router.get('/', async (req, res) => {
     // Format the response to match your frontend structure
     const formattedVillages = villages.map((village, index) => ({
       id: village._id,
-      name: village.name,
-      villageCode: village.villageCode, // Include village code
+      name: village.name, // This will be "lathi (લાથી)" format
+      englishName: village.englishName,
+      gujaratiName: village.gujaratiName,
+      villageCode: village.villageCode,
       status: village.status,
       createdAt: village.createdAt.toISOString().split('T')[0] // Format as YYYY-MM-DD
     }));
@@ -44,9 +46,14 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Check if village already exists
-    const existingVillage = await Village.findOne({ 
-      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } 
+    const englishName = name.trim();
+    
+    // Check if village already exists (check both display name and English name)
+    const existingVillage = await Village.findOne({
+      $or: [
+        { name: { $regex: new RegExp(`^${englishName}`, 'i') } },
+        { englishName: { $regex: new RegExp(`^${englishName}$`, 'i') } }
+      ]
     });
 
     if (existingVillage) {
@@ -56,12 +63,20 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Get Gujarati translation
+    const gujaratiTranslation = Village.getGujaratiTranslation(englishName);
+    
+    // Create display name with Gujarati translation
+    const displayName = Village.createDisplayName(englishName, gujaratiTranslation);
+    
     // Generate unique village code
-    const villageCode = await Village.generateUniqueVillageCode(name.trim());
+    const villageCode = await Village.generateUniqueVillageCode(englishName);
 
     // Create new village
     const village = new Village({
-      name: name.trim(),
+      name: displayName, // "lathi (લાથી)"
+      englishName: englishName, // "lathi"
+      gujaratiName: gujaratiTranslation, // "લાથી" or null
       villageCode: villageCode,
       status: true
     });
@@ -72,6 +87,8 @@ router.post('/', async (req, res) => {
     const formattedVillage = {
       id: savedVillage._id,
       name: savedVillage.name,
+      englishName: savedVillage.englishName,
+      gujaratiName: savedVillage.gujaratiName,
       villageCode: savedVillage.villageCode,
       status: savedVillage.status,
       createdAt: savedVillage.createdAt.toISOString().split('T')[0]
@@ -79,7 +96,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Village created successfully',
+      message: `Village created successfully${gujaratiTranslation ? ' with Gujarati translation' : ''}`,
       data: formattedVillage
     });
   } catch (error) {
@@ -122,7 +139,7 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Get current village to check if name is changing
+    // Get current village
     const currentVillage = await Village.findById(id);
     if (!currentVillage) {
       return res.status(404).json({
@@ -131,9 +148,15 @@ router.put('/:id', async (req, res) => {
       });
     }
 
+    // Extract English name from input (remove Gujarati part if present)
+    const englishName = name.split('(')[0].trim();
+
     // Check if another village with the same name exists
     const existingVillage = await Village.findOne({
-      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+      $or: [
+        { name: { $regex: new RegExp(`^${englishName}`, 'i') } },
+        { englishName: { $regex: new RegExp(`^${englishName}$`, 'i') } }
+      ],
       _id: { $ne: id }
     });
 
@@ -144,16 +167,23 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Generate new village code if name is changing
+    // Get Gujarati translation for the new name
+    const gujaratiTranslation = Village.getGujaratiTranslation(englishName);
+    
+    // Create display name with Gujarati translation
+    const displayName = Village.createDisplayName(englishName, gujaratiTranslation);
+
     let updateData = {
-      name: name.trim(),
+      name: displayName,
+      englishName: englishName,
+      gujaratiName: gujaratiTranslation,
       status: status !== undefined ? status : true,
       updatedAt: Date.now()
     };
 
-    // If name is changing, generate new village code
-    if (currentVillage.name.toLowerCase() !== name.trim().toLowerCase()) {
-      const newVillageCode = await Village.generateUniqueVillageCode(name.trim());
+    // If English name is changing, generate new village code
+    if (currentVillage.englishName.toLowerCase() !== englishName.toLowerCase()) {
+      const newVillageCode = await Village.generateUniqueVillageCode(englishName);
       updateData.villageCode = newVillageCode;
     }
 
@@ -170,6 +200,8 @@ router.put('/:id', async (req, res) => {
     const formattedVillage = {
       id: updatedVillage._id,
       name: updatedVillage.name,
+      englishName: updatedVillage.englishName,
+      gujaratiName: updatedVillage.gujaratiName,
       villageCode: updatedVillage.villageCode,
       status: updatedVillage.status,
       createdAt: updatedVillage.createdAt.toISOString().split('T')[0]
@@ -241,6 +273,8 @@ router.patch('/:id/status', async (req, res) => {
     const formattedVillage = {
       id: updatedVillage._id,
       name: updatedVillage.name,
+      englishName: updatedVillage.englishName,
+      gujaratiName: updatedVillage.gujaratiName,
       villageCode: updatedVillage.villageCode,
       status: updatedVillage.status,
       createdAt: updatedVillage.createdAt.toISOString().split('T')[0]
@@ -281,6 +315,8 @@ router.delete('/:id', async (req, res) => {
       data: {
         id: deletedVillage._id,
         name: deletedVillage.name,
+        englishName: deletedVillage.englishName,
+        gujaratiName: deletedVillage.gujaratiName,
         villageCode: deletedVillage.villageCode
       }
     });
@@ -312,6 +348,8 @@ router.get('/:id', async (req, res) => {
     const formattedVillage = {
       id: village._id,
       name: village.name,
+      englishName: village.englishName,
+      gujaratiName: village.gujaratiName,
       villageCode: village.villageCode,
       status: village.status,
       createdAt: village.createdAt.toISOString().split('T')[0]
@@ -323,6 +361,39 @@ router.get('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching village:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+      error: error.message
+    });
+  }
+});
+
+// GET - Get all villages with translation status
+router.get('/translations/status', async (req, res) => {
+  try {
+    const villages = await Village.find().sort({ createdAt: -1 });
+    
+    const translationStats = {
+      total: villages.length,
+      withTranslation: villages.filter(v => v.gujaratiName).length,
+      withoutTranslation: villages.filter(v => !v.gujaratiName).length,
+      villages: villages.map(village => ({
+        id: village._id,
+        name: village.name,
+        englishName: village.englishName,
+        gujaratiName: village.gujaratiName,
+        hasTranslation: !!village.gujaratiName,
+        villageCode: village.villageCode
+      }))
+    };
+
+    res.status(200).json({
+      success: true,
+      data: translationStats
+    });
+  } catch (error) {
+    console.error('Error fetching translation status:', error);
     res.status(500).json({
       success: false,
       message: 'Server Error',
