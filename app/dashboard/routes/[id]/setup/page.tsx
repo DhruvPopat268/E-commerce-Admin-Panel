@@ -23,22 +23,8 @@ interface Customer {
   name: string
   villages: string[]
   status: boolean
-  // Add other fields that might come from the API
-  village?: string // Single village field if API returns it this way
   email?: string
   phone?: string
-  // Add more fields as needed based on your API response
-}
-
-interface SalesAgent {
-  id: number
-  name: string
-  village: string // Assuming the API returns village as a string
-  // Add other fields that might come from salesAgents API
-  email?: string
-  phone?: string
-  status?: boolean
-  // Add more fields as needed
 }
 
 export default function RouteSetupPage() {
@@ -50,153 +36,191 @@ export default function RouteSetupPage() {
   const [error, setError] = useState<string | null>(null)
   const [customersLoading, setCustomersLoading] = useState(false)
   const [customersError, setCustomersError] = useState<string | null>(null)
-
-  // Updated customers state - will be populated from API
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [allSalesAgents, setAllSalesAgents] = useState<SalesAgent[]>([])
-
   const [selectAll, setSelectAll] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [hasExistingSetup, setHasExistingSetup] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
-    fetchVillages()
-    fetchAllSalesAgents()
+    fetchRouteSetup()
   }, [])
 
-  const fetchVillages = async () => {
+  const fetchRouteSetup = async () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages`)
       
-      console.log('Villages API Response:', response.data)
+      // Add more detailed logging
+      console.log('Fetching route setup for routeId:', routeId)
+      console.log('API URL:', `${process.env.NEXT_PUBLIC_BASE_URL}/api/routesSetup/${routeId}/setup`)
       
-      let villagesData = response.data
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/routesSetup/${routeId}/setup`)
       
-      if (response.data && response.data.data) {
-        villagesData = response.data.data
+      console.log('Route Setup API Response:', response.data)
+      console.log('Response Status:', response.status)
+      console.log('Full Response:', response)
+      
+      if (response.data.success) {
+        const { villages: villagesData, customers: customersData, hasExistingSetup: hasSetup } = response.data.data
+        
+        console.log('Villages Data:', villagesData)
+        console.log('Customers Data:', customersData)
+        console.log('Villages Count:', villagesData?.length)
+        console.log('Customers Count:', customersData?.length)
+        
+        setVillages(villagesData || [])
+        setCustomers(customersData || [])
+        setHasExistingSetup(hasSetup)
+        
+        // Update select all checkbox
+        const allChecked = villagesData?.every((village: Village) => village.checked) || false
+        setSelectAll(allChecked)
+      } else {
+        console.error('API returned success: false', response.data)
+        setError(response.data.message || 'Failed to fetch route setup data')
       }
-      
-      if (response.data && response.data.villages) {
-        villagesData = response.data.villages
-      }
-      
-      if (!Array.isArray(villagesData)) {
-        throw new Error('API response is not an array')
-      }
-      
-      const fetchedVillages = villagesData.map((village: any) => ({
-        id: (village.id || village._id || Math.random().toString()).toString(),
-        name: village.name || village.village_name || village.title || 'Unknown Village',
-        checked: false
-      }))
-      
-      setVillages(fetchedVillages)
     } catch (error) {
-      console.error('Error fetching villages:', error)
-      setError('Failed to fetch villages. Please try again.')
+      console.error('Error fetching route setup:', error)
+      if (axios.isAxiosError(error)) {
+        console.error('Axios Error Details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url
+        })
+        setError(`API Error: ${error.response?.status} - ${error.response?.data?.message || error.message}`)
+      } else {
+        setError('Failed to fetch route setup data. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchAllSalesAgents = async () => {
-    try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents`)
-      console.log('Sales Agents API Response:', response.data)
-      
-      let salesAgentsData = response.data
-      
-      // Handle different API response structures
-      if (response.data && response.data.data) {
-        salesAgentsData = response.data.data
-      }
-      
-      if (response.data && response.data.salesAgents) {
-        salesAgentsData = response.data.salesAgents
-      }
-      
-      if (!Array.isArray(salesAgentsData)) {
-        throw new Error('Sales agents API response is not an array')
-      }
-      
-      setAllSalesAgents(salesAgentsData)
-    } catch (error) {
-      console.error('Error fetching sales agents:', error)
-      // Don't set error state here as it's not critical for initial load
-    }
-  }
-
-  const fetchCustomersBySelectedVillages = async (selectedVillageNames: string[]) => {
-    try {
-      setCustomersLoading(true)
-      setCustomersError(null)
-      
-      // Filter sales agents by selected villages
-      const filteredCustomers = allSalesAgents.filter(agent => {
-        // Check if agent's village matches any of the selected villages
-        return selectedVillageNames.some(villageName => 
-          agent.village && agent.village.toLowerCase().includes(villageName.toLowerCase())
-        )
-      })
-
-      // Transform sales agents to customer format
-      const transformedCustomers: Customer[] = filteredCustomers.map((agent, index) => ({
-        id: agent.id,
-        name: agent.name,
-        villages: [agent.village], // Convert single village to array
-        status: agent.status !== undefined ? agent.status : true,
-        // Include other fields if needed
-        email: agent.email,
-        phone: agent.phone
-      }))
-
-      setCustomers(transformedCustomers)
-    } catch (error) {
-      console.error('Error filtering customers:', error)
-      setCustomersError('Failed to load customers for selected villages.')
-    } finally {
-      setCustomersLoading(false)
-    }
-  }
-
   const handleSelectAll = (checked: boolean) => {
+    console.log('Select All clicked:', checked)
     setSelectAll(checked)
-    setVillages(villages.map((village) => ({ ...village, checked })))
+    const updatedVillages = villages.map((village) => ({ ...village, checked }))
+    setVillages(updatedVillages)
+    console.log('Updated villages after select all:', updatedVillages)
   }
 
   const handleVillageChange = (villageId: string, checked: boolean) => {
-    setVillages(villages.map((village) => (village.id === villageId ? { ...village, checked } : village)))
-
-    const updatedVillages = villages.map((village) => (village.id === villageId ? { ...village, checked } : village))
-    setSelectAll(updatedVillages.every((village) => village.checked))
+    console.log('Village change:', villageId, checked)
+    const updatedVillages = villages.map((village) => 
+      village.id === villageId ? { ...village, checked } : village
+    )
+    
+    setVillages(updatedVillages)
+    const allChecked = updatedVillages.every((village) => village.checked)
+    setSelectAll(allChecked)
+    console.log('Updated villages:', updatedVillages)
+    console.log('All checked:', allChecked)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
     const selectedVillages = villages.filter((village) => village.checked)
+    console.log('Selected villages for submission:', selectedVillages)
+    
+    // Extract village IDs and names for debugging
+    const selectedVillageIds = selectedVillages.map(v => v.id)
+    const selectedVillageNames = selectedVillages.map(v => v.name)
+    
+    console.log('Selected village IDs:', selectedVillageIds)
+    console.log('Selected village names:', selectedVillageNames)
     
     if (selectedVillages.length === 0) {
       alert('Please select at least one village.')
       return
     }
     
-    console.log("Selected villages:", selectedVillages)
-    
-    // Get selected village names
-    const selectedVillageNames = selectedVillages.map(village => village.name)
-    
-    // Fetch customers for selected villages
-    await fetchCustomersBySelectedVillages(selectedVillageNames)
+    try {
+      setSaving(true)
+      setCustomersError(null)
+      setCustomersLoading(true)
+      
+      // Try different payload formats to see which one works
+      const payload = {
+        selectedVillages: selectedVillages,
+        villageIds: selectedVillageIds,
+        routeId: routeId
+      }
+      
+      console.log('Submitting route setup with payload:', payload)
+      
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/routesSetup/${routeId}/setup`, payload)
+      
+      console.log('Save route setup response:', response.data)
+      console.log('Response status:', response.status)
+      console.log('Full response object:', response)
+      
+      if (response.data.success) {
+        const customersData = response.data.data.customers || []
+        console.log('Received customers data:', customersData)
+        console.log('Customers count:', customersData.length)
+        
+        // Log each customer for debugging
+        customersData.forEach((customer, index) => {
+          console.log(`Customer ${index + 1}:`, customer)
+        })
+        
+        setCustomers(customersData)
+        setHasExistingSetup(true)
+        
+        // Show success message
+        alert(`Route setup saved successfully! Found ${customersData.length} customers.`)
+      } else {
+        console.error('Save failed:', response.data)
+        setCustomersError(response.data.message || 'Failed to save route setup')
+      }
+    } catch (error) {
+      console.error('Error saving route setup:', error)
+      if (axios.isAxiosError(error)) {
+        console.error('Save Error Details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          request: error.config
+        })
+        setCustomersError(`Save Error: ${error.response?.status} - ${error.response?.data?.message || error.message}`)
+      } else {
+        setCustomersError('Failed to save route setup. Please try again.')
+      }
+    } finally {
+      setSaving(false)
+      setCustomersLoading(false)
+    }
   }
 
-  const handleReset = () => {
-    setVillages(villages.map((village) => ({ ...village, checked: false })))
-    setSelectAll(false)
-    setCustomers([]) // Clear customers table
-    setCustomersError(null)
+  const handleReset = async () => {
+    try {
+      console.log('Resetting route setup')
+      
+      // Reset UI state
+      setVillages(villages.map((village) => ({ ...village, checked: false })))
+      setSelectAll(false)
+      setCustomers([])
+      setCustomersError(null)
+      setHasExistingSetup(false)
+      
+      // Optional: Delete from backend
+      if (hasExistingSetup) {
+        const confirmDelete = window.confirm('This will delete the saved route setup. Are you sure?')
+        if (confirmDelete) {
+          console.log('Deleting route setup from backend')
+          await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/routesSetup/${routeId}/setup`)
+          console.log('Route setup deleted successfully')
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting route setup:', error)
+    }
   }
 
   // Filter customers based on search term
@@ -210,6 +234,8 @@ export default function RouteSetupPage() {
 
   return (
     <div className="space-y-6">
+     
+
       <div className="flex items-center gap-4">
         <Link href="/dashboard/routes/setup">
           <Button variant="outline" size="sm">
@@ -221,7 +247,12 @@ export default function RouteSetupPage() {
           <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
             <span className="text-blue-600 font-semibold">🛣️</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Routes Setup</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Routes Setup</h1>
+            {hasExistingSetup && (
+              <p className="text-sm text-green-600">✓ Route setup saved</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -238,7 +269,7 @@ export default function RouteSetupPage() {
                   disabled={loading || villages.length === 0}
                 />
                 <label htmlFor="select-all" className="text-sm text-gray-600">
-                  Select All
+                  Select All ({villages.length} villages)
                 </label>
               </div>
             </div>
@@ -251,12 +282,13 @@ export default function RouteSetupPage() {
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <div className="text-red-700 text-sm font-semibold mb-2">Error Details:</div>
                 <div className="text-red-700 text-sm">{error}</div>
                 <Button 
                   type="button" 
                   variant="outline" 
                   size="sm" 
-                  onClick={fetchVillages}
+                  onClick={fetchRouteSetup}
                   className="mt-2"
                 >
                   Retry
@@ -266,7 +298,7 @@ export default function RouteSetupPage() {
 
             {!loading && !error && villages.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                No villages found
+                No villages found for this route
               </div>
             )}
 
@@ -293,16 +325,16 @@ export default function RouteSetupPage() {
               type="button" 
               variant="outline" 
               onClick={handleReset}
-              disabled={loading || villages.length === 0}
+              disabled={loading || villages.length === 0 || saving}
             >
               Reset
             </Button>
             <Button 
               type="submit" 
               className="bg-teal-600 hover:bg-teal-700"
-              disabled={loading || villages.length === 0 || customersLoading}
+              disabled={loading || villages.length === 0 || saving}
             >
-              {customersLoading ? 'Loading...' : 'Submit'}
+              {saving ? 'Saving...' : 'Submit'}
             </Button>
           </div>
         </form>
@@ -346,13 +378,14 @@ export default function RouteSetupPage() {
 
           {customersError && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4 m-4">
+              <div className="text-red-700 text-sm font-semibold mb-2">Customer Loading Error:</div>
               <div className="text-red-700 text-sm">{customersError}</div>
             </div>
           )}
 
           {!customersLoading && !customersError && customers.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              {villages.some(v => v.checked) ? 
+              {villages.some(v => v.checked) || hasExistingSetup ? 
                 'No customers found for selected villages' : 
                 'Please select villages and click Submit to load customers'
               }
