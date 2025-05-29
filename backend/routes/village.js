@@ -1,10 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const Village = require('../models/village'); // Adjust path as needed
+const jwt = require('jsonwebtoken');
 
 // GET - Get all villages
 router.get('/', async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(403).json({ message: "Access denied. No token provided." });
+  }
+
+  const token = authHeader.split(' ')[1]; 
   try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const villages = await Village.find().sort({ createdAt: -1 });
     
     // Format the response to match your frontend structure
