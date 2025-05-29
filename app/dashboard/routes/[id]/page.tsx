@@ -23,24 +23,7 @@ interface Route {
 
 export default function RoutesPage() {
   const [routes, setRoutes] = useState<Route[]>([
-    {
-      id: 1,
-      name: "Route A",
-      status: true,
-      createdAt: "2024-01-15",
-    },
-    {
-      id: 2,
-      name: "Route B",
-      status: true,
-      createdAt: "2024-01-16",
-    },
-    {
-      id: 3,
-      name: "Route C",
-      status: false,
-      createdAt: "2024-01-17",
-    },
+   
   ])
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
