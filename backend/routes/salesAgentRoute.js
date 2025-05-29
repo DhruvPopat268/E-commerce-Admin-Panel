@@ -200,6 +200,69 @@ router.post('/', upload.single('photo'), async (req, res) => {
   }
 });
 
+
+
+router.post('/login', async (req, res) => {
+  try {
+    const { mobileNumber } = req.body;
+    
+    // Validate mobile number is provided
+    if (!mobileNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number is required'
+      });
+    }
+    
+    // Check if sales agent exists with this mobile number
+    const salesAgent = await SalesAgent.findOne({ mobileNumber });
+    
+    if (!salesAgent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mobile number does not exist'
+      });
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: salesAgent._id,
+        mobileNumber: salesAgent.mobileNumber,
+        name: salesAgent.name,
+        businessName: salesAgent.businessName
+      },
+      process.env.JWT_SECRET || 'your-secret-key', // Make sure to use environment variable
+      { 
+        expiresIn: '30d' // Token expires in 30 days
+      }
+    );
+    
+    // Return success response with token and status
+    res.status(200).json({
+      success: true,
+      message: 'Login Successfully',
+      token,
+      status: salesAgent.status,
+      data: {
+        id: salesAgent._id,
+        name: salesAgent.name,
+        businessName: salesAgent.businessName,
+        mobileNumber: salesAgent.mobileNumber,
+        village: salesAgent.village,
+        status: salesAgent.status
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error during login',
+      error: error.message
+    });
+  }
+});
+
 // PUT update sales agent
 router.put('/:id', upload.single('photo'), async (req, res) => {
   try {
