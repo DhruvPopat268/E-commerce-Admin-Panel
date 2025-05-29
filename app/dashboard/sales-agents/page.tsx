@@ -163,6 +163,7 @@ export default function SalesAgentPage() {
             if (photoFile) formData.append('photo', photoFile)
 
             const { data } = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents`, formData)
+            console.log(formData)
 
             if (data.success) {
                 toast({ title: "Success", description: "Sales agent created successfully" })
@@ -571,7 +572,7 @@ export default function SalesAgentPage() {
                                         <div className="flex items-center space-x-3">
                                             <div className="h-10 w-10 relative overflow-hidden rounded-full">
                                                 <Image
-                                                    src={agent.photo?.url || "/placeholder.svg?height=40&width=40"}
+                                                    src={agent.photo?.url}
                                                     alt={agent.name}
                                                     fill
                                                     className="object-cover"

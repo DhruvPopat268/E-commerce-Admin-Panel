@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import axios from "axios"
 
 type NavItem = {
   label: string
@@ -147,6 +148,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setNavItems((prev) => prev.map((item, i) => (i === index ? { ...item, expanded: !item.expanded } : item)))
   }
 
+  const handleLogout = async() => {
+    const res = await axios.post(`https://e-commerce-admin-backend.onrender.com/auth/admin/logout`)
+  }
+
   const renderNavItems = (items: NavItem[], isMobile = false) => {
     return items.map((item, index) => {
       // If the item has children, render a dropdown
@@ -225,6 +230,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Button
                 variant="outline"
                 className="w-full justify-start text-white bg-gray-800 hover:bg-gray-700 hover:text-white"
+                onClick={()=>handleLogout}
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
