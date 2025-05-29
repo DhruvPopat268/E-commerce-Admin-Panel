@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const SalesAgent = require('../models/salesAgent');
+const jwt = require('jsonwebtoken');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -204,10 +205,13 @@ router.post('/', upload.single('photo'), async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { mobileNumber } = req.body;
+    const { mobileNumber, MobileNumber } = req.body;
+    
+    // Handle both possible key formats
+    const mobile = mobileNumber || MobileNumber;
     
     // Validate mobile number is provided
-    if (!mobileNumber) {
+    if (!mobile) {
       return res.status(400).json({
         success: false,
         message: 'Mobile number is required'
@@ -215,7 +219,7 @@ router.post('/login', async (req, res) => {
     }
     
     // Check if sales agent exists with this mobile number
-    const salesAgent = await SalesAgent.findOne({ mobileNumber });
+    const salesAgent = await SalesAgent.findOne({ mobileNumber: mobile });
     
     if (!salesAgent) {
       return res.status(404).json({
@@ -228,7 +232,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { 
         id: salesAgent._id,
-        mobileNumber: salesAgent.mobileNumber,
+        mobileNumber: mobile,
         name: salesAgent.name,
         businessName: salesAgent.businessName
       },
@@ -250,7 +254,9 @@ router.post('/login', async (req, res) => {
         businessName: salesAgent.businessName,
         mobileNumber: salesAgent.mobileNumber,
         village: salesAgent.village,
-        status: salesAgent.status
+        status: salesAgent.status,
+        address : salesAgent.address,
+        photo: salesAgent.photo
       }
     });
     
@@ -262,6 +268,30 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
+// Optional: Middleware to verify JWT token for protected routes
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: 'Access token required'
+    });
+  }
+  
+  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+    if (err) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 // PUT update sales agent
 router.put('/:id', upload.single('photo'), async (req, res) => {
