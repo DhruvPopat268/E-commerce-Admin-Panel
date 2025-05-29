@@ -14,6 +14,7 @@ const villageRoutes = require('./routes/village')
 const salesAgentRoutes = require('./routes/salesAgentRoute')
 const routeRoutes = require('./routes/route')
 const routeSetupRoutes = require('./routes/routeSetupRputes')
+const combineRoutes = require('./routes/combineRoutes')
 const path = require('path');
 
 const app = express();
@@ -56,6 +57,7 @@ app.use("/api/routes", routeRoutes)
 
 app.use("/api/routesSetup", routeSetupRoutes)
 
+app.use("/api/c/b/d",combineRoutes)
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);

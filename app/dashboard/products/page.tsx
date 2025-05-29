@@ -68,13 +68,25 @@ export default function ProductsPage() {
     )
   }, [products, searchQuery])
 
-  const toggleShowInDailyNeeds = (id: number) => {
-    setProducts(
-      products.map((product) =>
-        product.id === id ? { ...product, showInDailyNeeds: !product.showInDailyNeeds } : product,
-      ),
+  const toggleShowInDailyNeeds = async (id: string) => {
+    const product = products.find(p => p._id === id)
+    if (!product) return
+
+    const updatedProducts = products.map(p =>
+      p._id === id ? { ...p, showInDailyNeeds: !p.showInDailyNeeds } : p
     )
+    setProducts(updatedProducts)
+
+    try {
+      await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${id}/daily-needs`, {
+        showInDailyNeeds: !product.showInDailyNeeds,
+      })
+    } catch (error) {
+      console.error("Failed to update daily needs toggle:", error)
+      setProducts(products) // revert if error
+    }
   }
+
 
   const toggleFeatured = (id: number) => {
     setProducts(products.map((product) => (product.id === id ? { ...product, featured: !product.featured } : product)))
@@ -208,9 +220,10 @@ export default function ProductsPage() {
                 <TableCell>
                   <Switch
                     checked={product.showInDailyNeeds}
-                    onCheckedChange={() => toggleShowInDailyNeeds(product.id)}
+                    onCheckedChange={() => toggleShowInDailyNeeds(product._id)}
                     className="data-[state=checked]:bg-teal-500"
                   />
+
                 </TableCell>
                 <TableCell>
                   <Switch

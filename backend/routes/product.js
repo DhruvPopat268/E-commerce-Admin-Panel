@@ -84,6 +84,16 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
+router.get('/daily-needs', async (req, res) => {
+  try {
+    const dailyNeedsProducts = await Product.find({ showInDailyNeeds: true })
+    res.json(dailyNeedsProducts)
+  } catch (error) {
+    console.error("Error fetching daily needs products:", error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 // PUT Route - Update Product
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
@@ -342,6 +352,31 @@ router.patch("/:id/status", async (req, res) => {
     res.status(500).json({ error: "Server error." });
   }
 });
+
+// PATCH /api/products/:id/daily-needs
+router.patch("/:id/daily-needs", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { showInDailyNeeds } = req.body;
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { showInDailyNeeds },
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json(updatedProduct);
+  } catch (err) {
+    console.error("Error updating showInDailyNeeds:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 
 // GET /api/products/:id - get a single product by ID
 

@@ -163,8 +163,7 @@ export default function SalesAgentPage() {
             if (photoFile) formData.append('photo', photoFile)
 
             const { data } = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents`, formData)
-            console.log(formData)
-
+             
             if (data.success) {
                 toast({ title: "Success", description: "Sales agent created successfully" })
                 resetForm()
