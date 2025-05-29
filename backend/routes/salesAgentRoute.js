@@ -187,7 +187,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
     
     const savedAgent = await newSalesAgent.save();
     
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: 'Sales agent created successfully',
       data: savedAgent

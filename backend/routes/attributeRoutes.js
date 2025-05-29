@@ -24,7 +24,7 @@ router.post("/", async (req, res) => {
     const attribute = new Attribute({ name });
     await attribute.save();
 
-    res.status(201).json(attribute);
+    res.status(200).json(attribute);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

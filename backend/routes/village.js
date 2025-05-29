@@ -23,6 +23,7 @@ router.get('/', async (req, res) => {
       count: villages.length,
       data: formattedVillages
     });
+    
   } catch (error) {
     console.error('Error fetching villages:', error);
     res.status(500).json({

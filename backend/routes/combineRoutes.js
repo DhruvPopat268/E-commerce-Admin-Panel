@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
     }));
 
     // Send combined response
-    res.json({
+    res.status(200).json({
       categories,
       banners,
       dailyneed: dailyNeedsProducts
