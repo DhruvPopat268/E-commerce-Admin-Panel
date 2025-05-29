@@ -30,13 +30,16 @@ export default function RoutesPage() {
   const [routeName, setRouteName] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [isMounted, setIsMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true);
+
 
   useEffect(() => {
     setIsMounted(true)
      fetchRoutes();
   }, [])
 
-  const fetchRoutes = async () => {
+const fetchRoutes = async () => {
+  setIsLoading(true);
   try {
     const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/routes`);
     if (response.data.success) {
@@ -44,8 +47,11 @@ export default function RoutesPage() {
     }
   } catch (error) {
     console.error('Error fetching routes:', error);
+  } finally {
+    setIsLoading(false); // Always hide loader regardless of success/failure
   }
 };
+
 
  const handleSubmit = async (e) => {
   e.preventDefault();
@@ -97,6 +103,14 @@ const handleStatusToggle = async (id) => {
 
   if (!isMounted) {
     return null
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+      </div>
+    )
   }
 
   return (

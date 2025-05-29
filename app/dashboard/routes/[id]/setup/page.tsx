@@ -48,57 +48,42 @@ export default function RouteSetupPage() {
     fetchRouteSetup()
   }, [])
 
-  const fetchRouteSetup = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Add more detailed logging
-      console.log('Fetching route setup for routeId:', routeId)
-      console.log('API URL:', `${process.env.NEXT_PUBLIC_BASE_URL}/api/routesSetup/${routeId}/setup`)
-      
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/routesSetup/${routeId}/setup`)
-      
-      console.log('Route Setup API Response:', response.data)
-      console.log('Response Status:', response.status)
-      console.log('Full Response:', response)
-      
-      if (response.data.success) {
-        const { villages: villagesData, customers: customersData, hasExistingSetup: hasSetup } = response.data.data
-        
-        console.log('Villages Data:', villagesData)
-        console.log('Customers Data:', customersData)
-        console.log('Villages Count:', villagesData?.length)
-        console.log('Customers Count:', customersData?.length)
-        
-        setVillages(villagesData || [])
-        setCustomers(customersData || [])
-        setHasExistingSetup(hasSetup)
-        
-        // Update select all checkbox
-        const allChecked = villagesData?.every((village: Village) => village.checked) || false
-        setSelectAll(allChecked)
-      } else {
-        console.error('API returned success: false', response.data)
-        setError(response.data.message || 'Failed to fetch route setup data')
-      }
-    } catch (error) {
-      console.error('Error fetching route setup:', error)
-      if (axios.isAxiosError(error)) {
-        console.error('Axios Error Details:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          url: error.config?.url
-        })
-        setError(`API Error: ${error.response?.status} - ${error.response?.data?.message || error.message}`)
-      } else {
-        setError('Failed to fetch route setup data. Please try again.')
-      }
-    } finally {
-      setLoading(false)
+const fetchRouteSetup = async () => {
+  try {
+    setLoading(true)
+    setError(null)
+
+    const url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/routesSetup/${routeId}/setup`
+    console.log("Fetching route setup:", url)
+
+    const response = await axios.get(url)
+
+    if (response.status === 200 && response.data.success) {
+      const { villages: villagesData, customers: customersData, hasExistingSetup: hasSetup } = response.data.data
+
+      setVillages(villagesData || [])
+      setCustomers(customersData || [])
+      setHasExistingSetup(hasSetup)
+
+      const allChecked = villagesData?.every((village: Village) => village.checked) || false
+      setSelectAll(allChecked)
+    } else {
+      console.error("Unexpected API response:", response)
+      setError(response.data.message || "Failed to fetch route setup data.")
     }
+  } catch (error) {
+    console.error("Error fetching route setup:", error)
+    if (axios.isAxiosError(error)) {
+      console.error("Axios Error:", error.response)
+      setError(`API Error: ${error.response?.status} - ${error.response?.data?.message || error.message}`)
+    } else {
+      setError("Failed to fetch route setup data. Please try again.")
+    }
+  } finally {
+    setLoading(false)
   }
+}
+
 
   const handleSelectAll = (checked: boolean) => {
     console.log('Select All clicked:', checked)
@@ -232,10 +217,17 @@ export default function RouteSetupPage() {
     return null
   }
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
      
-
       <div className="flex items-center gap-4">
         <Link href="/dashboard/routes/setup">
           <Button variant="outline" size="sm">
