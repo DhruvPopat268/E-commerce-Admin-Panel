@@ -30,17 +30,21 @@ export default function ProductsPage() {
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ])
 
-        if (productsRes.status === 200) {
+        if (productsRes.status === 200 && Array.isArray(productsRes.data)) {
           setProducts(productsRes.data)
         }
-        if (categoriesRes.status === 200) {
+        if (categoriesRes.status === 200 && Array.isArray(categoriesRes.data)) {
           setCategories(categoriesRes.data)
         }
-        if (subcategoriesRes.status === 200) {
+        if (subcategoriesRes.status === 200 && Array.isArray(subcategoriesRes.data)) {
           setSubcategories(subcategoriesRes.data)
         }
       } catch (error) {
         console.error("Failed to fetch data:", error)
+        // Ensure arrays remain as arrays even on error
+        setProducts(prev => Array.isArray(prev) ? prev : [])
+        setCategories(prev => Array.isArray(prev) ? prev : [])
+        setSubcategories(prev => Array.isArray(prev) ? prev : [])
       } finally {
         setIsLoading(false)
       }
@@ -50,12 +54,14 @@ export default function ProductsPage() {
 
   // Helper function to get category name by ID
   const getCategoryName = (categoryId) => {
+    if (!Array.isArray(categories) || !categoryId) return 'N/A'
     const category = categories.find(cat => cat._id === categoryId)
     return category ? category.name : 'N/A'
   }
 
   // Helper function to get subcategory name by ID
   const getSubcategoryName = (subcategoryId) => {
+    if (!Array.isArray(subcategories) || !subcategoryId) return 'N/A'
     const subcategory = subcategories.find(sub => sub._id === subcategoryId)
     return subcategory ? subcategory.name : 'N/A'
   }
