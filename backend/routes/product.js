@@ -119,31 +119,34 @@ router.post("/subcategory/:id", async (req, res) => {
   }
 });
 
-router.post("/:id", async (req, res) => {
-  const authHeader = req.headers.authorization
+router.post("/productDetail", async (req, res) => {
+  const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(403).json({ 
       success: false,
       message: "Access denied. No token provided." 
     });
   }
+
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const product = await Product.findById(req.params.id);
-    
+
+    const productId = req.body.id; // ✅ Get ID from request body
+    const product = await Product.findById(productId);
+
     if (!product) {
       return res.status(404).json({ 
         success: false,
         message: "Product not found" 
       });
     }
-    
+
     res.status(200).json({
       success: true,
-      productId: req.params.id,
+      productId: productId,
       count: 1,
-      data: [product]
+      data: product  // ✅ Send product directly as object
     });
   } catch (error) {
     console.error("Error fetching product by ID:", error);
@@ -153,6 +156,8 @@ router.post("/:id", async (req, res) => {
     });
   }
 });
+
+
 
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {

@@ -88,9 +88,14 @@ export default function AddProductPage() {
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ]);
 
-        setAttributeOptions(attrRes.data);
-        setFetchedCategories(categoriesRes.data);
-        setFetchedSubcategories(subcategoriesRes.data);
+        // Add safety checks and ensure arrays
+        setAttributeOptions(Array.isArray(attrRes.data) ? attrRes.data : []);
+        setFetchedCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
+        setFetchedSubcategories(Array.isArray(subcategoriesRes.data) ? subcategoriesRes.data : []);
+
+        // Debug logging
+        console.log("Fetched categories:", categoriesRes.data);
+        console.log("Fetched subcategories:", subcategoriesRes.data);
 
         // If we're in edit mode, fetch the product data
         if (productId) {
@@ -108,7 +113,7 @@ export default function AddProductPage() {
           });
 
           setPreviewImage(productData.image || null);
-          setTags(productData.tags || []);
+          setTags(Array.isArray(productData.tags) ? productData.tags : []);
 
           // Now set the selected category and subcategory
           if (productData.category) {
@@ -157,6 +162,8 @@ export default function AddProductPage() {
   };
 
   const handleCategoryChange = (value: string) => {
+    console.log("Selected category:", value); // Debug log
+    console.log("Available subcategories:", fetchedSubcategories); // Debug log
     setProduct({ ...product, category: value, subCategory: "" });
     setSelectedCategory(value);
     setSelectedSubCategory(null);
@@ -241,7 +248,7 @@ export default function AddProductPage() {
             // Keep existing image
             image: product.image
           };
-          
+
           await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, updatedProduct);
         }
       } else {
@@ -408,13 +415,30 @@ export default function AddProductPage() {
                       <SelectValue placeholder="---Select---" />
                     </SelectTrigger>
                     <SelectContent>
-                      {fetchedSubcategories
-                        .filter((subcat) => subcat.category._id === selectedCategory)
-                        .map((subcat) => (
+                      {(() => {
+                        const filteredSubcategories = (fetchedSubcategories || [])
+                          .filter((subcat) => {
+                            // Debug logging
+                            console.log("Checking subcategory:", subcat.name, "Category ID:", subcat.category?._id, "Selected Category:", selectedCategory);
+                            return subcat.category?._id === selectedCategory;
+                          });
+
+                        console.log("Filtered subcategories:", filteredSubcategories);
+
+                        if (filteredSubcategories.length === 0) {
+                          return (
+                            <div className="px-2 py-1.5 text-sm text-gray-500">
+                              No subcategories available
+                            </div>
+                          );
+                        }
+
+                        return filteredSubcategories.map((subcat) => (
                           <SelectItem key={subcat._id} value={subcat._id}>
                             {subcat.name}
                           </SelectItem>
-                        ))}
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
