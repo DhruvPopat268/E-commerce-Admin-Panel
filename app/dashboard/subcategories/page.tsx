@@ -46,49 +46,54 @@ export default function SubCategoriesPage() {
   }
 
   // Fetch subcategories from backend
-// Fix for fetchSubCategories function
-const fetchSubCategories = async (retries = 5, delay = 1000) => {
-  try {
-    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
-    if (response.status === 200) {
-      const responseData = response.data
-      
-    
-      if (responseData && responseData.data && Array.isArray(responseData.data)) {
-        setSubCategories(responseData.data) // Access the data property
-      } else if (Array.isArray(responseData)) {
-        // Fallback: if the response is directly an array
-        setSubCategories(responseData)
+  const fetchSubCategories = async (retries = 5, delay = 1000) => {
+    try {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+      if (response.status === 200) {
+        const responseData = response.data
+        
+        if (responseData && responseData.data && Array.isArray(responseData.data)) {
+          setSubCategories(responseData.data) // Access the data property
+        } else if (Array.isArray(responseData)) {
+          // Fallback: if the response is directly an array
+          setSubCategories(responseData)
+        } else {
+          console.error("Expected an array but got:", responseData)
+          setSubCategories([]) // Fallback to empty array to avoid crash
+        }
       } else {
-        console.error("Expected an array but got:", responseData)
-        setSubCategories([]) // Fallback to empty array to avoid crash
+        throw new Error("Non-200 status")
       }
-    } else {
-      throw new Error("Non-200 status")
+    } catch (err) {
+      console.error("Failed to fetch subcategories", err)
+      if (retries > 0) {
+        setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
+      } else {
+        setSubCategories([]) // fallback on failure
+      }
+    } finally {
+      setLoadingSubCategories(false)
     }
-  } catch (err) {
-    console.error("Failed to fetch subcategories", err)
-    if (retries > 0) {
-      setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
-    } else {
-      setSubCategories([]) // fallback on failure
-    }
-  } finally {
-    setLoadingSubCategories(false)
   }
-}
-
 
   useEffect(() => {
     fetchCategories()
     fetchSubCategories()
   }, [])
 
-  const filteredSubCategories = subCategories.filter(
-    (subCategory) =>
-      subCategory.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (subCategory.category?.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  // Fixed filter function with proper null/undefined checks
+  const filteredSubCategories = subCategories.filter((subCategory) => {
+    if (!subCategory) return false
+    
+    const subCategoryName = subCategory.name || ""
+    const categoryName = subCategory.category?.name || ""
+    const query = searchQuery || ""
+    
+    return (
+      subCategoryName.toLowerCase().includes(query.toLowerCase()) ||
+      categoryName.toLowerCase().includes(query.toLowerCase())
+    )
+  })
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0]
@@ -180,6 +185,16 @@ const fetchSubCategories = async (retries = 5, delay = 1000) => {
     }
   }
 
+  // Reset form function
+  const resetForm = () => {
+    setNewSubCategory({ categoryId: "", name: "", status: true })
+    setImageFile(null)
+    setPreviewImage(null)
+    setIsEditMode(false)
+    setEditingId(null)
+    setIsAddDialogOpen(false)
+  }
+
   if (loadingSubCategories) {
     return (
       <div className="flex justify-center items-center h-[70vh]">
@@ -249,7 +264,7 @@ const fetchSubCategories = async (retries = 5, delay = 1000) => {
                         <div className="relative h-16 w-16 border rounded-md overflow-hidden">
                           <Image
                             src={subCategory.image || "/placeholder.svg"}
-                            alt={subCategory.name}
+                            alt={subCategory.name || "Sub category"}
                             fill
                             className="object-cover"
                           />
@@ -257,7 +272,7 @@ const fetchSubCategories = async (retries = 5, delay = 1000) => {
                       )}
                     </TableCell>
                     <TableCell>{subCategory.category?.name || "N/A"}</TableCell>
-                    <TableCell>{subCategory.name}</TableCell>
+                    <TableCell>{subCategory.name || "N/A"}</TableCell>
                     <TableCell>
                       <Switch
                         checked={subCategory.status}
@@ -274,8 +289,8 @@ const fetchSubCategories = async (retries = 5, delay = 1000) => {
                           onClick={() => {
                             setNewSubCategory({
                               categoryId: subCategory.category?._id || "",
-                              name: subCategory.name,
-                              status: subCategory.status,
+                              name: subCategory.name || "",
+                              status: subCategory.status || true,
                             })
                             setPreviewImage(subCategory.image || null)
                             setEditingId(subCategory._id)
@@ -389,11 +404,7 @@ const fetchSubCategories = async (retries = 5, delay = 1000) => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setIsAddDialogOpen(false)
-              setPreviewImage(null)
-              setImageFile(null)
-            }}>
+            <Button variant="outline" onClick={resetForm}>
               Cancel
             </Button>
             <Button onClick={handleSaveSubCategory} className="bg-teal-600 hover:bg-teal-700">
