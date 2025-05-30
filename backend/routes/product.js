@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const jwt = require("jsonwebtoken")
+const subCategory = require('../models/SubCategory')
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -87,37 +88,60 @@ router.get('/daily-needs', async (req, res) => {
 router.post("/subcategory", async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(403).json({ 
+    return res.status(403).json({
       success: false,
-      message: "Access denied. No token provided." 
+      message: "Access denied. No token provided."
     });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    jwt.verify(token, process.env.JWT_SECRET);
 
-    const subCategoryId = req.body.id; // ✅ Get subcategory ID from body
-    const products = await Product.find({ subCategory: subCategoryId });
+    const subCategoryId = req.body.id;
 
-    if (!products || products.length === 0) {
-      return res.status(404).json({ 
+    // ✅ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(subCategoryId)) {
+      return res.status(400).json({
         success: false,
-        message: "No products found for this subcategory" 
+        message: "Invalid subcategory ID format"
       });
     }
 
-    res.status(200).json({
+    // Step 1: Check if subCategoryId exists in SubCategory collection
+    const subCategoryExists = await subCategory.findById(subCategoryId);
+    if (!subCategoryExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Subcategory ID does not exist"
+      });
+    }
+
+    // Step 2: Find products with the given subCategoryId
+    const products = await Product.find({ subCategory: subCategoryId });
+
+    if (!products || products.length === 0) {
+      return res.status(200).json({
+        success: true,
+        subCategoryId,
+        count: 0,
+        data: []
+      });
+    }
+
+    return res.status(200).json({
       success: true,
-      subCategoryId: subCategoryId,
+      subCategoryId,
       count: products.length,
-      data: products // ✅ Array of products
+      data: products
     });
+
   } catch (error) {
     console.error("Error fetching products by subcategory ID:", error);
-    res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Server error" 
+      message: "Server error"
     });
   }
 });
