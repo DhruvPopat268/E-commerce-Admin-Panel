@@ -46,24 +46,38 @@ export default function SubCategoriesPage() {
   }
 
   // Fetch subcategories from backend
-  const fetchSubCategories = async (retries = 5, delay = 1000) => {
-    try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
-      if (response.status === 200) {
-        setSubCategories(response.data)
-        setLoadingSubCategories(false)
+// Fix for fetchSubCategories function
+const fetchSubCategories = async (retries = 5, delay = 1000) => {
+  try {
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+    if (response.status === 200) {
+      const responseData = response.data
+      
+    
+      if (responseData && responseData.data && Array.isArray(responseData.data)) {
+        setSubCategories(responseData.data) // Access the data property
+      } else if (Array.isArray(responseData)) {
+        // Fallback: if the response is directly an array
+        setSubCategories(responseData)
       } else {
-        throw new Error("Non-200 status")
+        console.error("Expected an array but got:", responseData)
+        setSubCategories([]) // Fallback to empty array to avoid crash
       }
-    } catch (err) {
-      console.error("Failed to fetch subcategories", err)
-      if (retries > 0) {
-        setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
-      } else {
-        setLoadingSubCategories(false)
-      }
+    } else {
+      throw new Error("Non-200 status")
     }
+  } catch (err) {
+    console.error("Failed to fetch subcategories", err)
+    if (retries > 0) {
+      setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
+    } else {
+      setSubCategories([]) // fallback on failure
+    }
+  } finally {
+    setLoadingSubCategories(false)
   }
+}
+
 
   useEffect(() => {
     fetchCategories()
