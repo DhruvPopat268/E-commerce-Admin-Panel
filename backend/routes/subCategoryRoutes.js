@@ -6,6 +6,8 @@ const path = require('path');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const jwt = require("jsonwebtoken")
+const mongoose = require('mongoose')
+const category = require('../models/category')
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -68,41 +70,66 @@ router.get("/", async (req, res) => {
 
 // GET Route - Get subcategories by category ID (Direct route with params)
 // GET /api/subcategories/:categoryId
-router.post("/:categoryId", async (req, res) => {
-  const authHeader = req.headers.authorization
+router.post("/categoryId", async (req, res) => {
+  const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    return res.status(403).json({ message: "Access denied. No token provided." });
+    return res.status(403).json({ 
+      success: false,
+      message: "Access denied. No token provided." 
+    });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    jwt.verify(token, process.env.JWT_SECRET);
 
-    const { categoryId } = req.params;
+    const { categoryId } = req.body;
 
+    // ✅ Validate categoryId format
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid category ID format"
+      });
+    }
+
+    // ✅ Check if category exists
+    const categoryExists = await category.findById(categoryId);
+    if (!categoryExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Category ID does not exist"
+      });
+    }
+
+    // ✅ Find related subcategories
     const subCategories = await SubCategory.find({ category: categoryId })
       .populate("category", "name")
       .exec();
 
-    if (subCategories.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No subcategories found for this category"
+    if (!subCategories || subCategories.length === 0) {
+      return res.status(200).json({
+        success: true,
+        categoryId,
+        count: 0,
+        data: []
       });
     }
 
-    res.json({
+    return res.status(200).json({
       success: true,
-      categoryId: categoryId,
+      categoryId,
       count: subCategories.length,
       data: subCategories
     });
+
   } catch (err) {
-    console.error('Error fetching subcategories by category:', err);
-    res.status(500).json({
+    console.error("Error fetching subcategories by category:", err);
+    return res.status(500).json({
       success: false,
-      message: err.message
+      message: "Server error"
     });
   }
 });
