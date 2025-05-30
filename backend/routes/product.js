@@ -86,25 +86,71 @@ router.get('/daily-needs', async (req, res) => {
 
 router.post("/subcategory/:id", async (req, res) => {
   const authHeader = req.headers.authorization
-
   if (!authHeader) {
-    return res.status(403).json({ message: "Access denied. No token provided." });
+    return res.status(403).json({ 
+      success: false,
+      message: "Access denied. No token provided." 
+    });
   }
-
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const products = await Product.find({ subCategory: req.params.id });
-
+    
     if (!products || products.length === 0) {
-      return res.status(404).json({ message: "No products found for this subcategory" });
+      return res.status(404).json({ 
+        success: false,
+        message: "No products found for this subcategory" 
+      });
     }
-
-    res.status(200).json(products);
+    
+    res.status(200).json({
+      success: true,
+      categoryId: req.params.id,
+      count: products.length,
+      data: products
+    });
   } catch (error) {
     console.error("Error fetching products by subcategory ID:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ 
+      success: false,
+      message: "Server error" 
+    });
+  }
+});
+
+router.post("/:id", async (req, res) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader) {
+    return res.status(403).json({ 
+      success: false,
+      message: "Access denied. No token provided." 
+    });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const product = await Product.findById(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Product not found" 
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      productId: req.params.id,
+      count: 1,
+      data: [product]
+    });
+  } catch (error) {
+    console.error("Error fetching product by ID:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Server error" 
+    });
   }
 });
 
@@ -222,28 +268,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-router.post("/:id", async (req, res) => {
-  const authHeader = req.headers.authorization
 
-  if (!authHeader) {
-    return res.status(403).json({ message: "Access denied. No token provided." });
-  }
-
-  const token = authHeader.split(' ')[1]; 
-  try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const product = await Product.findById(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-    res.status(200).json(product);
-  } catch (error) {
-    console.error("Error fetching product by ID:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
 
 router.get("/", async (req, res) => {
   try {
