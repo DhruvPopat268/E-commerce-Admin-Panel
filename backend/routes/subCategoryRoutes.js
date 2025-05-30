@@ -67,7 +67,7 @@ router.get("/", async (req, res) => {
 
 // GET Route - Get subcategories by category ID (Direct route with params)
 // GET /api/subcategories/:categoryId
-router.get("/:categoryId", async (req, res) => {
+router.post("/:categoryId", async (req, res) => {
   try {
     const { categoryId } = req.params;
     
