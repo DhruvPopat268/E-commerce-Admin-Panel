@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const jwt = require("jsonwebtoken")
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -24,7 +25,7 @@ const storage = new CloudinaryStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
@@ -37,16 +38,16 @@ const upload = multer({
 router.get("/", async (req, res) => {
   try {
     const { categoryId } = req.query;
-    
+
     let filter = {};
     if (categoryId) {
       filter.category = categoryId;
     }
-    
+
     const subCategories = await SubCategory.find(filter)
       .populate("category", "name")
       .exec();
-      
+
     res.json({
       success: true,
       count: subCategories.length,
@@ -54,9 +55,9 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching subcategories:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 });
@@ -68,20 +69,29 @@ router.get("/", async (req, res) => {
 // GET Route - Get subcategories by category ID (Direct route with params)
 // GET /api/subcategories/:categoryId
 router.post("/:categoryId", async (req, res) => {
+  const authHeader = req.headers.authorization
+
+  if (!authHeader) {
+    return res.status(403).json({ message: "Access denied. No token provided." });
+  }
+
+  const token = authHeader.split(' ')[1];
   try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     const { categoryId } = req.params;
-    
+
     const subCategories = await SubCategory.find({ category: categoryId })
       .populate("category", "name")
       .exec();
-      
+
     if (subCategories.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No subcategories found for this category"
       });
     }
-    
+
     res.json({
       success: true,
       categoryId: categoryId,
@@ -90,9 +100,9 @@ router.post("/:categoryId", async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching subcategories by category:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 });
@@ -104,23 +114,23 @@ router.get("/single/:id", async (req, res) => {
     const subCategory = await SubCategory.findById(req.params.id)
       .populate("category", "name")
       .exec();
-      
+
     if (!subCategory) {
       return res.status(404).json({
         success: false,
         message: "Subcategory not found"
       });
     }
-    
+
     res.json({
       success: true,
       data: subCategory
     });
   } catch (err) {
     console.error('Error fetching subcategory:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 });
@@ -130,18 +140,18 @@ router.post('/', upload.single('image'), async (req, res) => {
   try {
     const { categoryId, name, status } = req.body;
     const imageFile = req.file;
-    
+
     if (!categoryId || !name) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "categoryId and name are required" 
+        error: "categoryId and name are required"
       });
     }
 
     if (!imageFile) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "Image is required" 
+        error: "Image is required"
       });
     }
 
@@ -154,16 +164,16 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     const savedSubCategory = await newSubCategory.save();
     await savedSubCategory.populate("category");
-    
+
     res.status(201).json({
       success: true,
       data: savedSubCategory
     });
   } catch (error) {
     console.error("Error creating subcategory:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: "Server error" 
+      error: "Server error"
     });
   }
 });
@@ -173,15 +183,15 @@ router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const { categoryId, name, status } = req.body;
     const imageFile = req.file;
-    
+
     const updateData = {};
     if (categoryId) updateData.category = categoryId;
     if (name) updateData.name = name;
     if (status !== undefined) updateData.status = status === "true" || status === true;
-    
+
     if (imageFile) {
       const oldSubCategory = await SubCategory.findById(req.params.id);
-      
+
       if (oldSubCategory && oldSubCategory.image) {
         try {
           const publicId = oldSubCategory.image
@@ -189,14 +199,14 @@ router.put('/:id', upload.single('image'), async (req, res) => {
             .slice(-2)
             .join('/')
             .split('.')[0];
-          
+
           await cloudinary.uploader.destroy(publicId);
           console.log('Old subcategory image deleted from Cloudinary:', publicId);
         } catch (deleteError) {
           console.error('Error deleting old subcategory image from Cloudinary:', deleteError);
         }
       }
-      
+
       updateData.image = imageFile.path;
     }
 
@@ -207,9 +217,9 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     ).populate('category', 'name');
 
     if (!updatedSubCategory) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Subcategory not found' 
+        message: 'Subcategory not found'
       });
     }
 
@@ -219,10 +229,10 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     });
   } catch (err) {
     console.error('Error updating subcategory:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Server error', 
-      error: err.message 
+      message: 'Server error',
+      error: err.message
     });
   }
 });
@@ -234,9 +244,9 @@ router.patch('/:id', async (req, res) => {
   try {
     const subCategory = await SubCategory.findById(req.params.id);
     if (!subCategory) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "SubCategory not found" 
+        message: "SubCategory not found"
       });
     }
 
@@ -252,9 +262,9 @@ router.patch('/:id', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 });
@@ -263,11 +273,11 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const subCategory = await SubCategory.findById(req.params.id);
-    
+
     if (!subCategory) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "SubCategory not found" 
+        message: "SubCategory not found"
       });
     }
 
@@ -278,7 +288,7 @@ router.delete('/:id', async (req, res) => {
           .slice(-2)
           .join('/')
           .split('.')[0];
-        
+
         await cloudinary.uploader.destroy(publicId);
         console.log('SubCategory image deleted from Cloudinary:', publicId);
       } catch (deleteError) {
@@ -287,14 +297,14 @@ router.delete('/:id', async (req, res) => {
     }
 
     await SubCategory.findByIdAndDelete(req.params.id);
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: "SubCategory deleted successfully"
     });
   } catch (err) {
     console.error('Error deleting subcategory:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: err.message
     });

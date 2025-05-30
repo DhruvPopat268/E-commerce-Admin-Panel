@@ -3,9 +3,10 @@ const router = express.Router();
 const Product = require('../models/product');
 const multer = require('multer');
 const path = require('path');
-
+const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const jwt = require("jsonwebtoken")
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -25,23 +26,12 @@ const storage = new CloudinaryStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
-
-// POST /api/products - create new product
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, "./uploads");
-//   },
-//   filename: (req, file, cb) => {
-//     cb(null, Date.now() + path.extname(file.originalname));
-//   },
-// });
-// const upload = multer({ storage });
 
 
 router.post('/', upload.single('image'), async (req, res) => {
@@ -50,7 +40,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     if (req.body.tags && typeof req.body.tags === 'string') {
       req.body.tags = JSON.parse(req.body.tags);
     }
-   
+
     if (req.body.attributes && typeof req.body.attributes === 'string') {
       req.body.attributes = JSON.parse(req.body.attributes);
     }
@@ -70,12 +60,12 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 
     const product = new Product(req.body);
-    
+
     // Handle image upload with Cloudinary
     if (req.file) {
       product.image = req.file.path; // Store full Cloudinary URL
     }
-   
+
     await product.save();
     res.status(201).json(product);
   } catch (error) {
@@ -94,14 +84,37 @@ router.get('/daily-needs', async (req, res) => {
   }
 })
 
-// PUT Route - Update Product
+router.post("/subcategory/:id", async (req, res) => {
+  const authHeader = req.headers.authorization
+
+  if (!authHeader) {
+    return res.status(403).json({ message: "Access denied. No token provided." });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const products = await Product.find({ subCategory: req.params.id });
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({ message: "No products found for this subcategory" });
+    }
+
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Error fetching products by subcategory ID:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     // Parse JSON strings back to objects
     if (req.body.tags && typeof req.body.tags === 'string') {
       req.body.tags = JSON.parse(req.body.tags);
     }
-   
+
     if (req.body.attributes && typeof req.body.attributes === 'string') {
       req.body.attributes = JSON.parse(req.body.attributes);
     }
@@ -124,7 +137,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     if (req.file) {
       // Get the old product to delete old image from Cloudinary
       const oldProduct = await Product.findById(req.params.id);
-      
+
       // Delete old image from Cloudinary if it exists
       if (oldProduct && oldProduct.image) {
         try {
@@ -134,7 +147,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
             .slice(-2) // Get last two parts: folder/filename
             .join('/')
             .split('.')[0]; // Remove file extension
-          
+
           await cloudinary.uploader.destroy(publicId);
           console.log('Old product image deleted from Cloudinary:', publicId);
         } catch (deleteError) {
@@ -142,21 +155,21 @@ router.put('/:id', upload.single('image'), async (req, res) => {
           // Continue with update even if old image deletion fails
         }
       }
-      
+
       // Add new image URL to update data
       req.body.image = req.file.path; // Store full Cloudinary URL
     }
 
     const product = await Product.findByIdAndUpdate(
-      req.params.id, 
-      req.body, 
+      req.params.id,
+      req.body,
       { new: true }
     );
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-   
+
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -169,7 +182,7 @@ router.delete('/:id', async (req, res) => {
   try {
     // Get the product first to access image URL
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
@@ -183,7 +196,7 @@ router.delete('/:id', async (req, res) => {
           .slice(-2) // Get last two parts: folder/filename
           .join('/')
           .split('.')[0]; // Remove file extension
-        
+
         await cloudinary.uploader.destroy(publicId);
         console.log('Product image deleted from Cloudinary:', publicId);
       } catch (deleteError) {
@@ -194,103 +207,34 @@ router.delete('/:id', async (req, res) => {
 
     // Delete the product from database
     const deletedProduct = await Product.findByIdAndDelete(req.params.id);
-    
-    res.json({ 
+
+    res.json({
       message: 'Product deleted successfully',
       success: true,
       data: deletedProduct
     });
   } catch (error) {
     console.error('Delete product error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
-      success: false 
+      success: false
     });
   }
 });
 
-// In your product route (product.js)
-// router.post('/', upload.single('image'), async (req, res) => {
-//   try {
-//     // Parse JSON strings back to objects
-//     if (req.body.tags && typeof req.body.tags === 'string') {
-//       req.body.tags = JSON.parse(req.body.tags);
-//     }
-    
-//     if (req.body.attributes && typeof req.body.attributes === 'string') {
-//       req.body.attributes = JSON.parse(req.body.attributes);
-//     }
+router.post("/:id", async (req, res) => {
+  const authHeader = req.headers.authorization
 
-//     // Convert string values to appropriate types for attributes
-//     if (req.body.attributes && Array.isArray(req.body.attributes)) {
-//       req.body.attributes = req.body.attributes.map(attr => ({
-//         ...attr,
-//         price: Number(attr.price),
-//         discountedPrice: Number(attr.discountedPrice)
-//       }));
-//     }
+  if (!authHeader) {
+    return res.status(403).json({ message: "Access denied. No token provided." });
+  }
 
-//     // Convert visibility string to boolean
-//     if (typeof req.body.visibility === 'string') {
-//       req.body.visibility = req.body.visibility === 'true';
-//     }
-
-//     const product = new Product(req.body);
-//     if (req.file) {
-//       product.image = req.file.filename; // or however you handle image storage
-//     }
-    
-//     await product.save();
-//     res.status(201).json(product);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(400).json({ message: error.message });
-//   }
-// });
-
-// Similar fix for PUT route
-// router.put('/:id', upload.single('image'), async (req, res) => {
-//   try {
-//     // Parse JSON strings back to objects
-//     if (req.body.tags && typeof req.body.tags === 'string') {
-//       req.body.tags = JSON.parse(req.body.tags);
-//     }
-    
-//     if (req.body.attributes && typeof req.body.attributes === 'string') {
-//       req.body.attributes = JSON.parse(req.body.attributes);
-//     }
-
-//     // Convert string values to appropriate types for attributes
-//     if (req.body.attributes && Array.isArray(req.body.attributes)) {
-//       req.body.attributes = req.body.attributes.map(attr => ({
-//         ...attr,
-//         price: Number(attr.price),
-//         discountedPrice: Number(attr.discountedPrice)
-//       }));
-//     }
-
-//     // Convert visibility string to boolean
-//     if (typeof req.body.visibility === 'string') {
-//       req.body.visibility = req.body.visibility === 'true';
-//     }
-
-//     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
-//     if (req.file) {
-//       product.image = req.file.filename;
-//       await product.save();
-//     }
-    
-//     res.json(product);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(400).json({ message: error.message });
-//   }
-// });
-
-router.get("/:id", async (req, res) => {
+  const token = authHeader.split(' ')[1]; 
   try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
@@ -301,32 +245,15 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-
-
 router.get("/", async (req, res) => {
-    try {
-        let products = await Product.find({})
+  try {
+    let products = await Product.find({})
 
-        res.status(200).json(products);
-    } catch (err) {
-        console.log("Error: " + err);
-    }
+    res.status(200).json(products);
+  } catch (err) {
+    console.log("Error: " + err);
+  }
 })
-
-// router.delete('/:id', async (req, res) => {
-//   try {
-//     const deletedProduct = await Product.findByIdAndDelete(req.params.id);
-//     if (!deletedProduct) {
-//       return res.status(404).json({ message: 'Product not found' });
-//     }
-//     res.json({ message: 'Product deleted successfully' });
-//   } catch (error) {
-//     console.error('Delete product error:', error);
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// });
-
-
 
 router.patch("/:id/status", async (req, res) => {
   const productId = req.params.id;
@@ -375,12 +302,6 @@ router.patch("/:id/daily-needs", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-
-
-// GET /api/products/:id - get a single product by ID
-
-
 
 
 module.exports = router;
