@@ -5,7 +5,8 @@ const jwt = require('jsonwebtoken');
 
 // GET - Get all villages
 router.get('/', async (req, res) => {
-  const authHeader = req.headers.authorization;
+  console.log(req.cookies.token)
+  const authHeader = req.headers.authorization || req.cookies.token;
 
   if (!authHeader) {
     return res.status(403).json({ message: "Access denied. No token provided." });

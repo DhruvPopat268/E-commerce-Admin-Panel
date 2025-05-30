@@ -15,6 +15,7 @@ const salesAgentRoutes = require('./routes/salesAgentRoute')
 const routeRoutes = require('./routes/route')
 const routeSetupRoutes = require('./routes/routeSetupRputes')
 const combineRoutes = require('./routes/combineRoutes')
+const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const app = express();
@@ -31,6 +32,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(cookieParser());
 
 // Serve uploads folder statically for images
 app.use('/uploads', express.static('uploads'));

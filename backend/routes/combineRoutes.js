@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/category');
+const SubCategory = require('../models/SubCategory'); // Add this line - adjust path if needed
 const Banner = require('../models/bannerModel');
 const Product = require('../models/product');
 const jwt = require('jsonwebtoken');
@@ -26,6 +27,20 @@ router.get('/', async (req, res) => {
       Product.find({ showInDailyNeeds: true })
     ]);
 
+    // Get all unique category and subcategory IDs from products
+    const categoryIds = [...new Set(dailyNeedsProducts.map(p => p.category).filter(Boolean))];
+    const subCategoryIds = [...new Set(dailyNeedsProducts.map(p => p.subCategory).filter(Boolean))];
+
+    // Fetch category and subcategory details
+    const [categoryDetails, subCategoryDetails] = await Promise.all([
+      Category.find({ _id: { $in: categoryIds } }).select('_id name'),
+      SubCategory.find({ _id: { $in: subCategoryIds } }).select('_id name') // Use SubCategory model
+    ]);
+
+    // Create lookup maps
+    const categoryMap = new Map(categoryDetails.map(cat => [cat._id.toString(), cat]));
+    const subCategoryMap = new Map(subCategoryDetails.map(subCat => [subCat._id.toString(), subCat]));
+
     const banners = bannersRaw.map(banner => ({
       ...banner.toObject(),
       imageUrl: banner.image ? `/uploads/${banner.image}` : null
@@ -37,17 +52,34 @@ router.get('/', async (req, res) => {
         ? productObj.attributes[0]
         : null;
 
+      // Get category and subcategory details from maps
+      const categoryDetail = categoryMap.get(productObj.category);
+      const subCategoryDetail = subCategoryMap.get(productObj.subCategory);
+
       return {
         featured: productObj.featured,
         _id: productObj._id,
-        name: firstAttribute?.name || productObj.name,
+        productName: productObj.name, // Product name from Product model
+        name: firstAttribute?.name || productObj.name, // Attribute name or fallback to product name
         description: productObj.description,
-        category: productObj.category,
-        subCategory: productObj.subCategory,
+        category: categoryDetail ? {
+          _id: categoryDetail._id,
+          name: categoryDetail.name
+        } : {
+          _id: productObj.category,
+          name: null
+        },
+        subCategory: subCategoryDetail ? {
+          _id: subCategoryDetail._id,
+          name: subCategoryDetail.name
+        } : {
+          _id: productObj.subCategory,
+          name: null
+        },
         visibility: productObj.visibility,
         status: productObj.status,
-        price: firstAttribute?.price || productObj.price,
-        discountedPrice: firstAttribute?.discountedPrice || productObj.discountedPrice,
+        price: firstAttribute?.price || productObj.price, // Attribute price or fallback to product price
+        discountedPrice: firstAttribute?.discountedPrice || productObj.discountedPrice, // Attribute discounted price or fallback
         image: productObj.image,
         createdAt: productObj.createdAt,
         updatedAt: productObj.updatedAt,
