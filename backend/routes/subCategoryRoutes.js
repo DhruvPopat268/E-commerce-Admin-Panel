@@ -50,11 +50,11 @@ router.get("/", async (req, res) => {
       .populate("category", "name")
       .exec();
 
-    res.json({
+    res.json([{
       success: true,
       count: subCategories.length,
       data: subCategories
-    });
+    }]);
   } catch (err) {
     console.error('Error fetching subcategories:', err);
     res.status(500).json({
