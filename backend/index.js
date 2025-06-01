@@ -18,6 +18,7 @@ const combineRoutes = require('./routes/combineRoutes')
 const cookieParser = require('cookie-parser');
 const cartRoutes = require('./routes/cartRoutes');
 const path = require('path');
+const orderRoutes = require('./routes/Order'); 
 
 const app = express();
 
@@ -63,6 +64,8 @@ app.use("/api/routesSetup", routeSetupRoutes)
 app.use("/api/c/b/d",combineRoutes)
 
 app.use('/api/cart', cartRoutes);
+
+app.use('/api/orders', orderRoutes);  
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
