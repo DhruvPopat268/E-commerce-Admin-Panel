@@ -115,7 +115,7 @@ router.put('/update', verifyToken, async (req, res) => {
     // If quantity is 0, delete the cart item
     if (parseInt(quantity) === 0) {
       await Cart.deleteOne({ _id: cartItem._id });
-      return res.json({ message: 'Cart item removed successfully' });
+      return res.status(200).json({ message: 'Cart item removed successfully' });
     }
 
     // Update quantity
