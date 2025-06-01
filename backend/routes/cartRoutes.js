@@ -2,21 +2,31 @@ const express = require('express');
 const router = express.Router();
 const Cart = require('../models/Cart');
 const verifyToken = require('../middleware/authMiddleware');
+const Product = require('../models/product');
 
-// 🛒 Add item to cart (with quantity inside each attribute)
+
 router.post('/add', verifyToken, async (req, res) => {
   try {
-    const { productId, name, image, attributes } = req.body;
+    const { productId, image, attributes } = req.body;
     const userId = req.userId;
 
-    // Parse attributes if it's a JSON string
-    let parsedAttributes = Array.isArray(attributes) ? attributes : JSON.parse(attributes);
+    // ✅ 1. Fetch product name from DB
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
 
-    // Check if product with same attributes already exists
+    const productName = product.name;
+
+    // ✅ 2. Parse attributes safely
+    let parsedAttributes = Array.isArray(attributes)
+      ? attributes
+      : JSON.parse(attributes);
+
+    // ✅ 3. Check if the item is already in the cart
     const existing = await Cart.findOne({ userId, productId });
 
     if (existing) {
-      // Merge attributes and update quantities
       parsedAttributes.forEach((newAttr) => {
         const matchIndex = existing.attributes.findIndex(
           (attr) => attr.name === newAttr.name
@@ -33,11 +43,12 @@ router.post('/add', verifyToken, async (req, res) => {
       return res.json(existing);
     }
 
-    // New product to cart
+    // ✅ 4. Create new cart item
     const newItem = await Cart.create({
       userId,
       productId,
-      name,
+      productName,     // ✅ auto-fetched
+      name: productName, // Optional: if your schema uses both
       image,
       attributes: parsedAttributes.map(attr => ({
         ...attr,
@@ -45,11 +56,13 @@ router.post('/add', verifyToken, async (req, res) => {
       })),
     });
 
-    res.status(201).json(newItem);
+    res.status(200).json(newItem);
   } catch (err) {
+    console.log(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // 🛒 Get cart items
 router.post('/my-cart', verifyToken, async (req, res) => {

@@ -11,6 +11,7 @@ const cartSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true }, // ✅ just a string
     productId: String,
+    productName: String,
     name: String,
     image: String,
     attributes: [attributeSchema],
