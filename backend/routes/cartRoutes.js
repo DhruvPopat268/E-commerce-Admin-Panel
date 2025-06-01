@@ -4,7 +4,6 @@ const Cart = require('../models/Cart');
 const verifyToken = require('../middleware/authMiddleware');
 const Product = require('../models/product');
 
-
 router.post('/add', verifyToken, async (req, res) => {
   try {
     const { productId, attributeId, quantity } = req.body;
@@ -17,7 +16,7 @@ router.post('/add', verifyToken, async (req, res) => {
     const attribute = product.attributes.find(attr => attr._id.toString() === attributeId);
     if (!attribute) return res.status(404).json({ error: 'Attribute not found in product' });
 
-    // Find cart item by userId + productId + attribute._id
+    // Find existing cart with this product and attribute
     const existing = await Cart.findOne({
       userId,
       productId,
@@ -25,26 +24,17 @@ router.post('/add', verifyToken, async (req, res) => {
     });
 
     if (existing) {
-      // Update quantity in attributes object
+      // Update quantity
       existing.attributes.quantity += qty;
+      // Calculate total
+      existing.attributes.total = existing.attributes.discountedPrice * existing.attributes.quantity;
 
       const updated = await existing.save();
 
-      const attr = updated.attributes.toObject ? updated.attributes.toObject() : updated.attributes;
-      updated.productTotal = attr.discountedPrice * attr.quantity;
-
-      // Send response with attributes as object
-      return res.status(200).json({
-        ...updated.toObject(),
-        productTotal: updated.productTotal,
-        attributes: {
-          ...attr,
-          total: updated.productTotal
-        }
-      });
+      return res.status(200).json(updated);
     }
 
-    // Create new cart item with attributes as an object
+    // Create new cart entry
     const newCartItem = await Cart.create({
       userId,
       productId,
@@ -53,29 +43,21 @@ router.post('/add', verifyToken, async (req, res) => {
       attributes: {
         _id: attribute._id,
         name: attribute.name,
-        price: attribute.price,
+      
         discountedPrice: attribute.discountedPrice,
         quantity: qty,
+        total: attribute.discountedPrice * qty
       },
     });
 
-    const attr = newCartItem.attributes;
-    const productTotal = attr.discountedPrice * attr.quantity;
-
-    res.status(200).json({
-      ...newCartItem.toObject(),
-      productTotal,
-      attributes: {
-        ...attr,
-        total: productTotal
-      }
-    });
+    res.status(200).json(newCartItem);
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // 🛒 Get cart items
@@ -86,26 +68,26 @@ router.post('/my-cart', verifyToken, async (req, res) => {
 
     // Compute totals
     const cartWithTotals = cartItems.map(cart => {
-      let productTotal = 0;
+      const attr = cart.attributes; // single object now
 
-      const attributes = cart.attributes.map(attr => {
-        const total = attr.discountedPrice * attr.quantity;
-        productTotal += total;
+      const total = attr.discountedPrice * attr.quantity;
+      // Add total inside attributes object for response
+      const attributesWithTotal = {
+        ...attr.toObject ? attr.toObject() : attr,
+        total
+      };
 
-        return {
-          ...attr.toObject(), // convert mongoose subdoc to plain object
-          total
-        };
-      });
+      // productTotal is same as attribute total since only one attribute
+      const productTotal = total;
 
       return {
-        ...cart.toObject(), // convert entire cart doc to plain object
-        attributes,
+        ...cart.toObject(),
+        attributes: attributesWithTotal,
         productTotal
       };
     });
 
-    // Compute total cart value
+    // Compute total cart value across all cart items
     const totalCartValue = cartWithTotals.reduce((sum, item) => sum + item.productTotal, 0);
 
     res.json({ cart: cartWithTotals, totalCartValue });
