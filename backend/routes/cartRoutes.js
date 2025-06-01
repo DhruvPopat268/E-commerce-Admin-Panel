@@ -9,97 +9,73 @@ router.post('/add', verifyToken, async (req, res) => {
   try {
     const { productId, attributeId, quantity } = req.body;
     const userId = req.userId;
-
     const qty = parseInt(quantity) > 0 ? parseInt(quantity) : 1;
 
-    // ✅ Fetch product and attribute
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const attribute = product.attributes.find(attr => attr._id.toString() === attributeId);
     if (!attribute) return res.status(404).json({ error: 'Attribute not found in product' });
 
-    // ✅ Find existing cart entry for user + product
-    const existing = await Cart.findOne({ userId, productId });
+    // Find cart item by userId + productId + attribute._id
+    const existing = await Cart.findOne({
+      userId,
+      productId,
+      'attributes._id': attributeId
+    });
 
     if (existing) {
-      const matchIndex = existing.attributes.findIndex(
-        attr => attr._id?.toString() === attributeId
-      );
-
-      if (matchIndex > -1) {
-        // ✅ Update quantity if same attribute exists
-        existing.attributes[matchIndex].quantity += qty;
-      } else {
-        // ✅ Else push new attribute
-        existing.attributes.push({
-          _id: attribute._id,
-          name: attribute.name,
-          price: attribute.price,
-          discountedPrice: attribute.discountedPrice,
-          quantity: qty,
-        });
-      }
+      // Update quantity in attributes object
+      existing.attributes.quantity += qty;
 
       const updated = await existing.save();
 
-      // ✅ Add totals dynamically
-      const response = updated.toObject();
-      let productTotal = 0;
+      const attr = updated.attributes.toObject ? updated.attributes.toObject() : updated.attributes;
+      updated.productTotal = attr.discountedPrice * attr.quantity;
 
-      response.attributes = response.attributes.map(attr => {
-        const total = attr.discountedPrice * attr.quantity;
-        productTotal += total;
-        return {
+      // Send response with attributes as object
+      return res.status(200).json({
+        ...updated.toObject(),
+        productTotal: updated.productTotal,
+        attributes: {
           ...attr,
-          total,
-        };
+          total: updated.productTotal
+        }
       });
-
-      response.productTotal = productTotal;
-
-      return res.status(200).json(response);
     }
 
-    // ✅ If not exists, create new cart item
+    // Create new cart item with attributes as an object
     const newCartItem = await Cart.create({
       userId,
       productId,
       productName: product.name,
       image: product.image,
-      attributes: [
-        {
-          _id: attribute._id,
-          name: attribute.name,
-          price: attribute.price,
-          discountedPrice: attribute.discountedPrice,
-          quantity: qty,
-        },
-      ],
+      attributes: {
+        _id: attribute._id,
+        name: attribute.name,
+        price: attribute.price,
+        discountedPrice: attribute.discountedPrice,
+        quantity: qty,
+      },
     });
 
-    // ✅ Add totals dynamically
-    const response = newCartItem.toObject();
-    let productTotal = 0;
+    const attr = newCartItem.attributes;
+    const productTotal = attr.discountedPrice * attr.quantity;
 
-    response.attributes = response.attributes.map(attr => {
-      const total = attr.discountedPrice * attr.quantity;
-      productTotal += total;
-      return {
+    res.status(200).json({
+      ...newCartItem.toObject(),
+      productTotal,
+      attributes: {
         ...attr,
-        total,
-      };
+        total: productTotal
+      }
     });
 
-    response.productTotal = productTotal;
-
-    res.status(200).json(response);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 
 // 🛒 Get cart items
