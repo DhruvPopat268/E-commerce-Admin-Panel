@@ -74,8 +74,11 @@ export default function AddProductPage() {
 
   const [imageFile, setImageFile] = useState<File | null>(null);
 
+  const [filterSubCate, setFilterSubCate] = useState([])
+
   // Update your useEffect for data fetching
   useEffect(() => {
+    console.log("bsdiu", selectedCategory)
     const fetchInitialData = async () => {
       setIsLoading(true);
       setError(null);
@@ -88,14 +91,28 @@ export default function AddProductPage() {
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ]);
 
+        console.log("categories", categoriesRes)
+        console.log("subcategories", subcategoriesRes)
+
+        // FIX: Handle the nested response structure for subcategories
+        let subcategoriesData = [];
+        if (Array.isArray(subcategoriesRes.data)) {
+          // If it's directly an array
+          subcategoriesData = subcategoriesRes.data;
+        } else if (subcategoriesRes.data && Array.isArray(subcategoriesRes.data.data)) {
+          // If it's nested under 'data' property
+          subcategoriesData = subcategoriesRes.data.data;
+        } else if (subcategoriesRes.data && subcategoriesRes.data[0] && Array.isArray(subcategoriesRes.data[0].data)) {
+          // If it's nested in an array under 'data' property (based on your API response)
+          subcategoriesData = subcategoriesRes.data[0].data;
+        }
+
         // Add safety checks and ensure arrays
         setAttributeOptions(Array.isArray(attrRes.data) ? attrRes.data : []);
         setFetchedCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
-        setFetchedSubcategories(Array.isArray(subcategoriesRes.data) ? subcategoriesRes.data : []);
+        setFetchedSubcategories(subcategoriesData);
 
-        // Debug logging
-        console.log("Fetched categories:", categoriesRes.data);
-        console.log("Fetched subcategories:", subcategoriesRes.data);
+        console.log("Processed subcategories:", subcategoriesData);
 
         // If we're in edit mode, fetch the product data
         if (productId) {
@@ -161,12 +178,17 @@ export default function AddProductPage() {
     }
   };
 
-  const handleCategoryChange = (value: string) => {
+  const handleCategoryChange = async (value: string) => {
     console.log("Selected category:", value); // Debug log
-    console.log("Available subcategories:", fetchedSubcategories); // Debug log
+    console.log("fetched subcategories:", fetchedSubcategories); // Debug log
     setProduct({ ...product, category: value, subCategory: "" });
     setSelectedCategory(value);
     setSelectedSubCategory(null);
+
+    // const filterSubCategory = fetchedSubcategories[0]?.data.filter((subcat) => subcat.category?._id === value);
+
+    // setFilterSubCate(filterSubCategory)
+
   };
 
   const handleSubCategoryChange = (value: string) => {
@@ -414,36 +436,44 @@ export default function AddProductPage() {
                     <SelectTrigger id="subcategory" className="border-gray-300">
                       <SelectValue placeholder="---Select---" />
                     </SelectTrigger>
+                    {/* <SelectContent>
+                      {selectedCategory ? (
+                        fetchedSubcategories.length > 0 ? (
+                          fetchedSubcategories
+                            // .filter((subcat) => {
+                            //   console.log("Subcat category:", subcat.category?._id);
+                            //   console.log("Selected category:", selectedCategory);
+                            //   return subcat.category?._id === selectedCategory;
+                            // })
+                            .map((subcat) => (
+                              <SelectItem key={subcat.category._id} value={subcat.category._id}>
+                                {subcat.name}
+                              </SelectItem>
+                            ))
+                        ) : (
+                          <div className="px-2 py-1.5 text-sm text-gray-500">
+                            No subcategories available
+                          </div>
+                        )
+                      ) : (
+                        <div className="px-2 py-1.5 text-sm text-gray-500">
+                          Please select a category first
+                        </div>
+                      )}
+                    </SelectContent> */}
                     <SelectContent>
-                      {(() => {
-                        const filteredSubcategories = (fetchedSubcategories || [])
-                          .filter((subcat) => {
-                            // Debug logging
-                            console.log("Checking subcategory:", subcat.name, "Category ID:", subcat.category?._id, "Selected Category:", selectedCategory);
-                            return subcat.category?._id === selectedCategory;
-                          });
-
-                        console.log("Filtered subcategories:", filteredSubcategories);
-
-                        if (filteredSubcategories.length === 0) {
-                          return (
-                            <div className="px-2 py-1.5 text-sm text-gray-500">
-                              No subcategories available
-                            </div>
-                          );
-                        }
-
-                        return filteredSubcategories.map((subcat) => (
+                      {fetchedSubcategories[0]?.data
+                        ?.filter((subcat) => subcat.category?._id === selectedCategory)
+                        .map((subcat) => (
                           <SelectItem key={subcat._id} value={subcat._id}>
                             {subcat.name}
                           </SelectItem>
-                        ));
-                      })()}
+                        ))}
                     </SelectContent>
+
                   </Select>
                 </div>
               </div>
-
               <div className="">
                 <div className="mt-5 relative top-11 text-sm text-gray-600">
                   Turning Visibility off will not show this product in the user app and website

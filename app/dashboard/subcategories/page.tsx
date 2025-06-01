@@ -51,15 +51,27 @@ export default function SubCategoriesPage() {
       const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
       if (response.status === 200) {
         const responseData = response.data
+        console.log(responseData)
         
-        if (responseData && responseData.data && Array.isArray(responseData.data)) {
-          setSubCategories(responseData.data) // Access the data property
+        // Handle the new API response structure
+        if (Array.isArray(responseData) && responseData.length > 0) {
+          // The response is an array with the first element containing the actual data
+          const firstItem = responseData[0]
+          if (firstItem.success && firstItem.data && Array.isArray(firstItem.data)) {
+            setSubCategories(firstItem.data)
+          } else {
+            console.error("Expected success and data array but got:", firstItem)
+            setSubCategories([])
+          }
+        } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
+          // Fallback for direct object response
+          setSubCategories(responseData.data)
         } else if (Array.isArray(responseData)) {
           // Fallback: if the response is directly an array
           setSubCategories(responseData)
         } else {
-          console.error("Expected an array but got:", responseData)
-          setSubCategories([]) // Fallback to empty array to avoid crash
+          console.error("Unexpected response structure:", responseData)
+          setSubCategories([])
         }
       } else {
         throw new Error("Non-200 status")
@@ -257,7 +269,7 @@ export default function SubCategoriesPage() {
               </TableHeader>
               <TableBody>
                 {filteredSubCategories.map((subCategory, index) => (
-                  <TableRow key={subCategory._id || subCategory.id}>
+                  <TableRow key={subCategory._id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       {subCategory.image && (
@@ -276,7 +288,7 @@ export default function SubCategoriesPage() {
                     <TableCell>
                       <Switch
                         checked={subCategory.status}
-                        onCheckedChange={() => toggleStatus(subCategory._id || subCategory.id, subCategory.status)}
+                        onCheckedChange={() => toggleStatus(subCategory._id, subCategory.status)}
                         className="data-[state=checked]:bg-teal-500"
                       />
                     </TableCell>
@@ -306,7 +318,7 @@ export default function SubCategoriesPage() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 border-red-500 text-red-500"
-                          onClick={() => handleDelete(subCategory._id || subCategory.id)}
+                          onClick={() => handleDelete(subCategory._id)}
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
