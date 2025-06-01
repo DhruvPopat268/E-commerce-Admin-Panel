@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 
 const attributeSchema = new mongoose.Schema({
+     _id: mongoose.Schema.Types.ObjectId,
   name: String,
-  price: Number,
+ 
   discountedPrice: Number,
   quantity: { type: Number, default: 1 },
 });
