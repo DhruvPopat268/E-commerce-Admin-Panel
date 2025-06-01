@@ -99,42 +99,35 @@ router.put('/update', verifyToken, async (req, res) => {
     const { productId, attributeId, quantity } = req.body;
     const userId = req.userId;
 
-    const cartItem = await Cart.findOne({ userId, productId });
+    const cartItem = await Cart.findOne({ 
+      userId, 
+      productId, 
+      'attributes._id': attributeId 
+    });
 
     if (!cartItem) {
       return res.status(404).json({ error: 'Cart item not found' });
     }
 
-    const attr = cartItem.attributes;
-
-    // Make sure attribute exists and matches
-    if (!attr || attr._id.toString() !== attributeId) {
-      return res.status(404).json({ error: 'Attribute not found in cart item' });
-    }
-
-    // If quantity is 0, delete the cart item
+    // Update quantity
     if (parseInt(quantity) === 0) {
       await Cart.deleteOne({ _id: cartItem._id });
       return res.status(200).json({ message: 'Cart item removed successfully' });
     }
 
-    // Update quantity
     cartItem.attributes.quantity = parseInt(quantity);
+    cartItem.attributes.total = cartItem.attributes.discountedPrice * cartItem.attributes.quantity;
+    cartItem.productTotal = cartItem.attributes.total;
 
     await cartItem.save();
 
-    // Add calculated total in response
-    const updated = cartItem.toObject();
-    const total = updated.attributes.discountedPrice * updated.attributes.quantity;
-    updated.attributes.total = total;
-    updated.productTotal = total;
-
-    res.json(updated);
+    res.json(cartItem);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // 🛒 Remove a specific attribute (variation) from cart
