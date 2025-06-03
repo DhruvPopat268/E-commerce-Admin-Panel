@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, CheckCircle, Undo2 } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation" 
 // Mock toast function - replace with your actual toast implementation
@@ -29,12 +29,6 @@ interface Order {
   }>
   status: string
   orderDate: string
-  deliveredDate?: string
-  statusHistory?: Array<{
-    status: string
-    changedAt: string
-    changedBy?: string
-  }>
   __v: number
   cartTotal?: number
   salesAgentName?: string
@@ -43,44 +37,47 @@ interface Order {
   routeName?: string
 }
 
-export default function DeliveredOrdersPage() {
+export default function PendingOrdersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [deliveredOrders, setDeliveredOrders] = useState<Order[]>([])
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
-  const [isReturning, setIsReturning] = useState(false)
+  const [confirmingOrders, setConfirmingOrders] = useState(false)
+  const [cancellingOrders, setCancellingOrders] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     setIsMounted(true)
-    fetchDeliveredOrders()
+    fetchPendingOrders()
   }, [])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
-    if (deliveredOrders.length > 0) {
-      setSelectAll(selectedOrders.size === deliveredOrders.length)
+    if (pendingOrders.length > 0) {
+      setSelectAll(selectedOrders.size === pendingOrders.length)
     }
-  }, [selectedOrders, deliveredOrders])
+  }, [selectedOrders, pendingOrders])
 
-  const fetchDeliveredOrders = async () => {
+  const fetchPendingOrders = async () => {
     try {
       setLoading(true)
+      // Replace with your actual API endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all`)
       const data = await response.json()
 
       if (data.orders) {
-        const delivered = data.orders.filter((order: Order) => order.status.toLowerCase() === 'delivered')
-        setDeliveredOrders(delivered)
-        setSelectedOrders(new Set())
+        // Filter only pending orders
+        const pending = data.orders.filter((order: Order) => order.status.toLowerCase() === 'returned')
+        setPendingOrders(pending)
+        setSelectedOrders(new Set()) // Clear selections when data refreshes
       }
     } catch (error) {
-      console.error('Error fetching delivered orders:', error)
-      toast.error('Failed to fetch delivered orders')
+      console.error('Error fetching pending orders:', error)
+      toast.error('Failed to fetch pending orders')
     } finally {
       setLoading(false)
     }
@@ -89,7 +86,7 @@ export default function DeliveredOrdersPage() {
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
     if (checked) {
-      setSelectedOrders(new Set(deliveredOrders.map(order => order._id)))
+      setSelectedOrders(new Set(pendingOrders.map(order => order._id)))
     } else {
       setSelectedOrders(new Set())
     }
@@ -109,37 +106,81 @@ export default function DeliveredOrdersPage() {
     setSelectedOrders(newSelectedOrders)
   }
 
-  const handleBulkReturn = async () => {
-    if (selectedOrders.size === 0) return
-    
+  const confirmSelectedOrders = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error('Please select at least one order to confirm')
+      return
+    }
+
     try {
-      setIsReturning(true)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/returned-bulk`, {
+      setConfirmingOrders(true)
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/confirm-bulk`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          orderIds: Array.from(selectedOrders)
-        })
+        body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
       })
 
       const data = await response.json()
-      
+
       if (response.ok) {
-        toast.success(data.message)
-        // Refresh the orders list
-        await fetchDeliveredOrders()
+        // Remove confirmed orders from pending orders list
+        setPendingOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
+        setSelectedOrders(new Set())
+        setSelectAll(false)
+        toast.success(`${selectedOrders.size} order(s) confirmed successfully!`)
       } else {
-        toast.error(data.message || 'Failed to mark orders as returned')
+        toast.error(data.message || 'Failed to confirm orders')
       }
     } catch (error) {
-      console.error('Error marking orders as returned:', error)
-      toast.error('Error marking orders as returned')
+      console.error('Error confirming orders:', error)
+      toast.error('Failed to confirm orders')
     } finally {
-      setIsReturning(false)
+      setConfirmingOrders(false)
     }
   }
+
+  const cancelSelectedOrders = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error('Please select at least one order to cancel')
+      return
+    }
+
+    try {
+      setCancellingOrders(true)
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/cancel-bulk`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Remove cancelled orders from pending orders list
+        setPendingOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
+        setSelectedOrders(new Set())
+        setSelectAll(false)
+        toast.success(`${selectedOrders.size} order(s) cancelled successfully!`)
+      } else {
+        toast.error(data.message || 'Failed to cancel orders')
+      }
+    } catch (error) {
+      console.error('Error cancelling orders:', error)
+      toast.error('Failed to cancel orders')
+    } finally {
+      setCancellingOrders(false)
+    }
+  }
+
+  
+
+
 
   const calculateCartTotal = (orderItems: Order['orders']) => {
     return orderItems.reduce((total, item) => total + item.attributes.total, 0)
@@ -153,57 +194,42 @@ export default function DeliveredOrdersPage() {
     })
   }
 
-  const getDeliveredDate = (order: Order) => {
-    if (order.deliveredDate) {
-      return formatDate(order.deliveredDate)
-    }
-    
-    if (order.statusHistory && order.statusHistory.length > 0) {
-      const deliveredEntry = order.statusHistory.find(
-        entry => entry.status.toLowerCase() === 'delivered'
-      )
-      if (deliveredEntry) {
-        return formatDate(deliveredEntry.changedAt)
-      }
-    }
-    
-    return 'N/A'
-  }
-
   const handleClearFilters = () => {
     setStartDate("")
     setEndDate("")
   }
 
   const handleSearch = () => {
+    // Implement search functionality here
     console.log('Searching for:', searchTerm)
   }
 
   const handleShowData = () => {
+    // Implement date range filtering here
     console.log('Filtering from:', startDate, 'to:', endDate)
   }
 
   const exportToCSV = () => {
-    const csvContent = deliveredOrders.map((order, index) => {
+    // Implement CSV export functionality
+    const csvContent = pendingOrders.map((order, index) => {
       return [
         index + 1,
         order._id.slice(-6).toUpperCase(),
         formatDate(order.orderDate),
-        getDeliveredDate(order),
         order.userId.slice(-8).toUpperCase(),
         calculateCartTotal(order.orders),
         order.status
       ].join(',')
     })
 
-    const header = 'SL,Order ID,Order Date,Delivered Date,Customer,Total Amount,Status\n'
+    const header = 'SL,Order ID,Order Date,Customer,Total Amount,Status\n'
     const csv = header + csvContent.join('\n')
 
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'delivered-orders.csv'
+    a.download = 'pending-orders.csv'
     a.click()
     window.URL.revokeObjectURL(url)
   }
@@ -216,10 +242,10 @@ export default function DeliveredOrdersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <CheckCircle className="h-6 w-6 text-green-500" />
-        <h1 className="text-2xl font-bold text-gray-900">Delivered Orders</h1>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-          {deliveredOrders.length}
+        <Clock className="h-6 w-6 text-orange-500" />
+        <h1 className="text-2xl font-bold text-gray-900">Pending Orders</h1>
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+          {pendingOrders.length}
         </span>
       </div>
 
@@ -278,7 +304,7 @@ export default function DeliveredOrdersPage() {
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="flex gap-2">
           <input
-            placeholder="Ex : Search by ID, order or delivery status"
+            placeholder="Ex : Search by ID, order or payment status"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
@@ -299,8 +325,8 @@ export default function DeliveredOrdersPage() {
         </button>
       </div>
 
-      {/* Bulk Selection */}
-      {deliveredOrders.length > 0 && (
+      {/* Bulk Actions */}
+      {pendingOrders.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4">
             <div className="flex items-center justify-between">
@@ -314,7 +340,7 @@ export default function DeliveredOrdersPage() {
                     className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                   />
                   <label htmlFor="select-all" className="text-sm font-medium">
-                    Select All ({deliveredOrders.length} orders)
+                    Select All ({pendingOrders.length} orders)
                   </label>
                 </div>
                 {selectedOrders.size > 0 && (
@@ -325,23 +351,42 @@ export default function DeliveredOrdersPage() {
               </div>
               <div className="flex gap-2">
                 <button
-                  disabled={selectedOrders.size === 0 || isReturning}
-                  className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    selectedOrders.size === 0 || isReturning
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                  onClick={handleBulkReturn}
+                  onClick={cancelSelectedOrders}
+                  disabled={selectedOrders.size === 0 || cancellingOrders}
+                  className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${selectedOrders.size === 0 || cancellingOrders
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-red-600 hover:bg-red-700'
+                    }`}
                 >
-                  {isReturning ? (
+                  {cancellingOrders ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 inline animate-spin" />
-                      Processing...
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                      Cancelling...
                     </>
                   ) : (
                     <>
-                      <Undo2 className="h-4 w-4 mr-2 inline" />
-                      Mark as Returned ({selectedOrders.size})
+                      <X className="h-4 w-4 mr-2 inline" />
+                      Cancel Selected ({selectedOrders.size})
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={confirmSelectedOrders}
+                  disabled={selectedOrders.size === 0 || confirmingOrders}
+                  className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${selectedOrders.size === 0 || confirmingOrders
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                    }`}
+                >
+                  {confirmingOrders ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                      Confirming...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2 inline" />
+                      Confirm Selected ({selectedOrders.size})
                     </>
                   )}
                 </button>
@@ -351,12 +396,12 @@ export default function DeliveredOrdersPage() {
         </div>
       )}
 
-      {/* Delivered Orders Table */}
+      {/* Pending Orders Table */}
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-0">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="text-gray-500">Loading delivered orders...</div>
+              <div className="text-gray-500">Loading pending orders...</div>
             </div>
           ) : (
             <table className="w-full">
@@ -375,14 +420,14 @@ export default function DeliveredOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {deliveredOrders.length === 0 ? (
+                {pendingOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-8 text-gray-500">
-                      No delivered orders found
+                    <td colSpan={8} className="text-center py-8 text-gray-500">
+                      No pending orders found
                     </td>
                   </tr>
                 ) : (
-                  deliveredOrders.map((order, index) => (
+                  pendingOrders.map((order, index) => (
                     <tr key={order._id} className="hover:bg-gray-50 border-b">
                       <td className="p-4">
                         <input
@@ -411,9 +456,9 @@ export default function DeliveredOrdersPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Delivered
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-orange-800">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Returned
                         </span>
                       </td>
                       <td className="p-4">
@@ -430,6 +475,7 @@ export default function DeliveredOrdersPage() {
                           >
                             <Printer className="h-4 w-4" />
                           </button>
+                      
                         </div>
                       </td>
                     </tr>

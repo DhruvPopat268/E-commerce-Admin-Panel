@@ -152,6 +152,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           active: pathname === "/dashboard/orders/delivered",
           icon: ChevronRight,
         },
+         {
+          label: "Returned",
+          href: "/dashboard/orders/returned",
+          active: pathname === "/dashboard/orders/returned",
+          icon: ChevronRight,
+        },
       ],
       expanded: pathname.includes("/dashboard/orders"),
     },

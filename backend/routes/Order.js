@@ -427,4 +427,57 @@ router.patch('/delivered-bulk', async (req, res) => {
   }
 });
 
+router.patch('/returned-bulk', async (req, res) => {
+  try {
+    const { orderIds } = req.body;
+
+    // Validate orderIds
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({
+        message: 'Order IDs array is required and must not be empty'
+      });
+    }
+
+    // Find orders first to check if they exist and can be marked as returned
+    const existingOrders = await Order.find({
+      _id: { $in: orderIds },
+      status: 'delivered' // Only allow delivered orders to be marked as returned
+    });
+
+    if (existingOrders.length === 0) {
+      return res.status(404).json({
+        message: 'No delivered orders found with the provided IDs'
+      });
+    }
+
+    // Update all found orders to returned status
+    const updateResult = await Order.updateMany(
+      {
+        _id: { $in: existingOrders.map(order => order._id) },
+        status: 'delivered'
+      },
+      {
+        status: 'returned',
+        returnedAt: new Date() // Optional: add timestamp
+      }
+    );
+
+    // Get the updated orders to return in response
+    const updatedOrders = await Order.find({
+      _id: { $in: existingOrders.map(order => order._id) }
+    });
+
+    res.status(200).json({
+      message: `${updateResult.modifiedCount} order(s) marked as returned successfully`,
+      returnedCount: updateResult.modifiedCount,
+      totalRequested: orderIds.length,
+      orders: updatedOrders
+    });
+
+  } catch (error) {
+    console.error('Error marking bulk orders as returned:', error);
+    res.status(500).json({ message: 'Error marking orders as returned' });
+  }
+});
+
 module.exports = router;
