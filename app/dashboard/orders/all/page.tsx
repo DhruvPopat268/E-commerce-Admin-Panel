@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation" // Add this import
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,30 +32,39 @@ interface Order {
   }>
   status: string
   orderDate: string
+  salesAgentName?: string
+  salesAgentMobile?: string
+  villageName?: string
+  routeName?: string
   __v: number
 }
 
 const statusCards = [
-  { label: "Pending", icon: "📋", color: "text-orange-600" },
-  { label: "Confirmed", icon: "✅", color: "text-green-600" },
-  { label: "Out For Delivery", icon: "🚚", color: "text-purple-600" },
-  { label: "Completed", icon: "✅", color: "text-green-700" },
-  { label: "Canceled", icon: "❌", color: "text-red-600" },
+  { label: "Pending", key: "pending", icon: "📋", color: "text-orange-600" },
+  { label: "Confirmed", key: "confirmed", icon: "✅", color: "text-green-600" },
+  { label: "Out For Delivery", key: "out for delivery", icon: "🚚", color: "text-purple-600" },
+  { label: "Delivered", key: "delivered", icon: "✅", color: "text-green-700" },
+  { label: "Canceled", key: "canceled", icon: "❌", color: "text-red-600" },
 ]
 
 export default function AllOrdersPage() {
-  const router = useRouter() // Add this hook
+  const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
 
   useEffect(() => {
     setIsMounted(true)
     fetchOrders()
   }, [])
+
+  useEffect(() => {
+    filterOrders()
+  }, [orders, searchTerm, startDate, endDate])
 
   const fetchOrders = async () => {
     try {
@@ -74,20 +83,56 @@ export default function AllOrdersPage() {
     }
   }
 
-  // Add this function to handle view order
+  const filterOrders = () => {
+    let filtered = [...orders]
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(order => 
+        order._id.toLowerCase().includes(searchLower) ||
+        order.status.toLowerCase().includes(searchLower) ||
+        order.salesAgentName?.toLowerCase().includes(searchLower) ||
+        order.villageName?.toLowerCase().includes(searchLower) ||
+        order.routeName?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.orderDate)
+        const start = startDate ? new Date(startDate) : null
+        const end = endDate ? new Date(endDate) : null
+
+        if (start && end) {
+          return orderDate >= start && orderDate <= end
+        } else if (start) {
+          return orderDate >= start
+        } else if (end) {
+          return orderDate <= end
+        }
+        return true
+      })
+    }
+
+    setFilteredOrders(filtered)
+  }
+
   const handleViewOrder = (orderId: string) => {
     router.push(`/dashboard/order-details/${orderId}`)
   }
 
   const getStatusBadgeColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case "completed":
+      case "delivered":
         return "bg-green-100 text-green-800"
       case "confirmed":
         return "bg-blue-100 text-blue-800"
       case "pending":
         return "bg-orange-100 text-orange-800"
       case "canceled":
+      case "cancelled":
         return "bg-red-100 text-red-800"
       case "out for delivery":
         return "bg-purple-100 text-purple-800"
@@ -109,18 +154,27 @@ export default function AllOrdersPage() {
   }
 
   const getStatusCounts = () => {
-    const counts = {
-      pending: 0,
-      confirmed: 0,
-      'out for delivery': 0,
-      completed: 0,
-      canceled: 0
-    }
+    const counts: Record<string, number> = {}
+    
+    // Initialize all status counts to 0
+    statusCards.forEach(card => {
+      counts[card.key] = 0
+    })
 
-    orders.forEach(order => {
-      const status = order.status.toLowerCase()
-      if (counts.hasOwnProperty(status)) {
-        counts[status as keyof typeof counts]++
+    // Count orders by status (use filteredOrders for dynamic counting)
+    filteredOrders.forEach(order => {
+      const status = order.status.toLowerCase().trim()
+      
+      // Handle different possible status variations
+      if (status === 'pending') counts['pending']++
+      else if (status === 'confirmed') counts['confirmed']++
+      else if (status === 'out for delivery' || status === 'out_for_delivery' || status === 'outfordelivery') counts['out for delivery']++
+      else if (status === 'delivered') counts['delivered']++
+      else if (status === 'canceled' || status === 'cancelled') counts['canceled']++
+      else {
+        // If status doesn't match predefined ones, still count it
+        if (!counts[status]) counts[status] = 0
+        counts[status]++
       }
     })
 
@@ -130,6 +184,15 @@ export default function AllOrdersPage() {
   const handleClearFilters = () => {
     setStartDate("")
     setEndDate("")
+    setSearchTerm("")
+  }
+
+  const handleShowData = () => {
+    filterOrders()
+  }
+
+  const handleSearch = () => {
+    filterOrders()
   }
 
   if (!isMounted) {
@@ -145,7 +208,7 @@ export default function AllOrdersPage() {
         <ClipboardList className="h-6 w-6 text-orange-500" />
         <h1 className="text-2xl font-bold text-gray-900">All Orders</h1>
         <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-          {orders.length}
+          {filteredOrders.length} / {orders.length}
         </Badge>
       </div>
 
@@ -184,7 +247,12 @@ export default function AllOrdersPage() {
               <Button variant="outline" onClick={handleClearFilters}>
                 Clear
               </Button>
-              <Button className="bg-teal-600 hover:bg-teal-700">Show Data</Button>
+              <Button 
+                className="bg-teal-600 hover:bg-teal-700"
+                onClick={handleShowData}
+              >
+                Show Data
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -193,7 +261,7 @@ export default function AllOrdersPage() {
       {/* Status Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {statusCards.map((card, index) => {
-          const count = statusCounts[card.label.toLowerCase() as keyof typeof statusCounts] || 0
+          const count = statusCounts[card.key] || 0
           return (
             <Card key={index} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
@@ -219,7 +287,12 @@ export default function AllOrdersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-80"
           />
-          <Button className="bg-teal-600 hover:bg-teal-700">Search</Button>
+          <Button 
+            className="bg-teal-600 hover:bg-teal-700"
+            onClick={handleSearch}
+          >
+            Search
+          </Button>
         </div>
         <Button variant="outline" className="text-teal-600 border-teal-600 hover:bg-teal-50">
           <Download className="h-4 w-4 mr-2" />
@@ -248,14 +321,14 @@ export default function AllOrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                      No orders found
+                      {orders.length === 0 ? "No orders found" : "No orders match your filters"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  orders.map((order, index) => (
+                  filteredOrders.map((order, index) => (
                     <TableRow key={order._id} className="hover:bg-gray-50">
                       <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium text-blue-600">
