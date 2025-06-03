@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import React from "react"
 import { useRouter } from "next/navigation" 
-import { Calendar, Eye, Printer, Download, CheckCircle, Package, Truck } from "lucide-react"
+import { Calendar, Eye, Printer, Download, XCircle, RotateCcw, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 // Mock toast function - replace with your actual toast implementation
 const toast = {
@@ -29,6 +29,7 @@ interface Order {
   }>
   status: string
   orderDate: string
+  cancelledAt?: string
   __v: number
   cartTotal?: number
   salesAgentName?: string
@@ -37,12 +38,12 @@ interface Order {
   routeName?: string
 }
 
-export default function ConfirmedOrdersPage() {
+export default function CancelledOrdersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [confirmedOrders, setConfirmedOrders] = useState<Order[]>([])
+  const [cancelledOrders, setCancelledOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
@@ -51,17 +52,17 @@ export default function ConfirmedOrdersPage() {
 
   useEffect(() => {
     setIsMounted(true)
-    fetchConfirmedOrders()
+    fetchCancelledOrders()
   }, [])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
-    if (confirmedOrders.length > 0) {
-      setSelectAll(selectedOrders.size === confirmedOrders.length)
+    if (cancelledOrders.length > 0) {
+      setSelectAll(selectedOrders.size === cancelledOrders.length)
     }
-  }, [selectedOrders, confirmedOrders])
+  }, [selectedOrders, cancelledOrders])
 
-  const fetchConfirmedOrders = async () => {
+  const fetchCancelledOrders = async () => {
     try {
       setLoading(true)
       // Replace with your actual API endpoint
@@ -69,14 +70,14 @@ export default function ConfirmedOrdersPage() {
       const data = await response.json()
 
       if (data.orders) {
-        // Filter only confirmed orders
-        const confirmed = data.orders.filter((order: Order) => order.status.toLowerCase() === 'confirmed')
-        setConfirmedOrders(confirmed)
+        // Filter only cancelled orders
+        const cancelled = data.orders.filter((order: Order) => order.status.toLowerCase() === 'cancelled')
+        setCancelledOrders(cancelled)
         setSelectedOrders(new Set()) // Clear selections when data refreshes
       }
     } catch (error) {
-      console.error('Error fetching confirmed orders:', error)
-      toast.error('Failed to fetch confirmed orders')
+      console.error('Error fetching cancelled orders:', error)
+      toast.error('Failed to fetch cancelled orders')
     } finally {
       setLoading(false)
     }
@@ -89,7 +90,7 @@ export default function ConfirmedOrdersPage() {
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
     if (checked) {
-      setSelectedOrders(new Set(confirmedOrders.map(order => order._id)))
+      setSelectedOrders(new Set(cancelledOrders.map(order => order._id)))
     } else {
       setSelectedOrders(new Set())
     }
@@ -105,66 +106,8 @@ export default function ConfirmedOrdersPage() {
     setSelectedOrders(newSelectedOrders)
   }
 
-  const markAsOutForDelivery = async () => {
-    if (selectedOrders.size === 0) {
-      toast.error('Please select at least one order to mark as out for delivery')
-      return
-    }
+ 
 
-    try {
-      setProcessingOrders(true)
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/out-for-delivery-bulk`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Remove out for delivery orders from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
-        setSelectedOrders(new Set())
-        setSelectAll(false)
-        toast.success(`${selectedOrders.size} order(s) marked as out for delivery successfully!`)
-      } else {
-        toast.error(data.message || 'Failed to mark orders as out for delivery')
-      }
-    } catch (error) {
-      console.error('Error marking orders as out for delivery:', error)
-      toast.error('Failed to mark orders as out for delivery')
-    } finally {
-      setProcessingOrders(false)
-    }
-  }
-
-  const markSingleOrderAsOutForDelivery = async (orderId: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/out-for-delivery`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderId }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Remove the order from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => order._id !== orderId))
-        toast.success('Order marked as out for delivery successfully!')
-      } else {
-        toast.error(data.message || 'Failed to mark order as out for delivery')
-      }
-    } catch (error) {
-      console.error('Error marking order as out for delivery:', error)
-      toast.error('Failed to mark order as out for delivery')
-    }
-  }
 
   const calculateCartTotal = (orderItems: Order['orders']) => {
     return orderItems.reduce((total, item) => total + item.attributes.total, 0)
@@ -195,25 +138,26 @@ export default function ConfirmedOrdersPage() {
 
   const exportToCSV = () => {
     // Implement CSV export functionality
-    const csvContent = confirmedOrders.map((order, index) => {
+    const csvContent = cancelledOrders.map((order, index) => {
       return [
         index + 1,
         order._id.slice(-6).toUpperCase(),
         formatDate(order.orderDate),
+        order.cancelledAt ? formatDate(order.cancelledAt) : 'N/A',
         order.userId.slice(-8).toUpperCase(),
         calculateCartTotal(order.orders),
         order.status
       ].join(',')
     })
 
-    const header = 'SL,Order ID,Order Date,Customer,Total Amount,Status\n'
+    const header = 'SL,Order ID,Order Date,Cancelled Date,Customer,Total Amount,Status\n'
     const csv = header + csvContent.join('\n')
 
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'confirmed-orders.csv'
+    a.download = 'cancelled-orders.csv'
     a.click()
     window.URL.revokeObjectURL(url)
   }
@@ -226,10 +170,10 @@ export default function ConfirmedOrdersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <CheckCircle className="h-6 w-6 text-green-500" />
-        <h1 className="text-2xl font-bold text-gray-900">Confirmed Orders</h1>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-          {confirmedOrders.length}
+        <XCircle className="h-6 w-6 text-red-500" />
+        <h1 className="text-2xl font-bold text-gray-900">Cancelled Orders</h1>
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          {cancelledOrders.length}
         </span>
       </div>
 
@@ -248,7 +192,7 @@ export default function ConfirmedOrdersPage() {
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     placeholder="dd-mm-yyyy"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
                   <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
@@ -262,20 +206,20 @@ export default function ConfirmedOrdersPage() {
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     placeholder="dd-mm-yyyy"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
                   <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
               </div>
               <button
                 onClick={handleClearFilters}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
               >
                 Clear
               </button>
               <button
                 onClick={handleShowData}
-                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >
                 Show Data
               </button>
@@ -291,18 +235,18 @@ export default function ConfirmedOrdersPage() {
             placeholder="Ex : Search by ID, order or payment status"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
           />
           <button
             onClick={handleSearch}
-            className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           >
             Search
           </button>
         </div>
         <button
           onClick={exportToCSV}
-          className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          className="px-4 py-2 border border-red-600 text-red-600 rounded-md bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
         >
           <Download className="h-4 w-4 mr-2 inline" />
           Export
@@ -310,71 +254,24 @@ export default function ConfirmedOrdersPage() {
       </div>
 
       {/* Bulk Actions */}
-      {confirmedOrders.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="select-all"
-                    checked={selectAll}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="select-all" className="text-sm font-medium">
-                    Select All ({confirmedOrders.length} orders)
-                  </label>
-                </div>
-                {selectedOrders.size > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {selectedOrders.size} selected
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={markAsOutForDelivery}
-                disabled={selectedOrders.size === 0 || processingOrders}
-                className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${selectedOrders.size === 0 || processingOrders
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700'
-                  }`}
-              >
-                {processingOrders ? (
-                  <>
-                    <Package className="h-4 w-4 mr-2 animate-pulse inline" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Truck className="h-4 w-4 mr-2 inline" />
-                    Mark as Out for Delivery ({selectedOrders.size})
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+   
 
-      {/* Confirmed Orders Table */}
+      {/* Cancelled Orders Table */}
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-0">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="text-gray-500">Loading confirmed orders...</div>
+              <div className="text-gray-500">Loading cancelled orders...</div>
             </div>
           ) : (
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b">
-                  <th className="text-left p-4 font-semibold w-12">
-                    <span className="sr-only">Select</span>
-                  </th>
+                 
                   <th className="text-left p-4 font-semibold">SL</th>
                   <th className="text-left p-4 font-semibold">Order ID</th>
                   <th className="text-left p-4 font-semibold">Order Date</th>
+                  <th className="text-left p-4 font-semibold">Cancelled Date</th>
                   <th className="text-left p-4 font-semibold">Customer</th>
                   <th className="text-left p-4 font-semibold">Total Amount</th>
                   <th className="text-left p-4 font-semibold">Order Status</th>
@@ -382,30 +279,24 @@ export default function ConfirmedOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {confirmedOrders.length === 0 ? (
+                {cancelledOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-500">
-                      No confirmed orders found
+                    <td colSpan={9} className="text-center py-8 text-gray-500">
+                      No cancelled orders found
                     </td>
                   </tr>
                 ) : (
-                  confirmedOrders.map((order, index) => (
+                  cancelledOrders.map((order, index) => (
                     <tr key={order._id} className="hover:bg-gray-50 border-b">
-                      <td className="p-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedOrders.has(order._id)}
-                          onChange={(e) =>
-                            handleSelectOrder(order._id, e.target.checked)
-                          }
-                          className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                        />
-                      </td>
+                      
                       <td className="p-4">{index + 1}</td>
                       <td className="p-4 font-medium text-blue-600">
                         {order._id.slice(-6).toUpperCase()}
                       </td>
                       <td className="p-4">{formatDate(order.orderDate)}</td>
+                      <td className="p-4">
+                        {order.cancelledAt ? formatDate(order.cancelledAt) : 'N/A'}
+                      </td>
                       <td className="p-4">
                         <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
                         <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
@@ -418,9 +309,9 @@ export default function ConfirmedOrdersPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Confirmed
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Cancelled
                         </span>
                       </td>
                       <td className="p-4">
@@ -433,11 +324,11 @@ export default function ConfirmedOrdersPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                           <button 
-                            className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                            className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                           >
                             <Printer className="h-4 w-4" />
                           </button>
-                       
+                        
                         </div>
                       </td>
                     </tr>

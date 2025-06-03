@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { useRouter } from "next/navigation" 
-import { Calendar, Eye, Printer, Download, CheckCircle, Package, Truck } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation" 
 // Mock toast function - replace with your actual toast implementation
 const toast = {
   success: (message: string) => console.log('Success:', message),
@@ -29,6 +29,12 @@ interface Order {
   }>
   status: string
   orderDate: string
+  deliveredDate?: string
+  statusHistory?: Array<{
+    status: string
+    changedAt: string
+    changedBy?: string
+  }>
   __v: number
   cartTotal?: number
   salesAgentName?: string
@@ -37,31 +43,30 @@ interface Order {
   routeName?: string
 }
 
-export default function ConfirmedOrdersPage() {
+export default function DeliveredOrdersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [confirmedOrders, setConfirmedOrders] = useState<Order[]>([])
+  const [deliveredOrders, setDeliveredOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
-  const [processingOrders, setProcessingOrders] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     setIsMounted(true)
-    fetchConfirmedOrders()
+    fetchDeliveredOrders()
   }, [])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
-    if (confirmedOrders.length > 0) {
-      setSelectAll(selectedOrders.size === confirmedOrders.length)
+    if (deliveredOrders.length > 0) {
+      setSelectAll(selectedOrders.size === deliveredOrders.length)
     }
-  }, [selectedOrders, confirmedOrders])
+  }, [selectedOrders, deliveredOrders])
 
-  const fetchConfirmedOrders = async () => {
+  const fetchDeliveredOrders = async () => {
     try {
       setLoading(true)
       // Replace with your actual API endpoint
@@ -69,30 +74,30 @@ export default function ConfirmedOrdersPage() {
       const data = await response.json()
 
       if (data.orders) {
-        // Filter only confirmed orders
-        const confirmed = data.orders.filter((order: Order) => order.status.toLowerCase() === 'confirmed')
-        setConfirmedOrders(confirmed)
+        // Filter only delivered orders
+        const delivered = data.orders.filter((order: Order) => order.status.toLowerCase() === 'delivered')
+        setDeliveredOrders(delivered)
         setSelectedOrders(new Set()) // Clear selections when data refreshes
       }
     } catch (error) {
-      console.error('Error fetching confirmed orders:', error)
-      toast.error('Failed to fetch confirmed orders')
+      console.error('Error fetching delivered orders:', error)
+      toast.error('Failed to fetch delivered orders')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleViewOrder = (orderId: string) => {
-    router.push(`/dashboard/order-details/${orderId}`)
-  }
-
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
     if (checked) {
-      setSelectedOrders(new Set(confirmedOrders.map(order => order._id)))
+      setSelectedOrders(new Set(deliveredOrders.map(order => order._id)))
     } else {
       setSelectedOrders(new Set())
     }
+  }
+
+  const handleViewOrder = (orderId: string) => {
+    router.push(`/dashboard/order-details/${orderId}`)
   }
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
@@ -105,67 +110,6 @@ export default function ConfirmedOrdersPage() {
     setSelectedOrders(newSelectedOrders)
   }
 
-  const markAsOutForDelivery = async () => {
-    if (selectedOrders.size === 0) {
-      toast.error('Please select at least one order to mark as out for delivery')
-      return
-    }
-
-    try {
-      setProcessingOrders(true)
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/out-for-delivery-bulk`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Remove out for delivery orders from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
-        setSelectedOrders(new Set())
-        setSelectAll(false)
-        toast.success(`${selectedOrders.size} order(s) marked as out for delivery successfully!`)
-      } else {
-        toast.error(data.message || 'Failed to mark orders as out for delivery')
-      }
-    } catch (error) {
-      console.error('Error marking orders as out for delivery:', error)
-      toast.error('Failed to mark orders as out for delivery')
-    } finally {
-      setProcessingOrders(false)
-    }
-  }
-
-  const markSingleOrderAsOutForDelivery = async (orderId: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/out-for-delivery`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderId }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Remove the order from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => order._id !== orderId))
-        toast.success('Order marked as out for delivery successfully!')
-      } else {
-        toast.error(data.message || 'Failed to mark order as out for delivery')
-      }
-    } catch (error) {
-      console.error('Error marking order as out for delivery:', error)
-      toast.error('Failed to mark order as out for delivery')
-    }
-  }
-
   const calculateCartTotal = (orderItems: Order['orders']) => {
     return orderItems.reduce((total, item) => total + item.attributes.total, 0)
   }
@@ -176,6 +120,27 @@ export default function ConfirmedOrdersPage() {
       month: 'short',
       year: 'numeric'
     })
+  }
+
+  // Function to get the delivered date from status history
+  const getDeliveredDate = (order: Order) => {
+    // First check if deliveredDate exists directly
+    if (order.deliveredDate) {
+      return formatDate(order.deliveredDate)
+    }
+    
+    // If not, check status history for when status changed to 'delivered'
+    if (order.statusHistory && order.statusHistory.length > 0) {
+      const deliveredEntry = order.statusHistory.find(
+        entry => entry.status.toLowerCase() === 'delivered'
+      )
+      if (deliveredEntry) {
+        return formatDate(deliveredEntry.changedAt)
+      }
+    }
+    
+    // If no specific delivered date found, return N/A
+    return 'N/A'
   }
 
   const handleClearFilters = () => {
@@ -195,25 +160,26 @@ export default function ConfirmedOrdersPage() {
 
   const exportToCSV = () => {
     // Implement CSV export functionality
-    const csvContent = confirmedOrders.map((order, index) => {
+    const csvContent = deliveredOrders.map((order, index) => {
       return [
         index + 1,
         order._id.slice(-6).toUpperCase(),
         formatDate(order.orderDate),
+        getDeliveredDate(order),
         order.userId.slice(-8).toUpperCase(),
         calculateCartTotal(order.orders),
         order.status
       ].join(',')
     })
 
-    const header = 'SL,Order ID,Order Date,Customer,Total Amount,Status\n'
+    const header = 'SL,Order ID,Order Date,Delivered Date,Customer,Total Amount,Status\n'
     const csv = header + csvContent.join('\n')
 
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'confirmed-orders.csv'
+    a.download = 'delivered-orders.csv'
     a.click()
     window.URL.revokeObjectURL(url)
   }
@@ -227,9 +193,9 @@ export default function ConfirmedOrdersPage() {
       {/* Header */}
       <div className="flex items-center gap-2">
         <CheckCircle className="h-6 w-6 text-green-500" />
-        <h1 className="text-2xl font-bold text-gray-900">Confirmed Orders</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Delivered Orders</h1>
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-          {confirmedOrders.length}
+          {deliveredOrders.length}
         </span>
       </div>
 
@@ -288,7 +254,7 @@ export default function ConfirmedOrdersPage() {
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="flex gap-2">
           <input
-            placeholder="Ex : Search by ID, order or payment status"
+            placeholder="Ex : Search by ID, order or delivery status"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
@@ -300,7 +266,7 @@ export default function ConfirmedOrdersPage() {
             Search
           </button>
         </div>
-        <button
+        <button 
           onClick={exportToCSV}
           className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
         >
@@ -309,8 +275,8 @@ export default function ConfirmedOrdersPage() {
         </button>
       </div>
 
-      {/* Bulk Actions */}
-      {confirmedOrders.length > 0 && (
+      {/* Bulk Selection (Optional - for archive/delete functionality) */}
+      {deliveredOrders.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4">
             <div className="flex items-center justify-between">
@@ -324,7 +290,7 @@ export default function ConfirmedOrdersPage() {
                     className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                   />
                   <label htmlFor="select-all" className="text-sm font-medium">
-                    Select All ({confirmedOrders.length} orders)
+                    Select All ({deliveredOrders.length} orders)
                   </label>
                 </div>
                 {selectedOrders.size > 0 && (
@@ -333,37 +299,31 @@ export default function ConfirmedOrdersPage() {
                   </span>
                 )}
               </div>
-              <button
-                onClick={markAsOutForDelivery}
-                disabled={selectedOrders.size === 0 || processingOrders}
-                className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${selectedOrders.size === 0 || processingOrders
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700'
+              <div className="flex gap-2">
+                <button
+                  disabled={selectedOrders.size === 0}
+                  className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    selectedOrders.size === 0
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
                   }`}
-              >
-                {processingOrders ? (
-                  <>
-                    <Package className="h-4 w-4 mr-2 animate-pulse inline" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Truck className="h-4 w-4 mr-2 inline" />
-                    Mark as Out for Delivery ({selectedOrders.size})
-                  </>
-                )}
-              </button>
+                  onClick={() => console.log('Archive selected orders')}
+                >
+                  <Download className="h-4 w-4 mr-2 inline" />
+                  Archive Selected ({selectedOrders.size})
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirmed Orders Table */}
+      {/* Delivered Orders Table */}
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-0">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="text-gray-500">Loading confirmed orders...</div>
+              <div className="text-gray-500">Loading delivered orders...</div>
             </div>
           ) : (
             <table className="w-full">
@@ -375,6 +335,7 @@ export default function ConfirmedOrdersPage() {
                   <th className="text-left p-4 font-semibold">SL</th>
                   <th className="text-left p-4 font-semibold">Order ID</th>
                   <th className="text-left p-4 font-semibold">Order Date</th>
+            
                   <th className="text-left p-4 font-semibold">Customer</th>
                   <th className="text-left p-4 font-semibold">Total Amount</th>
                   <th className="text-left p-4 font-semibold">Order Status</th>
@@ -382,14 +343,14 @@ export default function ConfirmedOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {confirmedOrders.length === 0 ? (
+                {deliveredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-500">
-                      No confirmed orders found
+                    <td colSpan={9} className="text-center py-8 text-gray-500">
+                      No delivered orders found
                     </td>
                   </tr>
                 ) : (
-                  confirmedOrders.map((order, index) => (
+                  deliveredOrders.map((order, index) => (
                     <tr key={order._id} className="hover:bg-gray-50 border-b">
                       <td className="p-4">
                         <input
@@ -406,6 +367,7 @@ export default function ConfirmedOrdersPage() {
                         {order._id.slice(-6).toUpperCase()}
                       </td>
                       <td className="p-4">{formatDate(order.orderDate)}</td>
+                    
                       <td className="p-4">
                         <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
                         <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
@@ -420,7 +382,7 @@ export default function ConfirmedOrdersPage() {
                       <td className="p-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Confirmed
+                          Delivered
                         </span>
                       </td>
                       <td className="p-4">
@@ -437,7 +399,6 @@ export default function ConfirmedOrdersPage() {
                           >
                             <Printer className="h-4 w-4" />
                           </button>
-                       
                         </div>
                       </td>
                     </tr>

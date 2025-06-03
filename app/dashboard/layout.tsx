@@ -147,11 +147,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       
         },
         {
-          label: "Complete",
-          href: "/dashboard/orders/complete",
-          active: pathname === "/dashboard/orders/complete",
+          label: "Delivered",
+          href: "/dashboard/orders/delivered",
+          active: pathname === "/dashboard/orders/delivered",
           icon: ChevronRight,
-         
         },
       ],
       expanded: pathname.includes("/dashboard/orders"),

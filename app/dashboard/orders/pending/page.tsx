@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { Calendar, Eye, Printer, Download, Clock, Check, Loader2 } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation" 
 // Mock toast function - replace with your actual toast implementation
@@ -30,6 +30,11 @@ interface Order {
   status: string
   orderDate: string
   __v: number
+  cartTotal?: number
+  salesAgentName?: string
+  salesAgentMobile?: string
+  villageName?: string
+  routeName?: string
 }
 
 export default function PendingOrdersPage() {
@@ -42,7 +47,9 @@ export default function PendingOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const [confirmingOrders, setConfirmingOrders] = useState(false)
-const router = useRouter()
+  const [cancellingOrders, setCancellingOrders] = useState(false)
+  const router = useRouter()
+
   useEffect(() => {
     setIsMounted(true)
     fetchPendingOrders()
@@ -85,7 +92,7 @@ const router = useRouter()
     }
   }
 
-    const handleViewOrder = (orderId: string) => {
+  const handleViewOrder = (orderId: string) => {
     router.push(`/dashboard/order-details/${orderId}`)
   }
 
@@ -135,6 +142,46 @@ const router = useRouter()
     }
   }
 
+  const cancelSelectedOrders = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error('Please select at least one order to cancel')
+      return
+    }
+
+    try {
+      setCancellingOrders(true)
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/cancel-bulk`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Remove cancelled orders from pending orders list
+        setPendingOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
+        setSelectedOrders(new Set())
+        setSelectAll(false)
+        toast.success(`${selectedOrders.size} order(s) cancelled successfully!`)
+      } else {
+        toast.error(data.message || 'Failed to cancel orders')
+      }
+    } catch (error) {
+      console.error('Error cancelling orders:', error)
+      toast.error('Failed to cancel orders')
+    } finally {
+      setCancellingOrders(false)
+    }
+  }
+
+  
+
+
+
   const calculateCartTotal = (orderItems: Order['orders']) => {
     return orderItems.reduce((total, item) => total + item.attributes.total, 0)
   }
@@ -160,6 +207,31 @@ const router = useRouter()
   const handleShowData = () => {
     // Implement date range filtering here
     console.log('Filtering from:', startDate, 'to:', endDate)
+  }
+
+  const exportToCSV = () => {
+    // Implement CSV export functionality
+    const csvContent = pendingOrders.map((order, index) => {
+      return [
+        index + 1,
+        order._id.slice(-6).toUpperCase(),
+        formatDate(order.orderDate),
+        order.userId.slice(-8).toUpperCase(),
+        calculateCartTotal(order.orders),
+        order.status
+      ].join(',')
+    })
+
+    const header = 'SL,Order ID,Order Date,Customer,Total Amount,Status\n'
+    const csv = header + csvContent.join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'pending-orders.csv'
+    a.click()
+    window.URL.revokeObjectURL(url)
   }
 
   if (!isMounted) {
@@ -244,7 +316,10 @@ const router = useRouter()
             Search
           </button>
         </div>
-        <button className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+        <button 
+          onClick={exportToCSV}
+          className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+        >
           <Download className="h-4 w-4 mr-2 inline" />
           Export
         </button>
@@ -274,26 +349,48 @@ const router = useRouter()
                   </span>
                 )}
               </div>
-              <button
-                onClick={confirmSelectedOrders}
-                disabled={selectedOrders.size === 0 || confirmingOrders}
-                className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${selectedOrders.size === 0 || confirmingOrders
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'
-                  }`}
-              >
-                {confirmingOrders ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
-                    Confirming...
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4 mr-2 inline" />
-                    Confirm Selected ({selectedOrders.size})
-                  </>
-                )}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={cancelSelectedOrders}
+                  disabled={selectedOrders.size === 0 || cancellingOrders}
+                  className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${selectedOrders.size === 0 || cancellingOrders
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                >
+                  {cancellingOrders ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                      Cancelling...
+                    </>
+                  ) : (
+                    <>
+                      <X className="h-4 w-4 mr-2 inline" />
+                      Cancel Selected ({selectedOrders.size})
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={confirmSelectedOrders}
+                  disabled={selectedOrders.size === 0 || confirmingOrders}
+                  className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${selectedOrders.size === 0 || confirmingOrders
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                    }`}
+                >
+                  {confirmingOrders ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                      Confirming...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2 inline" />
+                      Confirm Selected ({selectedOrders.size})
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -348,37 +445,37 @@ const router = useRouter()
                       </td>
                       <td className="p-4">{formatDate(order.orderDate)}</td>
                       <td className="p-4">
-                        <div className="font-medium text-gray-800">{order.salesAgentName
-                          || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.salesAgentMobile
-                          || "-"}</div>
-                        <div className="font-medium text-gray-800">{order.villageName
-                          || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.routeName
-                          || "-"}</div>
+                        <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
+                        <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
+                        <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
+                        <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
                       </td>
                       <td className="p-4">
                         <div className="font-medium">
-                          ₹{calculateCartTotal(order.orders).toLocaleString()}
+                          ₹{(order.cartTotal || calculateCartTotal(order.orders)).toLocaleString()}
                         </div>
                       </td>
                       <td className="p-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <Clock className="h-3 w-3 mr-1" />
                           Pending
                         </span>
                       </td>
                       <td className="p-4">
                         <div className="flex gap-2">
-                        <Button 
+                          <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => handleViewOrder(order._id)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <button className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+                          <button 
+                            className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                          >
                             <Printer className="h-4 w-4" />
                           </button>
+                      
                         </div>
                       </td>
                     </tr>

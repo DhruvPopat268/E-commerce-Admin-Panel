@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import React from "react"
 import { useRouter } from "next/navigation" 
-import { Calendar, Eye, Printer, Download, CheckCircle, Package, Truck } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Truck, Package, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 // Mock toast function - replace with your actual toast implementation
 const toast = {
@@ -37,12 +37,12 @@ interface Order {
   routeName?: string
 }
 
-export default function ConfirmedOrdersPage() {
+export default function OutForDeliveryOrdersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [confirmedOrders, setConfirmedOrders] = useState<Order[]>([])
+  const [outForDeliveryOrders, setOutForDeliveryOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
@@ -51,32 +51,36 @@ export default function ConfirmedOrdersPage() {
 
   useEffect(() => {
     setIsMounted(true)
-    fetchConfirmedOrders()
+    fetchOutForDeliveryOrders()
   }, [])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
-    if (confirmedOrders.length > 0) {
-      setSelectAll(selectedOrders.size === confirmedOrders.length)
+    if (outForDeliveryOrders.length > 0) {
+      setSelectAll(selectedOrders.size === outForDeliveryOrders.length)
     }
-  }, [selectedOrders, confirmedOrders])
+  }, [selectedOrders, outForDeliveryOrders])
 
-  const fetchConfirmedOrders = async () => {
+  const fetchOutForDeliveryOrders = async () => {
     try {
       setLoading(true)
       // Replace with your actual API endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/all`)
       const data = await response.json()
 
       if (data.orders) {
-        // Filter only confirmed orders
-        const confirmed = data.orders.filter((order: Order) => order.status.toLowerCase() === 'confirmed')
-        setConfirmedOrders(confirmed)
+        // Filter only out for delivery orders
+        const outForDelivery = data.orders.filter((order: Order) => 
+          order.status.toLowerCase().includes('out for delivery') || 
+          order.status.toLowerCase().includes('outfordelivery') ||
+          order.status.toLowerCase() === 'shipped'
+        )
+        setOutForDeliveryOrders(outForDelivery)
         setSelectedOrders(new Set()) // Clear selections when data refreshes
       }
     } catch (error) {
-      console.error('Error fetching confirmed orders:', error)
-      toast.error('Failed to fetch confirmed orders')
+      console.error('Error fetching out for delivery orders:', error)
+      toast.error('Failed to fetch out for delivery orders')
     } finally {
       setLoading(false)
     }
@@ -89,7 +93,7 @@ export default function ConfirmedOrdersPage() {
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
     if (checked) {
-      setSelectedOrders(new Set(confirmedOrders.map(order => order._id)))
+      setSelectedOrders(new Set(outForDeliveryOrders.map(order => order._id)))
     } else {
       setSelectedOrders(new Set())
     }
@@ -105,16 +109,16 @@ export default function ConfirmedOrdersPage() {
     setSelectedOrders(newSelectedOrders)
   }
 
-  const markAsOutForDelivery = async () => {
+  const markAsDelivered = async () => {
     if (selectedOrders.size === 0) {
-      toast.error('Please select at least one order to mark as out for delivery')
+      toast.error('Please select at least one order to mark as delivered')
       return
     }
 
     try {
       setProcessingOrders(true)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/out-for-delivery-bulk`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/delivered-bulk`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -125,25 +129,25 @@ export default function ConfirmedOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove out for delivery orders from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
+        // Remove delivered orders from out for delivery orders list
+        setOutForDeliveryOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
         setSelectedOrders(new Set())
         setSelectAll(false)
-        toast.success(`${selectedOrders.size} order(s) marked as out for delivery successfully!`)
+        toast.success(`${selectedOrders.size} order(s) marked as delivered successfully!`)
       } else {
-        toast.error(data.message || 'Failed to mark orders as out for delivery')
+        toast.error(data.message || 'Failed to mark orders as delivered')
       }
     } catch (error) {
-      console.error('Error marking orders as out for delivery:', error)
-      toast.error('Failed to mark orders as out for delivery')
+      console.error('Error marking orders as delivered:', error)
+      toast.error('Failed to mark orders as delivered')
     } finally {
       setProcessingOrders(false)
     }
   }
 
-  const markSingleOrderAsOutForDelivery = async (orderId: string) => {
+  const markSingleOrderAsDelivered = async (orderId: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/out-for-delivery`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/delivered`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -154,15 +158,15 @@ export default function ConfirmedOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove the order from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => order._id !== orderId))
-        toast.success('Order marked as out for delivery successfully!')
+        // Remove the order from out for delivery orders list
+        setOutForDeliveryOrders(prev => prev.filter(order => order._id !== orderId))
+        toast.success('Order marked as delivered successfully!')
       } else {
-        toast.error(data.message || 'Failed to mark order as out for delivery')
+        toast.error(data.message || 'Failed to mark order as delivered')
       }
     } catch (error) {
-      console.error('Error marking order as out for delivery:', error)
-      toast.error('Failed to mark order as out for delivery')
+      console.error('Error marking order as delivered:', error)
+      toast.error('Failed to mark order as delivered')
     }
   }
 
@@ -195,7 +199,7 @@ export default function ConfirmedOrdersPage() {
 
   const exportToCSV = () => {
     // Implement CSV export functionality
-    const csvContent = confirmedOrders.map((order, index) => {
+    const csvContent = outForDeliveryOrders.map((order, index) => {
       return [
         index + 1,
         order._id.slice(-6).toUpperCase(),
@@ -213,7 +217,7 @@ export default function ConfirmedOrdersPage() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'confirmed-orders.csv'
+    a.download = 'out-for-delivery-orders.csv'
     a.click()
     window.URL.revokeObjectURL(url)
   }
@@ -226,10 +230,10 @@ export default function ConfirmedOrdersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <CheckCircle className="h-6 w-6 text-green-500" />
-        <h1 className="text-2xl font-bold text-gray-900">Confirmed Orders</h1>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-          {confirmedOrders.length}
+        <Truck className="h-6 w-6 text-orange-500" />
+        <h1 className="text-2xl font-bold text-gray-900">Out for Delivery Orders</h1>
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+          {outForDeliveryOrders.length}
         </span>
       </div>
 
@@ -248,7 +252,7 @@ export default function ConfirmedOrdersPage() {
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     placeholder="dd-mm-yyyy"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                   <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
@@ -262,20 +266,20 @@ export default function ConfirmedOrdersPage() {
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     placeholder="dd-mm-yyyy"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                   <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
               </div>
               <button
                 onClick={handleClearFilters}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               >
                 Clear
               </button>
               <button
                 onClick={handleShowData}
-                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Show Data
               </button>
@@ -291,18 +295,18 @@ export default function ConfirmedOrdersPage() {
             placeholder="Ex : Search by ID, order or payment status"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
           />
           <button
             onClick={handleSearch}
-            className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+            className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             Search
           </button>
         </div>
         <button
           onClick={exportToCSV}
-          className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          className="px-4 py-2 border border-orange-600 text-orange-600 rounded-md bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
         >
           <Download className="h-4 w-4 mr-2 inline" />
           Export
@@ -310,7 +314,7 @@ export default function ConfirmedOrdersPage() {
       </div>
 
       {/* Bulk Actions */}
-      {confirmedOrders.length > 0 && (
+      {outForDeliveryOrders.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4">
             <div className="flex items-center justify-between">
@@ -321,10 +325,10 @@ export default function ConfirmedOrdersPage() {
                     id="select-all"
                     checked={selectAll}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                   />
                   <label htmlFor="select-all" className="text-sm font-medium">
-                    Select All ({confirmedOrders.length} orders)
+                    Select All ({outForDeliveryOrders.length} orders)
                   </label>
                 </div>
                 {selectedOrders.size > 0 && (
@@ -334,11 +338,11 @@ export default function ConfirmedOrdersPage() {
                 )}
               </div>
               <button
-                onClick={markAsOutForDelivery}
+                onClick={markAsDelivered}
                 disabled={selectedOrders.size === 0 || processingOrders}
-                className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${selectedOrders.size === 0 || processingOrders
+                className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${selectedOrders.size === 0 || processingOrders
                     ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700'
+                    : 'bg-green-600 hover:bg-green-700'
                   }`}
               >
                 {processingOrders ? (
@@ -348,8 +352,8 @@ export default function ConfirmedOrdersPage() {
                   </>
                 ) : (
                   <>
-                    <Truck className="h-4 w-4 mr-2 inline" />
-                    Mark as Out for Delivery ({selectedOrders.size})
+                    <CheckCircle2 className="h-4 w-4 mr-2 inline" />
+                    Mark as Delivered ({selectedOrders.size})
                   </>
                 )}
               </button>
@@ -358,12 +362,12 @@ export default function ConfirmedOrdersPage() {
         </div>
       )}
 
-      {/* Confirmed Orders Table */}
+      {/* Out for Delivery Orders Table */}
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-0">
           {loading ? (
             <div className="p-8 text-center">
-              <div className="text-gray-500">Loading confirmed orders...</div>
+              <div className="text-gray-500">Loading out for delivery orders...</div>
             </div>
           ) : (
             <table className="w-full">
@@ -382,14 +386,14 @@ export default function ConfirmedOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {confirmedOrders.length === 0 ? (
+                {outForDeliveryOrders.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center py-8 text-gray-500">
-                      No confirmed orders found
+                      No out for delivery orders found
                     </td>
                   </tr>
                 ) : (
-                  confirmedOrders.map((order, index) => (
+                  outForDeliveryOrders.map((order, index) => (
                     <tr key={order._id} className="hover:bg-gray-50 border-b">
                       <td className="p-4">
                         <input
@@ -398,7 +402,7 @@ export default function ConfirmedOrdersPage() {
                           onChange={(e) =>
                             handleSelectOrder(order._id, e.target.checked)
                           }
-                          className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                         />
                       </td>
                       <td className="p-4">{index + 1}</td>
@@ -418,9 +422,9 @@ export default function ConfirmedOrdersPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Confirmed
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <Truck className="h-3 w-3 mr-1" />
+                          Out for Delivery
                         </span>
                       </td>
                       <td className="p-4">
@@ -433,11 +437,11 @@ export default function ConfirmedOrdersPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                           <button 
-                            className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                            className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                           >
                             <Printer className="h-4 w-4" />
                           </button>
-                       
+                        
                         </div>
                       </td>
                     </tr>
