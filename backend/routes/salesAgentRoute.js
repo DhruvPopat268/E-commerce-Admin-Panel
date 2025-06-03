@@ -4,6 +4,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const SalesAgent = require('../models/salesAgent');
 const jwt = require('jsonwebtoken');
+const Village = require('../models/village')
 
 // Configure Cloudinary
 cloudinary.config({
@@ -174,6 +175,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
       }
     }
     
+    const villageName = await Village.findById(village)
     // Create new sales agent
     const newSalesAgent = new SalesAgent({
       name,
@@ -181,6 +183,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
       mobileNumber,
       address,
       village,
+      villageName:villageName.name,
       photo: photoData,
       status: false // Default status is false for new agents
     });
@@ -193,6 +196,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
       data: savedAgent
     });
   } catch (error) {
+    console.log(error)
     res.status(500).json({
       success: false,
       message: 'Error creating sales agent',
@@ -298,7 +302,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
   try {
     const { name, businessName, mobileNumber, address, village } = req.body;
     const agentId = req.params.id;
-    
+
     // Find existing agent
     const existingAgent = await SalesAgent.findById(agentId);
     if (!existingAgent) {
@@ -307,12 +311,12 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         message: 'Sales agent not found'
       });
     }
-    
-    // Check if mobile number is being changed and if it already exists
+
+    // Check for duplicate mobile number if changed
     if (mobileNumber && mobileNumber !== existingAgent.mobileNumber) {
-      const duplicateAgent = await SalesAgent.findOne({ 
-        mobileNumber, 
-        _id: { $ne: agentId } 
+      const duplicateAgent = await SalesAgent.findOne({
+        mobileNumber,
+        _id: { $ne: agentId }
       });
       if (duplicateAgent) {
         return res.status(400).json({
@@ -321,7 +325,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         });
       }
     }
-    
+
     // Prepare update data
     const updateData = {
       ...(name && { name }),
@@ -330,16 +334,26 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
       ...(address && { address }),
       ...(village && { village })
     };
-    
+
+    // If village is updated, fetch the village name
+    if (village) {
+      const villageDoc = await Village.findById(village);
+      if (!villageDoc) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid village ID'
+        });
+      }
+      updateData.villageName = villageDoc.name;
+    }
+
     // Handle photo upload if new photo is provided
     if (req.file) {
       try {
-        // Delete old image from Cloudinary if exists
-        if (existingAgent.photo && existingAgent.photo.public_id) {
+        if (existingAgent.photo?.public_id) {
           await deleteFromCloudinary(existingAgent.photo.public_id);
         }
-        
-        // Upload new image
+
         const result = await uploadToCloudinary(req.file.buffer);
         updateData.photo = {
           public_id: result.public_id,
@@ -353,14 +367,14 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         });
       }
     }
-    
+
     // Update agent
     const updatedAgent = await SalesAgent.findByIdAndUpdate(
       agentId,
       updateData,
       { new: true, runValidators: true }
     );
-    
+
     res.status(200).json({
       success: true,
       message: 'Sales agent updated successfully',
@@ -374,6 +388,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
     });
   }
 });
+
 
 // PUT update sales agent status
 router.put('/:id/status', async (req, res) => {

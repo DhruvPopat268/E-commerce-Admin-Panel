@@ -332,7 +332,9 @@ export default function SalesAgentPage() {
     }
 
     const handleVillageChange = (value: string) => {
+        
         setNewAgent({ ...newAgent, village: value })
+        console.log(value)
     }
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -477,7 +479,7 @@ export default function SalesAgentPage() {
                                                 </SelectItem>
                                             ) : (
                                                 villages.map((village) => (
-                                                    <SelectItem key={village._id} value={village.name}>
+                                                    <SelectItem key={village.id} value={village.id} >
                                                         {village.name}
                                                     </SelectItem>
                                                 ))

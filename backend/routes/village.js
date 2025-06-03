@@ -2,15 +2,16 @@ const express = require('express');
 const router = express.Router();
 const Village = require('../models/village'); // Adjust path as needed
 const jwt = require('jsonwebtoken');
+const SalesAgent = require('../models/salesAgent')
 
 // GET - Get all villages
 router.get('/', async (req, res) => {
   console.log(req.cookies.token)
-  
+
   try {
-    
+
     const villages = await Village.find().sort({ createdAt: -1 });
-    
+
     // Format the response to match your frontend structure
     const formattedVillages = villages.map((village, index) => ({
       id: village._id,
@@ -27,7 +28,7 @@ router.get('/', async (req, res) => {
       count: villages.length,
       data: formattedVillages
     });
-    
+
   } catch (error) {
     console.error('Error fetching villages:', error);
     res.status(500).json({
@@ -52,7 +53,7 @@ router.post('/', async (req, res) => {
     }
 
     const englishName = name.trim();
-    
+
     // Check if village already exists (check both display name and English name)
     const existingVillage = await Village.findOne({
       $or: [
@@ -70,10 +71,10 @@ router.post('/', async (req, res) => {
 
     // Get Gujarati translation
     const gujaratiTranslation = Village.getGujaratiTranslation(englishName);
-    
+
     // Create display name with Gujarati translation
     const displayName = Village.createDisplayName(englishName, gujaratiTranslation);
-    
+
     // Generate unique village code
     const villageCode = await Village.generateUniqueVillageCode(englishName);
 
@@ -106,7 +107,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating village:', error);
-    
+
     if (error.code === 11000) {
       // Check if the duplicate is for name or villageCode
       if (error.keyPattern && error.keyPattern.name) {
@@ -173,8 +174,15 @@ router.put('/:id', async (req, res) => {
     }
 
     // Get Gujarati translation for the new name
-    const gujaratiTranslation = Village.getGujaratiTranslation(englishName);
-    
+    // Get Gujarati translation
+   let gujaratiTranslation = await Village.getGujaratiTranslation(englishName);
+
+
+    // If translation not found, fallback to existing
+    if (!gujaratiTranslation) {
+      gujaratiTranslation = currentVillage.gujaratiName;
+    }
+
     // Create display name with Gujarati translation
     const displayName = Village.createDisplayName(englishName, gujaratiTranslation);
 
@@ -201,6 +209,12 @@ router.put('/:id', async (req, res) => {
       }
     );
 
+    // ✅ Update all SalesAgents that use this village
+    await SalesAgent.updateMany(
+      { village: updatedVillage._id },
+      { $set: { villageName: updatedVillage.name } }
+    );
+
     // Format response
     const formattedVillage = {
       id: updatedVillage._id,
@@ -217,9 +231,10 @@ router.put('/:id', async (req, res) => {
       message: 'Village updated successfully',
       data: formattedVillage
     });
+
   } catch (error) {
     console.error('Error updating village:', error);
-    
+
     if (error.code === 11000) {
       if (error.keyPattern && error.keyPattern.name) {
         return res.status(400).json({
@@ -241,6 +256,7 @@ router.put('/:id', async (req, res) => {
     });
   }
 });
+
 
 // PATCH - Update village status only
 router.patch('/:id/status', async (req, res) => {
@@ -378,7 +394,7 @@ router.get('/:id', async (req, res) => {
 router.get('/translations/status', async (req, res) => {
   try {
     const villages = await Village.find().sort({ createdAt: -1 });
-    
+
     const translationStats = {
       total: villages.length,
       withTranslation: villages.filter(v => v.gujaratiName).length,

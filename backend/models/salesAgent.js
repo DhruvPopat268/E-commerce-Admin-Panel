@@ -32,10 +32,13 @@ const salesAgentSchema = new mongoose.Schema({
     maxlength: [500, 'Address cannot exceed 500 characters']
   },
   village: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Village',
+    required: true,
+    required: [true, 'Village id  is required'],
+  },
+  villageName:{
     type: String,
-    required: [true, 'Village is required'],
-    trim: true,
-    maxlength: [100, 'Village name cannot exceed 100 characters']
   },
   photo: {
     public_id: {

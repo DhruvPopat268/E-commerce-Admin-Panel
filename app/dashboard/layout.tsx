@@ -20,6 +20,7 @@ import {
   MapPin,
   UserCheck,
   Route,
+  ShoppingCart,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -105,6 +106,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         pathname.includes("/dashboard/bulk-import") ||
         pathname.includes("/dashboard/bulk-export") ||
         pathname.includes("/dashboard/limited-stocks"),
+    },
+    {
+      label: "Orders",
+      icon: ShoppingCart,
+      children: [
+        {
+          label: "All",
+          href: "/dashboard/orders/all",
+          active: pathname === "/dashboard/orders/all",
+          icon: ChevronRight,
+        
+        },
+        {
+          label: "Pending",
+          href: "/dashboard/orders/pending",
+          active: pathname === "/dashboard/orders/pending",
+          icon: ChevronRight,
+        
+        },
+        {
+          label: "Confirm",
+          href: "/dashboard/orders/confirm",
+          active: pathname === "/dashboard/orders/confirm",
+          icon: ChevronRight,
+      
+        },
+        {
+          label: "Cancel",
+          href: "/dashboard/orders/cancel",
+          active: pathname === "/dashboard/orders/cancel",
+          icon: ChevronRight,
+      
+        },
+        {
+          label: "Out for Delivery",
+          href: "/dashboard/orders/out-for-delivery",
+          active: pathname === "/dashboard/orders/out-for-delivery",
+          icon: ChevronRight,
+      
+        },
+        {
+          label: "Complete",
+          href: "/dashboard/orders/complete",
+          active: pathname === "/dashboard/orders/complete",
+          icon: ChevronRight,
+         
+        },
+      ],
+      expanded: pathname.includes("/dashboard/orders"),
     },
     {
       label: "User Logs",
