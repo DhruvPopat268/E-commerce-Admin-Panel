@@ -163,6 +163,62 @@ router.get('/all', async (req, res) => {
   }
 });
 
+router.get('/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Get agent info
+    const agent = await SalesAgent.findById(order.userId).lean();
+    const villageId = agent?.village?.toString();
+
+    // Get village name
+    const village = villageId && mongoose.Types.ObjectId.isValid(villageId)
+      ? await Village.findById(villageId).lean()
+      : null;
+
+    // Find route setup that includes the village
+    const routeSetup = villageId
+      ? await RouteSetup.findOne({ 'villages.villageId': new mongoose.Types.ObjectId(villageId) }).lean()
+      : null;
+
+    const routeId = routeSetup?.routeId?.toString();
+    const route = routeId ? await Route.findById(routeId).lean() : null;
+
+    // Calculate cart total
+    const cartTotal = order.orders.reduce(
+      (sum, item) => sum + (item.attributes?.total || 0),
+      0
+    );
+
+    // Build response
+    const orderWithDetails = {
+      ...order._doc,
+      cartTotal,
+      salesAgentName: agent?.name || 'Unknown',
+      salesAgentMobile: agent?.mobileNumber || 'N/A',
+      villageName: village?.name || 'Unknown',
+      routeName: route?.name || 'Unknown',
+    };
+
+    res.status(200).json({
+      message: 'Order fetched successfully',
+      order: orderWithDetails,
+    });
+  } catch (error) {
+    console.error('❌ Error fetching specific order:', error);
+    res.status(500).json({ message: 'Error fetching the order' });
+  }
+});
+
 
 // Confirm single order (keep for backward compatibility)
 router.patch('/confirm', async (req, res) => {

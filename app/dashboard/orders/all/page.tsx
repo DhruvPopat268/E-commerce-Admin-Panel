@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation" // Add this import
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,6 +44,7 @@ const statusCards = [
 ]
 
 export default function AllOrdersPage() {
+  const router = useRouter() // Add this hook
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
@@ -70,6 +72,11 @@ export default function AllOrdersPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Add this function to handle view order
+  const handleViewOrder = (orderId: string) => {
+    router.push(`/dashboard/order-details/${orderId}`)
   }
 
   const getStatusBadgeColor = (status: string) => {
@@ -256,16 +263,11 @@ export default function AllOrdersPage() {
                       </TableCell>
                       <TableCell>{formatDate(order.orderDate)}</TableCell>
                       <TableCell>
-                        <div className="font-medium text-gray-800">{order.salesAgentName
-                          || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.salesAgentMobile
-                          || "-"}</div>
-                        <div className="font-medium text-gray-800">{order.villageName
-                          || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.routeName
-                          || "-"}</div>
+                        <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
+                        <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
+                        <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
+                        <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
                       </TableCell>
-
                       <TableCell>
                         <div className="font-medium">
                           ₹{calculateCartTotal(order.orders).toLocaleString()}
@@ -278,7 +280,11 @@ export default function AllOrdersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewOrder(order._id)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button variant="outline" size="sm">

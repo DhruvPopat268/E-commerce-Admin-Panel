@@ -93,7 +93,6 @@ export default function ProductsPage() {
     }
   }
 
-
   const toggleFeatured = (id: number) => {
     setProducts(products.map((product) => (product.id === id ? { ...product, featured: !product.featured } : product)))
   }

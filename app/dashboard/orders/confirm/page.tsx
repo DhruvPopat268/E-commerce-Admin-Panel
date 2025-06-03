@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
+import { useRouter } from "next/navigation" 
 import { Calendar, Eye, Printer, Download, CheckCircle, Package, Truck } from "lucide-react"
-
+import { Button } from "@/components/ui/button"
 // Mock toast function - replace with your actual toast implementation
 const toast = {
   success: (message: string) => console.log('Success:', message),
@@ -42,7 +43,7 @@ export default function ConfirmedOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const [shippingOrders, setShippingOrders] = useState(false)
-
+const router = useRouter()
   useEffect(() => {
     setIsMounted(true)
     fetchConfirmedOrders()
@@ -74,6 +75,10 @@ export default function ConfirmedOrdersPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+    const handleViewOrder = (orderId: string) => {
+    router.push(`/dashboard/order-details/${orderId}`)
   }
 
   const handleSelectAll = (checked: boolean) => {
@@ -392,11 +397,15 @@ export default function ConfirmedOrdersPage() {
                           Confirmed
                         </span>
                       </td>
-                      <td className="p-4">
+                    <td className="p-4">
                         <div className="flex gap-2">
-                          <button className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+                         <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewOrder(order._id)}
+                          >
                             <Eye className="h-4 w-4" />
-                          </button>
+                          </Button>
                           <button className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
                             <Printer className="h-4 w-4" />
                           </button>
