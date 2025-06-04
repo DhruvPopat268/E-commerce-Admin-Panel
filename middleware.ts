@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
 
+  console.log('Headers:', request.headers);
+
   console.log('Middleware Path:', request.nextUrl.pathname);
   console.log('Middleware Cookies:', request.cookies); // Log all cookies
   console.log('Middleware Token:', token); // Log the specific token value

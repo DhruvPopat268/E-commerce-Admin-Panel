@@ -24,6 +24,9 @@ const app = express();
 
 connectToDb();
 
+app.set('trust proxy', 1); // Required on Render for secure cookies to work
+
+
 app.use(cors({
   origin: [
     "http://localhost:3000",

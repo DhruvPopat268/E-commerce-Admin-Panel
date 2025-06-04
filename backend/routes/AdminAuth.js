@@ -48,12 +48,14 @@ router.post('/login', async (req, res) => {
 
     console.log(token)
 
-res.cookie('token', token, {
-  httpOnly: false, // Temporarily disable to test
-  secure: true,
-  sameSite: 'lax',
-  path: '/',
-});
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite:'none', // VERY IMPORTANT
+      domain: '.onrender.com', // Adjust based on domain usage
+    });
+
+
     res.status(200).json({
       token,
       admin: {
@@ -74,7 +76,7 @@ router.post('/logout', (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: 'None',
-    
+
   });
   res.status(200).json({ message: 'Logged out successfully' });
 });
