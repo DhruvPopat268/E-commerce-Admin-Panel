@@ -41,10 +41,16 @@ router.get('/', async (req, res) => {
     const categoryMap = new Map(categoryDetails.map(cat => [cat._id.toString(), cat]));
     const subCategoryMap = new Map(subCategoryDetails.map(subCat => [subCat._id.toString(), subCat]));
 
-    const banners = bannersRaw.map(banner => ({
-      ...banner.toObject(),
-      imageUrl: banner.image ? `/uploads/${banner.image}` : null
-    }));
+    const banners = bannersRaw.map(banner => {
+      const bannerObj = banner.toObject();
+
+      return {
+        ...bannerObj,
+        subcategoryId: bannerObj.subcategoryId?._id || bannerObj.subcategoryId || null,
+        imageUrl: bannerObj.image ? `/uploads/${bannerObj.image}` : null
+      };
+    });
+
 
     const dailyneed = dailyNeedsProducts.map(product => {
       const productObj = product.toObject();
