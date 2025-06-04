@@ -52,7 +52,7 @@ router.post('/login', async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: 'None',
-      path: '/',   
+       
     });
 
     res.status(200).json({
