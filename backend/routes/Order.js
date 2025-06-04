@@ -499,7 +499,7 @@ router.post('/cancelled', async (req, res) => {
     const cancelledOrders = await Order.find({ userId, status: 'cancelled' });
 
     if (!cancelledOrders.length) {
-      return res.status(404).json({ message: 'No cancelled orders found' });
+      return res.status(200).json({ cancelledOrders : [] });
     }
 
     // 👇 Transform the result to only return required fields
@@ -570,7 +570,7 @@ router.post('/delivered', async (req, res) => {
     const deliveredOrders = await Order.find({ userId, status: 'delivered' });
 
     if (!deliveredOrders.length) {
-      return res.status(404).json({ message: 'No delivered orders found' });
+      return res.status(200).json({ deliveredOrders : [] });
     }
 
     const filteredOrders = deliveredOrders.map(order => ({
