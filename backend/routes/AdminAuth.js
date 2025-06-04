@@ -52,7 +52,7 @@ router.post('/login', async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite:'none', // VERY IMPORTANT
-      domain: 'https://e-commerce-admin-frontend.onrender.com', // Adjust based on domain usage
+     // Adjust based on domain usage
     });
 
 
