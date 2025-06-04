@@ -326,17 +326,34 @@ export default function BannersPage() {
       banner._id.toString().includes(searchTerm)
   )
 
-  const handleEdit = (banner: Banner) => {
-    setEditId(banner._id);
-    setFormData({
-      title: banner.title || "",
-      type: banner.type || "",
-      categoryId: banner.categoryId ? String(banner.categoryId) : "",
-      subcategoryId: banner.subcategoryId ? String(banner.subcategoryId) : "",
-      image: null,
-    });
-    setImagePreview(banner.image);
+ const handleEdit = (banner: Banner) => {
+  setEditId(banner._id);
+  
+  // Helper function to extract ID from object or return string ID
+  const extractId = (value: any): string => {
+    if (!value) return "";
+    if (typeof value === 'object' && value._id) {
+      return String(value._id);
+    }
+    return String(value);
   };
+
+  setFormData({
+    title: banner.title || "",
+    type: banner.type || "",
+    categoryId: extractId(banner.categoryId),
+    subcategoryId: extractId(banner.subcategoryId),
+    image: null,
+  });
+  
+  setImagePreview(banner.image);
+  
+  // Debug logs to see what data we're working with
+  console.log("Editing banner:", banner);
+  console.log("Category ID:", banner.categoryId);
+  console.log("Subcategory ID:", banner.subcategoryId);
+  console.log("Extracted subcategory ID:", extractId(banner.subcategoryId));
+};
 
   // Helper function to get category/subcategory name
   const getCategorySubcategoryName = (banner: Banner) => {
