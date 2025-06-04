@@ -73,7 +73,8 @@ router.post('/logout', (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: true,
-    sameSite: 'None'
+    sameSite: 'None',
+    domain: '.onrender.com'
   });
   res.status(200).json({ message: 'Logged out successfully' });
 });
