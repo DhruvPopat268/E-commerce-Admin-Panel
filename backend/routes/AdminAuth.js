@@ -47,7 +47,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ adminId: admin._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.cookie('token', token, {
-      httpOnly: true,
+      httpOnly: false,
       secure: true,
       sameSite: 'None'
     });
