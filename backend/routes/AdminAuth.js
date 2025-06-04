@@ -48,14 +48,12 @@ router.post('/login', async (req, res) => {
 
     console.log(token)
 
- res.cookie('token', token, {
-  httpOnly: true,
+res.cookie('token', token, {
+  httpOnly: false, // Temporarily disable to test
   secure: true,
   sameSite: 'lax',
   path: '/',
-  domain: undefined, // Let browser set domain automatically
 });
-
     res.status(200).json({
       token,
       admin: {
