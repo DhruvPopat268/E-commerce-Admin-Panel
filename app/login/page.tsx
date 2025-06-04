@@ -33,7 +33,7 @@ export default function LoginPage() {
     })
 
     if (response.status === 200) {
-      router.push("/dashboard")
+      router.push("/dashboard/")
     }
 
     // For demo purposes, we'll just redirect to dashboard

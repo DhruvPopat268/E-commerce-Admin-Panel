@@ -90,7 +90,7 @@ router.post("/subcategory", async (req, res) => {
   if (!authHeader) {
     return res.status(403).json({
       success: false,
-      message: "Access denied. No token provided."
+      message: "Access denied. No token provided.",
     });
   }
 
@@ -101,24 +101,21 @@ router.post("/subcategory", async (req, res) => {
 
     const subCategoryId = req.body.id;
 
-    // ✅ Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(subCategoryId)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid subcategory ID format"
+        message: "Invalid subcategory ID format",
       });
     }
 
-    // Step 1: Check if subCategoryId exists in SubCategory collection
     const subCategoryExists = await subCategory.findById(subCategoryId);
     if (!subCategoryExists) {
       return res.status(404).json({
         success: false,
-        message: "Subcategory ID does not exist"
+        message: "Subcategory ID does not exist",
       });
     }
 
-    // Step 2: Find products with the given subCategoryId
     const products = await Product.find({ subCategory: subCategoryId });
 
     if (!products || products.length === 0) {
@@ -126,25 +123,41 @@ router.post("/subcategory", async (req, res) => {
         success: true,
         subCategoryId,
         count: 0,
-        data: []
+        data: [],
       });
     }
+
+    const modifiedProducts = products.map((product) => {
+      const productObj = product.toObject();
+      const firstAttr = productObj.attributes?.[0];
+
+      return {
+        ...productObj,
+        attributeName: firstAttr?.name || null,        // first attribute's name
+        price: firstAttr?.price || null,
+        discountedPrice: firstAttr?.discountedPrice || null,
+        attributes: undefined                          // remove the full attributes array
+      };
+    });
 
     return res.status(200).json({
       success: true,
       subCategoryId,
-      count: products.length,
-      data: products
+      count: modifiedProducts.length,
+      data: modifiedProducts,
     });
 
   } catch (error) {
     console.error("Error fetching products by subcategory ID:", error);
     return res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
   }
 });
+
+
+
 
 router.post("/productDetail", async (req, res) => {
   const authHeader = req.headers.authorization;
