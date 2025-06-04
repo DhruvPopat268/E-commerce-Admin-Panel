@@ -48,12 +48,13 @@ router.post('/login', async (req, res) => {
 
     console.log(token)
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      domain: '.onrender.com'
-    });
+ res.cookie('token', token, {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'lax',
+  path: '/',
+  domain: undefined, // Let browser set domain automatically
+});
 
     res.status(200).json({
       token,
