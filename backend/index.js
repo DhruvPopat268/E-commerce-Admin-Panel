@@ -27,6 +27,7 @@ connectToDb();
 app.use(cors({
   origin: ["http://localhost:3000",
     "https://e-commerce-admin-panel-frontend.onrender.com",
+    "https://e-commerce-admin-frontend.onrender.com",
     "https://e-commerce-admin-frontend.onrender.com"
   ],
   credentials: true
