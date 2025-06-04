@@ -500,7 +500,7 @@ router.post('/cancelled', async (req, res) => {
     const cancelledOrders = await Order.find({ userId, status: 'cancelled' });
 
     if (!cancelledOrders.length) {
-      return res.status(200).json({ cancelledOrders : [] });
+      return res.status(200).json({ cancelledOrders: [] });
     }
 
     // 👇 Transform the result to only return required fields
@@ -537,7 +537,7 @@ router.post('/active', async (req, res) => {
     const activeOrders = await Order.find({ userId, status: { $in: activeStatuses } });
 
     if (!activeOrders.length) {
-      return res.status(200).json({ activeOrders : [] });
+      return res.status(200).json({ activeOrders: [] });
     }
 
     const filteredOrders = activeOrders.map(order => ({
@@ -571,7 +571,7 @@ router.post('/delivered', async (req, res) => {
     const deliveredOrders = await Order.find({ userId, status: 'delivered' });
 
     if (!deliveredOrders.length) {
-      return res.status(200).json({ deliveredOrders : [] });
+      return res.status(200).json({ deliveredOrders: [] });
     }
 
     const filteredOrders = deliveredOrders.map(order => ({
@@ -593,15 +593,15 @@ router.post('/delivered', async (req, res) => {
 router.post('/orderId', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(403).json({ 
+    return res.status(403).json({
       success: false,
-      message: "Access denied. No token provided." 
+      message: "Access denied. No token provided."
     });
   }
 
   const token = authHeader.split(' ')[1];
   try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const { orderId } = req.body;
 
@@ -656,5 +656,50 @@ router.post('/orderId', async (req, res) => {
     res.status(500).json({ message: 'Error fetching the order' });
   }
 });
+
+router.post('/orderId/cancel', verifyToken, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. No token provided."
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const userId = req.userId; // Extracted from the token
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required' });
+    }
+
+    // Find the order for this user
+    const order = await Order.findOne({ _id: orderId, userId });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found for this user' });
+    }
+
+    // Only allow cancellation if status is 'pending'
+    if (order.status !== 'pending') {
+      return res.status(400).json({ message: "You can't cancel this order After Admin confirms the order." });
+    }
+
+    // Update the status to 'cancelled'
+    order.status = 'cancelled';
+    await order.save();
+
+    res.status(200).json({ message: 'Order cancelled successfully', order });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error cancelling order' });
+  }
+});
+
+
 
 module.exports = router;
