@@ -686,7 +686,7 @@ router.post('/orderId/cancel', verifyToken, async (req, res) => {
 
     // Only allow cancellation if status is 'pending'
     if (order.status !== 'pending') {
-      return res.status(400).json({ message: "You can't cancel this order After Admin confirms the order." });
+      return res.status(400).json({ message: "You can't cancel this order" });
     }
 
     // Update the status to 'cancelled'
