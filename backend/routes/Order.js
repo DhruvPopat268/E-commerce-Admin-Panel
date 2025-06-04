@@ -160,6 +160,8 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// ----------------------------------------------->>> orderId for admin 
+
 router.get('/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -491,10 +493,8 @@ router.post('/cancelled', async (req, res) => {
 
   const token = authHeader.split(" ")[1];
   try {
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(decoded)
-    const userId = decoded.id; // ✅ Extract from decoded token
+    const userId = decoded.id;
 
     const cancelledOrders = await Order.find({ userId, status: 'cancelled' });
 
@@ -502,11 +502,146 @@ router.post('/cancelled', async (req, res) => {
       return res.status(404).json({ message: 'No cancelled orders found' });
     }
 
-    res.status(200).json({ cancelledOrders });
+    // 👇 Transform the result to only return required fields
+    const filteredOrders = cancelledOrders.map(order => ({
+      _id: order._id,
+      status: order.status,
+      orderDate: order.orderDate,
+      itemCount: order.orders.length
+    }));
+
+    res.status(200).json({ cancelledOrders: filteredOrders });
   } catch (err) {
     console.error(err);
-
     res.status(500).json({ message: 'Error fetching cancelled orders' });
+  }
+});
+
+router.post('/active', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. No token provided."
+    });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    const activeStatuses = ['pending', 'confirmed', 'out for delivery'];
+
+    const activeOrders = await Order.find({ userId, status: { $in: activeStatuses } });
+
+    if (!activeOrders.length) {
+      return res.status(404).json({ message: 'No active orders found' });
+    }
+
+    const filteredOrders = activeOrders.map(order => ({
+      _id: order._id,
+      status: order.status,
+      orderDate: order.orderDate,
+      itemCount: order.orders.length
+    }));
+
+    res.status(200).json({ activeOrders: filteredOrders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching active orders' });
+  }
+});
+
+router.post('/delivered', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. No token provided."
+    });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    const deliveredOrders = await Order.find({ userId, status: 'delivered' });
+
+    if (!deliveredOrders.length) {
+      return res.status(404).json({ message: 'No delivered orders found' });
+    }
+
+    const filteredOrders = deliveredOrders.map(order => ({
+      _id: order._id,
+      status: order.status,
+      orderDate: order.orderDate,
+      itemCount: order.orders.length
+    }));
+
+    res.status(200).json({ deliveredOrders: filteredOrders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching delivered orders' });
+  }
+});
+
+// ----------------------------------------------->>> for android 
+
+router.post('/orderId', async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Get agent info
+    const agent = await SalesAgent.findById(order.userId).lean();
+    const villageId = agent?.village?.toString();
+
+    // Get village name
+    const village = villageId && mongoose.Types.ObjectId.isValid(villageId)
+      ? await Village.findById(villageId).lean()
+      : null;
+
+    // Find route setup that includes the village
+    const routeSetup = villageId
+      ? await RouteSetup.findOne({ 'villages.villageId': new mongoose.Types.ObjectId(villageId) }).lean()
+      : null;
+
+    const routeId = routeSetup?.routeId?.toString();
+    const route = routeId ? await Route.findById(routeId).lean() : null;
+
+    // Calculate cart total
+    const cartTotal = order.orders.reduce(
+      (sum, item) => sum + (item.attributes?.total || 0),
+      0
+    );
+
+    // Build response
+    const orderWithDetails = {
+      ...order._doc,
+      cartTotal,
+      salesAgentName: agent?.name || 'Unknown',
+      salesAgentMobile: agent?.mobileNumber || 'N/A',
+      villageName: village?.name || 'Unknown',
+      routeName: route?.name || 'Unknown',
+    };
+
+    res.status(200).json({
+      message: 'Order fetched successfully',
+      order: orderWithDetails,
+    });
+  } catch (error) {
+    console.error('❌ Error fetching specific order:', error);
+    res.status(500).json({ message: 'Error fetching the order' });
   }
 });
 
