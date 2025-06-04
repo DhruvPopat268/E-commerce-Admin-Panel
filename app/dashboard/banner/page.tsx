@@ -75,15 +75,34 @@ export default function BannersPage() {
 
 
     const fetchCategories = async () => {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
-      console.log('categories', res.data)
-      setCategories(res.data)
+      try {
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
+        console.log('categories', res.data)
+        // Filter out any invalid categories
+        const validCategories = res.data.filter((cat: Category) => cat && cat._id && cat.name);
+        setCategories(validCategories)
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+        setCategories([]);
+      }
     }
 
     const fetchSubCategories = async () => {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
-      console.log('subcategories', res.data)
-      setSubcategories(res.data)
+      try {
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+
+         const resdata = res.data[0]?.data
+ 
+    console.log('subcategories', resdata);
+
+      
+        // Filter out any invalid subcategories
+        const validSubcategories = resdata.filter((sub: Subcategory) => sub && sub._id && sub.name);
+        setSubcategories(validSubcategories)
+      } catch (err) {
+        console.error("Failed to fetch subcategories:", err);
+        setSubcategories([]);
+      }
     }
 
     fetchData();
@@ -210,6 +229,7 @@ export default function BannersPage() {
       image: null,
     })
     setImagePreview("")
+    setEditId(null); // Reset editId as well
 
     const fileInput = document.getElementById("banner-image") as HTMLInputElement
     if (fileInput) {
@@ -397,8 +417,10 @@ export default function BannersPage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category._id} value={category._id.toString()}>
+                      {categories
+                        .filter(category => category && category._id && category.name) // Additional safety filter
+                        .map((category) => (
+                        <SelectItem key={category._id} value={String(category._id)}>
                           {category.name}
                         </SelectItem>
                       ))}
@@ -420,8 +442,10 @@ export default function BannersPage() {
                       <SelectValue placeholder="Select subcategory" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subcategories.map((subcategory) => (
-                        <SelectItem key={subcategory._id} value={subcategory._id.toString()}>
+                      {subcategories
+                        .filter(subcategory => subcategory && subcategory._id && subcategory.name) // Additional safety filter
+                        .map((subcategory) => (
+                        <SelectItem key={subcategory._id} value={String(subcategory._id)}>
                           {subcategory.name}
                         </SelectItem>
                       ))}
@@ -475,7 +499,7 @@ export default function BannersPage() {
                     accept="image/*"
                     onChange={handleImageChange}
                     className="hidden"
-                    required
+                    required={!editId} // Only required when creating new banner
                   />
                 </div>
               </div>
