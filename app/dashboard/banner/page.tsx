@@ -28,10 +28,6 @@ interface Banner {
   createdAt: string;
 }
 
-interface Category {
-  _id: string; // Fixed: using _id instead of id
-  name: string
-}
 
 interface Subcategory {
   _id: string; // Fixed: using _id instead of id
@@ -39,19 +35,45 @@ interface Subcategory {
   categoryId: number
 }
 
+// Loading Spinner Component
+const LoadingSpinner = ({ size = "h-12 w-12" }: { size?: string }) => (
+  <div className={`animate-spin rounded-full ${size} border-4 border-black border-t-transparent`}></div>
+);
+
+// Full Page Loading Component
+const FullPageLoader = () => (
+  <div className="flex justify-center items-center h-[70vh]">
+    <LoadingSpinner />
+  </div>
+);
+
+// Overlay Loading Component
+const OverlayLoader = () => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div className="bg-white p-6 rounded-lg flex flex-col items-center gap-4">
+      <LoadingSpinner />
+    
+    </div>
+  </div>
+);
+
 export default function BannersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [banners, setBanners] = useState<Banner[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+ 
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [editId, setEditId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
+  
+  // Different loading states
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null); // Track which banner is being deleted
+  const [toggleLoading, setToggleLoading] = useState<string | null>(null); // Track which banner status is being toggled
 
   const [formData, setFormData] = useState({
     title: "",
     type: "",
-    categoryId: "",
+
     subcategoryId: "",
     image: null as File | null,
   })
@@ -61,54 +83,38 @@ export default function BannersPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
+      setInitialLoading(true);
       try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`);
-        console.log("banners are", res.data);
-        setBanners(res.data);
+        // Fetch all data in parallel
+        const [bannersRes, subcategoriesRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`),
+         
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+        ]);
+
+        console.log("banners are", bannersRes.data);
+        setBanners(bannersRes.data);
+
+   
+
+        const resdata = subcategoriesRes.data[0]?.data;
+        console.log('subcategories', resdata);
+        const validSubcategories = resdata?.filter((sub: Subcategory) => sub && sub._id && sub.name) || [];
+        setSubcategories(validSubcategories);
+
       } catch (err) {
-        console.error("Failed to fetch banners:", err);
+        console.error("Failed to fetch data:", err);
+        // Set empty arrays on error to prevent crashes
+        setBanners([]);
+        setCategories([]);
+        setSubcategories([]);
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
       }
     };
 
-
-    const fetchCategories = async () => {
-      try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
-        console.log('categories', res.data)
-        // Filter out any invalid categories
-        const validCategories = res.data.filter((cat: Category) => cat && cat._id && cat.name);
-        setCategories(validCategories)
-      } catch (err) {
-        console.error("Failed to fetch categories:", err);
-        setCategories([]);
-      }
-    }
-
-    const fetchSubCategories = async () => {
-      try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
-
-         const resdata = res.data[0]?.data
- 
-    console.log('subcategories', resdata);
-
-      
-        // Filter out any invalid subcategories
-        const validSubcategories = resdata.filter((sub: Subcategory) => sub && sub._id && sub.name);
-        setSubcategories(validSubcategories)
-      } catch (err) {
-        console.error("Failed to fetch subcategories:", err);
-        setSubcategories([]);
-      }
-    }
-
     fetchData();
-    fetchCategories();
-    fetchSubCategories()
-  },[])
+  }, [])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -142,83 +148,262 @@ export default function BannersPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+// Fixed handleSubmit function
+// Fixed handleSubmit function
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (!formData.title || !formData.type || (!formData.image && !editId)) {
-      alert("Please fill all required fields");
-      return;
-    }
+  if (!formData.title || !formData.type) {
+    alert("Please fill all required fields");
+    return;
+  }
 
-    if (formData.type === "Category" && !formData.categoryId) {
-      alert("Please select a category");
-      return;
-    }
+  if (formData.type === "Category" && !formData.categoryId) {
+    alert("Please select a category");
+    return;
+  }
 
-    if (formData.type === "Subcategory" && !formData.subcategoryId) {
-      alert("Please select a subcategory");
-      return;
-    }
+  if (formData.type === "Subcategory" && !formData.subcategoryId) {
+    alert("Please select a subcategory");
+    return;
+  }
 
-    const postData = new FormData();
-    postData.append("title", formData.title);
-    postData.append("type", formData.type);
-    if (formData.categoryId) postData.append("categoryId", formData.categoryId);
-    if (formData.subcategoryId) postData.append("subcategoryId", formData.subcategoryId);
-    if (formData.image) postData.append("image", formData.image);
+  // For new banners, image is required
+  if (!editId && !formData.image) {
+    alert("Please select an image");
+    return;
+  }
 
-    try {
-      let response;
+  setSubmitLoading(true);
+  
+  try {
+    let response;
 
-      if (editId) {
-        // Edit (PUT request)
-        response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/${editId}`, formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
-
-        if (response.data.success) {
-          setBanners((prev) =>
-            prev.map((banner) =>
-              banner._id === editId ? response.data.data : banner
-            )
-          );
-          alert("Banner updated successfully!");
-        }
-      } else {
-        // Create (POST request)
-        response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`, formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
-
-        if (response.data.success) {
-          setBanners((prev) => [response.data.data, ...prev]);
-          alert("Banner created successfully!");
-        }
+    if (editId) {
+      // Edit (PUT request) - Use FormData for file uploads
+      const postData = new FormData();
+      postData.append("title", formData.title);
+      postData.append("type", formData.type);
+      
+      if (formData.categoryId) {
+        postData.append("categoryId", formData.categoryId);
+      }
+      
+      if (formData.subcategoryId) {
+        postData.append("subcategoryId", formData.subcategoryId);
+      }
+      
+      if (formData.image) {
+        postData.append("image", formData.image);
       }
 
-      // Reset form and editId
-      setFormData({
-        title: "",
-        type: "",
-        categoryId: "",
-        subcategoryId: "",
-        image: null,
+      console.log("Updating banner with ID:", editId);
+      console.log("Form data being sent:", {
+        title: formData.title,
+        type: formData.type,
+        categoryId: formData.categoryId,
+        subcategoryId: formData.subcategoryId,
+        hasImage: !!formData.image
       });
-      setImagePreview("");
-      setEditId(null);
 
-      const fileInput = document.getElementById("banner-image") as HTMLInputElement;
-      if (fileInput) fileInput.value = "";
+      response = await axios.put(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/${editId}`, 
+        postData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-    } catch (error) {
-      console.error("❌ Error submitting banner:", error);
-      alert("Failed to submit banner");
+      console.log("Update response:", response.data);
+
+      // Check if response.data has _id (indicating it's the updated banner object)
+      if (response.data && response.data._id) {
+        // Update the banners state with the returned banner data
+        setBanners((prev) =>
+          prev.map((banner) =>
+            banner._id === editId ? response.data : banner
+          )
+        );
+        alert("Banner updated successfully!");
+        
+        // Reset form after successful update
+        setFormData({
+          title: "",
+          type: "",
+          categoryId: "",
+          subcategoryId: "",
+          image: null,
+        });
+        setImagePreview("");
+        setEditId(null);
+
+        const fileInput = document.getElementById("banner-image") as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
+        
+      } else if (response.data && response.data.success) {
+        // Handle wrapped response format
+        setBanners((prev) =>
+          prev.map((banner) =>
+            banner._id === editId ? response.data.data : banner
+          )
+        );
+        alert("Banner updated successfully!");
+        
+        // Reset form after successful update
+        setFormData({
+          title: "",
+          type: "",
+          categoryId: "",
+          subcategoryId: "",
+          image: null,
+        });
+        setImagePreview("");
+        setEditId(null);
+
+        const fileInput = document.getElementById("banner-image") as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
+        
+      } else {
+        console.error("Update failed:", response.data);
+        alert(response.data?.error || response.data?.message || "Failed to update banner");
+      }
+    } else {
+      // Create (POST request)
+      const postData = new FormData();
+      postData.append("title", formData.title);
+      postData.append("type", formData.type);
+      
+      if (formData.categoryId) {
+        postData.append("categoryId", formData.categoryId);
+      }
+      
+      if (formData.subcategoryId) {
+        postData.append("subcategoryId", formData.subcategoryId);
+      }
+      
+      if (formData.image) {
+        postData.append("image", formData.image);
+      }
+
+      response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/banners`, 
+        postData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (response.data && response.data.success) {
+        setBanners((prev) => [response.data.data, ...prev]);
+        alert("Banner created successfully!");
+        
+        // Reset form after successful creation
+        setFormData({
+          title: "",
+          type: "",
+          categoryId: "",
+          subcategoryId: "",
+          image: null,
+        });
+        setImagePreview("");
+
+        const fileInput = document.getElementById("banner-image") as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
+        
+      } else {
+        alert(response.data?.error || response.data?.message || "Failed to create banner");
+      }
     }
+
+  } catch (error: any) {
+    console.error("❌ Error submitting banner:", error);
+    console.error("Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    const errorMessage = error.response?.data?.error || 
+                        error.response?.data?.message || 
+                        error.message || 
+                        "Failed to submit banner";
+    
+    alert(`Error: ${errorMessage}`);
+  } finally {
+    setSubmitLoading(false);
+  }
+};
+
+// Fixed handleEdit function to properly handle the data structure
+const handleEdit = (banner: Banner) => {
+  console.log("Editing banner:", banner);
+  
+  setEditId(banner._id);
+  
+  // Helper function to extract ID from object or return string ID
+  const extractId = (value: any): string => {
+    if (!value) return "";
+    if (typeof value === 'object' && value._id) {
+      return String(value._id);
+    }
+    return String(value);
   };
+
+  // Extract the correct IDs based on the data structure
+  let categoryId = "";
+  let subcategoryId = "";
+  
+  if (banner.type === "Category") {
+    categoryId = extractId(banner.categoryId);
+  } else if (banner.type === "Subcategory") {
+    subcategoryId = extractId(banner.subcategoryId);
+  }
+
+  setFormData({
+    title: banner.title || "",
+    type: banner.type || "",
+    categoryId: categoryId,
+    subcategoryId: subcategoryId,
+    image: null, // Don't set the existing image file
+  });
+  
+  // Set the image preview to show the existing image
+  setImagePreview(banner.image);
+  
+  console.log("Edit form data set:", {
+    title: banner.title,
+    type: banner.type,
+    categoryId: categoryId,
+    subcategoryId: subcategoryId,
+    imagePreview: banner.image
+  });
+};
+
+// Also update the getCategorySubcategoryName function to handle the data structure better
+const getCategorySubcategoryName = (banner: Banner) => {
+  if (banner.type === "Category") {
+    // Handle both populated object and ID cases
+    if (typeof banner.categoryId === 'object' && banner.categoryId?.name) {
+      return banner.categoryId.name;
+    }
+    // If it's just an ID, find the name from categories array
+    const category = categories.find(cat => cat._id === String(banner.categoryId));
+    return category?.name || 'Unknown Category';
+  } else if (banner.type === "Subcategory") {
+    // Handle subcategory
+    if (typeof banner.subcategoryId === 'object' && banner.subcategoryId?.name) {
+      return banner.subcategoryId.name;
+    }
+    // If it's just an ID, find the name from subcategories array
+    const subcategory = subcategories.find(sub => sub._id === String(banner.subcategoryId));
+    return subcategory?.name || 'Unknown Subcategory';
+  }
+  return 'Unknown';
+};
 
   const handleReset = () => {
     setFormData({
@@ -239,6 +424,7 @@ export default function BannersPage() {
 
   // Fixed toggle function - using string ID and making API call
   const toggleStatus = async (id: string) => {
+    setToggleLoading(id);
     try {
       // Make API call to toggle status using your specific toggle route
       const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/toggle/${id}`);
@@ -260,6 +446,8 @@ export default function BannersPage() {
       console.error('Error updating banner status:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Error updating banner status';
       alert(`Error updating banner status: ${errorMessage}`);
+    } finally {
+      setToggleLoading(null);
     }
   };
 
@@ -277,6 +465,7 @@ export default function BannersPage() {
     }
 
     console.log('Deleting banner with ID:', id);
+    setDeleteLoading(id);
 
     try {
       const response = await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/banners/${id}`);
@@ -304,6 +493,8 @@ export default function BannersPage() {
         'Error deleting banner';
 
       alert(`Error deleting banner: ${errorMessage}`);
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -326,66 +517,20 @@ export default function BannersPage() {
       banner._id.toString().includes(searchTerm)
   )
 
- const handleEdit = (banner: Banner) => {
-  setEditId(banner._id);
-  
-  // Helper function to extract ID from object or return string ID
-  const extractId = (value: any): string => {
-    if (!value) return "";
-    if (typeof value === 'object' && value._id) {
-      return String(value._id);
-    }
-    return String(value);
-  };
 
-  setFormData({
-    title: banner.title || "",
-    type: banner.type || "",
-    categoryId: extractId(banner.categoryId),
-    subcategoryId: extractId(banner.subcategoryId),
-    image: null,
-  });
-  
-  setImagePreview(banner.image);
-  
-  // Debug logs to see what data we're working with
-  console.log("Editing banner:", banner);
-  console.log("Category ID:", banner.categoryId);
-  console.log("Subcategory ID:", banner.subcategoryId);
-  console.log("Extracted subcategory ID:", extractId(banner.subcategoryId));
-};
 
-  // Helper function to get category/subcategory name
-  const getCategorySubcategoryName = (banner: Banner) => {
-    if (banner.type === "Category") {
-      // Handle both populated object and ID cases
-      if (typeof banner.categoryId === 'object' && banner.categoryId?.name) {
-        return banner.categoryId.name;
-      }
-      // If it's just an ID, find the name from categories array
-      const category = categories.find(cat => cat._id === banner.categoryId);
-      return category?.name || 'Unknown Category';
-    } else {
-      // Handle subcategory
-      if (typeof banner.subcategoryId === 'object' && banner.subcategoryId?.name) {
-        return banner.subcategoryId.name;
-      }
-      // If it's just an ID, find the name from subcategories array
-      const subcategory = subcategories.find(sub => sub._id === banner.subcategoryId);
-      return subcategory?.name || 'Unknown Subcategory';
-    }
-  };
 
- if (loading) {
-  return (
-    <div className="flex justify-center items-center h-[70vh]">
-      <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
-    </div>
-  )
-}
+
+  // Show initial loading spinner
+  if (initialLoading) {
+    return <FullPageLoader />;
+  }
 
   return (
     <div className="space-y-6">
+      {/* Overlay loader for form submissions */}
+      {submitLoading && <OverlayLoader />}
+
       {/* Banner Setup Form */}
       <Card>
         <CardHeader>
@@ -405,6 +550,7 @@ export default function BannersPage() {
                   value={formData.title}
                   onChange={(e) => handleInputChange("title", e.target.value)}
                   required
+                  disabled={submitLoading}
                 />
               </div>
 
@@ -412,40 +558,22 @@ export default function BannersPage() {
                 <Label htmlFor="type">
                   Type <span className="text-red-500">*</span>
                 </Label>
-                <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
+                <Select 
+                  value={formData.type} 
+                  onValueChange={(value) => handleInputChange("type", value)}
+                  disabled={submitLoading}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Category">Category</SelectItem>
+                  
                     <SelectItem value="Subcategory">Subcategory</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Conditional Category/Subcategory Dropdown */}
-              {formData.type === "Category" && (
-                <div>
-                  <Label htmlFor="category">
-                    Category <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={formData.categoryId} onValueChange={(value) => handleInputChange("categoryId", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories
-                        .filter(category => category && category._id && category.name) // Additional safety filter
-                        .map((category) => (
-                        <SelectItem key={category._id} value={String(category._id)}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
+        
               {formData.type === "Subcategory" && (
                 <div>
                   <Label htmlFor="subcategory">
@@ -454,6 +582,7 @@ export default function BannersPage() {
                   <Select
                     value={formData.subcategoryId}
                     onValueChange={(value) => handleInputChange("subcategoryId", value)}
+                    disabled={submitLoading}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select subcategory" />
@@ -493,6 +622,7 @@ export default function BannersPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => document.getElementById("banner-image")?.click()}
+                        disabled={submitLoading}
                       >
                         Change Image
                       </Button>
@@ -505,6 +635,7 @@ export default function BannersPage() {
                         type="button"
                         variant="outline"
                         onClick={() => document.getElementById("banner-image")?.click()}
+                        disabled={submitLoading}
                       >
                         Choose File
                       </Button>
@@ -517,17 +648,34 @@ export default function BannersPage() {
                     onChange={handleImageChange}
                     className="hidden"
                     required={!editId} // Only required when creating new banner
+                    disabled={submitLoading}
                   />
                 </div>
               </div>
             </div>
 
             <div className="lg:col-span-2 flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={handleReset}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleReset}
+                disabled={submitLoading}
+              >
                 Reset
               </Button>
-              <Button type="submit" className="bg-teal-600 hover:bg-teal-700">
-                {editId ? "Update Banner" : "Add Banner"}
+              <Button 
+                type="submit" 
+                className="bg-teal-600 hover:bg-teal-700"
+                disabled={submitLoading}
+              >
+                {submitLoading ? (
+                  <div className="flex items-center gap-2">
+                    <LoadingSpinner size="h-4 w-4" />
+                    {editId ? "Updating..." : "Adding..."}
+                  </div>
+                ) : (
+                  editId ? "Update Banner" : "Add Banner"
+                )}
               </Button>
             </div>
           </form>
@@ -592,14 +740,25 @@ export default function BannersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Switch
-                      checked={banner.status}
-                      onCheckedChange={() => toggleStatus(banner._id)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={banner.status}
+                        onCheckedChange={() => toggleStatus(banner._id)}
+                        disabled={toggleLoading === banner._id}
+                      />
+                      {toggleLoading === banner._id && (
+                        <LoadingSpinner size="h-4 w-4" />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(banner)}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleEdit(banner)}
+                        disabled={deleteLoading === banner._id || toggleLoading === banner._id}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
@@ -609,8 +768,13 @@ export default function BannersPage() {
                           console.log('Deleting banner with ID:', banner._id);
                           deleteBanner(banner._id)
                         }}
+                        disabled={deleteLoading === banner._id || toggleLoading === banner._id}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {deleteLoading === banner._id ? (
+                          <LoadingSpinner size="h-4 w-4" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </TableCell>
