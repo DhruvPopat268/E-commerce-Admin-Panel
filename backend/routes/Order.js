@@ -536,7 +536,7 @@ router.post('/active', async (req, res) => {
     const activeOrders = await Order.find({ userId, status: { $in: activeStatuses } });
 
     if (!activeOrders.length) {
-      return res.status(404).json({ message: 'No active orders found' });
+      return res.status(200).json({ activeOrders : [] });
     }
 
     const filteredOrders = activeOrders.map(order => ({
