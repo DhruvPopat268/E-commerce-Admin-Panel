@@ -34,6 +34,7 @@ export default function SubCategoriesPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [loadingSubCategories, setLoadingSubCategories] = useState(true)
+  const [isUpdating, setIsUpdating] = useState(false) // New state for update spinner
 
   // Fetch categories from backend
   const fetchCategories = async () => {
@@ -124,6 +125,8 @@ export default function SubCategoriesPage() {
   const handleSaveSubCategory = async () => {
     if (!newSubCategory.name.trim() || !newSubCategory.categoryId) return
 
+    setIsUpdating(true) // Start spinner
+
     const formData = new FormData()
     formData.append("categoryId", newSubCategory.categoryId)
     formData.append("name", newSubCategory.name)
@@ -144,7 +147,33 @@ export default function SubCategoriesPage() {
           }
         )
 
-        setSubCategories((prev) => prev.map((sc) => sc._id === editingId ? data : sc))
+        // Handle different possible response structures for update
+        let updatedSubCategory = data
+        if (data.data) {
+          updatedSubCategory = data.data
+        } else if (data.success && data.data) {
+          updatedSubCategory = data.data
+        }
+
+        // Update the subcategory in the list
+        setSubCategories((prev) => 
+          prev.map((sc) => {
+            if (sc._id === editingId) {
+              // Ensure we preserve the category information
+              return {
+                ...updatedSubCategory,
+                category: updatedSubCategory.category || 
+                         categories.find(cat => cat._id === updatedSubCategory.categoryId) ||
+                         sc.category
+              }
+            }
+            return sc
+          })
+        )
+
+        // Alternative: Refetch data to ensure consistency
+        // await fetchSubCategories()
+        
       } else {
         const { data } = await axios.post(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`, 
@@ -156,7 +185,21 @@ export default function SubCategoriesPage() {
           }
         )
 
-        setSubCategories((prev) => [...prev, data])
+        // Handle different possible response structures for create
+        let newSubCategoryData = data
+        if (data.data) {
+          newSubCategoryData = data.data
+        } else if (data.success && data.data) {
+          newSubCategoryData = data.data
+        }
+
+        // Ensure category information is included
+        const categoryInfo = categories.find(cat => cat._id === newSubCategoryData.categoryId)
+        if (categoryInfo && !newSubCategoryData.category) {
+          newSubCategoryData.category = categoryInfo
+        }
+
+        setSubCategories((prev) => [...prev, newSubCategoryData])
       }
 
       setNewSubCategory({ categoryId: "", name: "", status: true })
@@ -167,6 +210,9 @@ export default function SubCategoriesPage() {
       setEditingId(null)
     } catch (err) {
       console.error(err)
+      // Optionally show error message to user
+    } finally {
+      setIsUpdating(false) // Stop spinner
     }
   }
 
@@ -177,8 +223,24 @@ export default function SubCategoriesPage() {
         status: !currentStatus,
       })
 
+      // Handle different possible response structures
+      let updatedSubCategory = data
+      if (data.data) {
+        updatedSubCategory = data.data
+      } else if (data.success && data.data) {
+        updatedSubCategory = data.data
+      }
+
       setSubCategories((prev) =>
-        prev.map((sc) => (sc._id === id ? data : sc)),
+        prev.map((sc) => {
+          if (sc._id === id) {
+            return {
+              ...updatedSubCategory,
+              category: updatedSubCategory.category || sc.category
+            }
+          }
+          return sc
+        })
       )
     } catch (err) {
       console.error(err)
@@ -416,11 +478,22 @@ export default function SubCategoriesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={resetForm}>
+            <Button variant="outline" onClick={resetForm} disabled={isUpdating}>
               Cancel
             </Button>
-            <Button onClick={handleSaveSubCategory} className="bg-teal-600 hover:bg-teal-700">
-              {isEditMode ? "Update Sub Category" : "Add Sub Category"}
+            <Button 
+              onClick={handleSaveSubCategory} 
+              className="bg-teal-600 hover:bg-teal-700"
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  {isEditMode ? "Updating..." : "Adding..."}
+                </div>
+              ) : (
+                isEditMode ? "Update Sub Category" : "Add Sub Category"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

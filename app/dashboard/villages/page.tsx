@@ -89,35 +89,45 @@ export default function VillagePage() {
   }
 
 
-  const handleEditVillage = async () => {
-    if (!editingVillage || editingVillage.name.trim() === "") return
+const handleEditVillage = async () => {
+  if (!editingVillage || editingVillage.name.trim() === "") return
 
-    try {
-      setLoading(true)
-      const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${editingVillage.id}`, {
-        name: editingVillage.name.trim(),
-        status: editingVillage.status,
-      })
+  try {
+    setLoading(true)
+    
+    // Extract English name from the display name (remove Gujarati part if present)
+    const englishName = editingVillage.name.split('(')[0].trim()
+    
+    const response = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/${editingVillage.id}`, {
+      name: englishName, // Send only the English name
+      status: editingVillage.status,
+    })
 
-      const result = response.data
+    const result = response.data
 
-      if (result.success) {
-        setVillages(villages.map(village =>
-          village.id === editingVillage.id ? result.data : village
-        ))
-        setEditingVillage(null)
-        setIsEditDialogOpen(false)
-        setError("")
-      } else {
-        setError(result.message || "Failed to update village")
-      }
-    } catch (error) {
-      console.error("Error updating village:", error)
-      setError("Failed to connect to server")
-    } finally {
-      setLoading(false)
+    if (result.success) {
+      setVillages(villages.map(village =>
+        village.id === editingVillage.id ? result.data : village
+      ))
+      setEditingVillage(null)
+      setIsEditDialogOpen(false)
+      setError("")
+    } else {
+      setError(result.message || "Failed to update village")
     }
+  } catch (error) {
+    console.error("Error updating village:", error)
+    
+    // Enhanced error handling to show specific error messages
+    if (error.response?.data?.message) {
+      setError(error.response.data.message)
+    } else {
+      setError("Failed to connect to server")
+    }
+  } finally {
+    setLoading(false)
   }
+}
 
 
   const handleToggleStatus = async (id: string) => {
