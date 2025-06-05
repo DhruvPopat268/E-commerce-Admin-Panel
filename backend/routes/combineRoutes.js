@@ -5,6 +5,8 @@ const SubCategory = require('../models/SubCategory'); // Add this line - adjust 
 const Banner = require('../models/bannerModel');
 const Product = require('../models/product');
 const jwt = require('jsonwebtoken');
+const salesAgent = require('../routes/salesAgentRoute')
+const routeSetup = require('../routes/routeSetupRputes')
 
 router.get('/', async (req, res) => {
   const authHeader = req.headers.authorization;

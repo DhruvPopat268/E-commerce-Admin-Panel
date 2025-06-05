@@ -160,10 +160,6 @@ router.post("/subcategory", async (req, res) => {
   }
 });
 
-
-
-
-
 router.post("/productDetail", async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -177,7 +173,7 @@ router.post("/productDetail", async (req, res) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const productId = req.body.id; // ✅ Get ID from request body
+    const productId = req.body.id;
     const product = await Product.findById(productId);
 
     if (!product) {
@@ -187,11 +183,21 @@ router.post("/productDetail", async (req, res) => {
       });
     }
 
+    // Get subCategoryName
+    let subCategoryName = null;
+    if (product.subCategory) {
+      const subCat = await subCategory.findById(product.subCategory);
+      subCategoryName = subCat?.name || null;
+    }
+
+    const productObj = product.toObject();
+    productObj.subCategoryName = subCategoryName;
+
     res.status(200).json({
       success: true,
       productId: productId,
-      count: 1,
-      data: product  // ✅ Send product directly as object
+      
+      data: productObj  // Now includes subCategoryName
     });
   } catch (error) {
     console.error("Error fetching product by ID:", error);
@@ -201,6 +207,7 @@ router.post("/productDetail", async (req, res) => {
     });
   }
 });
+
 
 
 
