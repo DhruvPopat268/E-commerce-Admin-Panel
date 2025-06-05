@@ -207,45 +207,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
   }
 });
 
-router.post('/getCustomerData', verifyToken, async (req, res) => {
-  try {
-    const userId = req.userId;
 
-    const agent = await SalesAgent.findById(userId);
-    if (!agent) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sales agent not found'
-      });
-    }
-
-    // Optionally populate village name from Village collection if needed
-    const village = await Village.findById(agent.village);
-
-    res.status(200).json({
-      success: true,
-      message: 'Sales agent data retrieved successfully',
-      data: {
-        _id: agent._id,
-        name: agent.name,
-        businessName: agent.businessName,
-        mobileNumber: agent.mobileNumber,
-        address: agent.address,
-        village: agent.village,
-        villageName: village?.name || agent.villageName || null,
-        photo: agent.photo || {},
-        status: agent.status
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      success: false,
-      message: 'Error retrieving sales agent data',
-      error: error.message
-    });
-  }
-});
 
 
 router.post('/login', async (req, res) => {
@@ -265,6 +227,8 @@ router.post('/login', async (req, res) => {
     
     // Check if sales agent exists with this mobile number
     const salesAgent = await SalesAgent.findOne({ mobileNumber: mobile });
+
+    console.log(salesAgent)
     
     if (!salesAgent) {
       return res.status(404).json({
@@ -314,29 +278,106 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Optional: Middleware to verify JWT token for protected routes
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-  
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: 'Access token required'
-    });
-  }
-  
-  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
-    if (err) {
-      return res.status(403).json({
+router.post('/getCustomerData', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const agent = await SalesAgent.findById(userId);
+    if (!agent) {
+      return res.status(404).json({
         success: false,
-        message: 'Invalid or expired token'
+        message: 'Sales agent not found'
       });
     }
-    req.user = user;
-    next();
-  });
-};
+
+    // Optionally populate village name from Village collection if needed
+    const village = await Village.findById(agent.village);
+
+    res.status(200).json({
+      success: true,
+      message: 'Sales agent data retrieved successfully',
+      data: {
+        _id: agent._id,
+        name: agent.name,
+        businessName: agent.businessName,
+        mobileNumber: agent.mobileNumber,
+        address: agent.address,
+        village: agent.village,
+        villageName: village?.name || agent.villageName || null,
+        photo: agent.photo || {},
+        status: agent.status
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving sales agent data',
+      error: error.message
+    });
+  }
+});
+
+router.put('/updateCustomerData', verifyToken, upload.single('photo'), async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { name, businessName, mobileNumber, address, village } = req.body;
+
+    const agent = await SalesAgent.findById(userId);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales agent not found'
+      });
+    }
+
+    // Optional photo update
+    let photoData = agent.photo;
+    if (req.file) {
+      try {
+        const result = await uploadToCloudinary(req.file.buffer);
+        photoData = {
+          public_id: result.public_id,
+          url: result.secure_url
+        };
+      } catch (uploadErr) {
+        return res.status(400).json({
+          success: false,
+          message: 'Photo upload failed',
+          error: uploadErr.message
+        });
+      }
+    }
+
+    // Optional village name update
+    const villageDoc = village ? await Village.findById(village) : null;
+
+    // Update fields
+    agent.name = name || agent.name;
+    agent.businessName = businessName || agent.businessName;
+    agent.mobileNumber = mobileNumber || agent.mobileNumber;
+    agent.address = address || agent.address;
+    agent.village = village || agent.village;
+    agent.villageName = villageDoc?.name || agent.villageName;
+    agent.photo = photoData;
+
+    const updatedAgent = await agent.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Sales agent updated successfully',
+      data: updatedAgent
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update sales agent',
+      error: error.message
+    });
+  }
+});
 
 // PUT update sales agent
 router.put('/:id', upload.single('photo'), async (req, res) => {
@@ -429,7 +470,6 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
     });
   }
 });
-
 
 // PUT update sales agent status
 router.put('/:id/status', async (req, res) => {
