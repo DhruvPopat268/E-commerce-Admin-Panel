@@ -116,6 +116,8 @@ router.post("/subcategory", async (req, res) => {
       });
     }
 
+    const subCategoryName = subCategoryExists.name;
+
     const products = await Product.find({ subCategory: subCategoryId });
 
     if (!products || products.length === 0) {
@@ -133,10 +135,12 @@ router.post("/subcategory", async (req, res) => {
 
       return {
         ...productObj,
-        attributeName: firstAttr?.name || null,        // first attribute's name
+        subCategoryName,
+        attributeName: firstAttr?.name || null,
         price: firstAttr?.price || null,
         discountedPrice: firstAttr?.discountedPrice || null,
-        attributes: undefined                          // remove the full attributes array
+        subCategoryName, // ✅ Add this line
+        attributes: undefined,
       };
     });
 
@@ -155,6 +159,7 @@ router.post("/subcategory", async (req, res) => {
     });
   }
 });
+
 
 
 
