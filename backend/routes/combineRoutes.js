@@ -5,8 +5,10 @@ const SubCategory = require('../models/SubCategory'); // Add this line - adjust 
 const Banner = require('../models/bannerModel');
 const Product = require('../models/product');
 const jwt = require('jsonwebtoken');
-const salesAgent = require('../routes/salesAgentRoute')
-const routeSetup = require('../routes/routeSetupRputes')
+const SalesAgent = require('../models/salesAgent')
+const RouteSetup = require('../models/routeSetup')
+const Cart = require('../models/Cart')
+
 
 router.get('/', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -15,10 +17,25 @@ router.get('/', async (req, res) => {
     return res.status(403).json({ message: "Access denied. No token provided." });
   }
 
-  const token = authHeader.split(' ')[1]; // Bearer <token>
+  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    // 1. Fetch SalesAgent status
+    const agent = await SalesAgent.findById(userId);
+    const salesAgentStatus = agent?.status ?? null;
+
+    // 2. Find routeSetup where this agent is assigned
+    const routeDoc = await RouteSetup.findOne({
+      'salesAgents.agentId': userId
+    });
+
+    const routeSetupStatus = routeDoc?.isActive ?? null;
+
+    // ✅ 3. Count cart items for this user
+    const cartCount = await Cart.countDocuments({ userId });
 
     const [categories, bannersRaw, dailyNeedsProducts] = await Promise.all([
       Category.find(),
@@ -29,23 +46,19 @@ router.get('/', async (req, res) => {
       Product.find({ showInDailyNeeds: true })
     ]);
 
-    // Get all unique category and subcategory IDs from products
     const categoryIds = [...new Set(dailyNeedsProducts.map(p => p.category).filter(Boolean))];
     const subCategoryIds = [...new Set(dailyNeedsProducts.map(p => p.subCategory).filter(Boolean))];
 
-    // Fetch category and subcategory details
     const [categoryDetails, subCategoryDetails] = await Promise.all([
       Category.find({ _id: { $in: categoryIds } }).select('_id name'),
-      SubCategory.find({ _id: { $in: subCategoryIds } }).select('_id name') // Use SubCategory model
+      SubCategory.find({ _id: { $in: subCategoryIds } }).select('_id name')
     ]);
 
-    // Create lookup maps
     const categoryMap = new Map(categoryDetails.map(cat => [cat._id.toString(), cat]));
     const subCategoryMap = new Map(subCategoryDetails.map(subCat => [subCat._id.toString(), subCat]));
 
     const banners = bannersRaw.map(banner => {
       const bannerObj = banner.toObject();
-
       return {
         ...bannerObj,
         subcategoryId: bannerObj.subcategoryId?._id || bannerObj.subcategoryId || null,
@@ -53,22 +66,20 @@ router.get('/', async (req, res) => {
       };
     });
 
-
     const dailyneed = dailyNeedsProducts.map(product => {
       const productObj = product.toObject();
       const firstAttribute = productObj.attributes && productObj.attributes.length > 0
         ? productObj.attributes[0]
         : null;
 
-      // Get category and subcategory details from maps
       const categoryDetail = categoryMap.get(productObj.category);
       const subCategoryDetail = subCategoryMap.get(productObj.subCategory);
 
       return {
         featured: productObj.featured,
         _id: productObj._id,
-        productName: productObj.name, // Product name from Product model
-        name: firstAttribute?.name || productObj.name, // Attribute name or fallback to product name
+        productName: productObj.name,
+        name: firstAttribute?.name || productObj.name,
         description: productObj.description,
         category: categoryDetail ? {
           _id: categoryDetail._id,
@@ -86,8 +97,8 @@ router.get('/', async (req, res) => {
         },
         visibility: productObj.visibility,
         status: productObj.status,
-        price: firstAttribute?.price || productObj.price, // Attribute price or fallback to product price
-        discountedPrice: firstAttribute?.discountedPrice || productObj.discountedPrice, // Attribute discounted price or fallback
+        price: firstAttribute?.price || productObj.price,
+        discountedPrice: firstAttribute?.discountedPrice || productObj.discountedPrice,
         image: productObj.image,
         createdAt: productObj.createdAt,
         updatedAt: productObj.updatedAt,
@@ -99,7 +110,10 @@ router.get('/', async (req, res) => {
     res.status(200).json({
       categories,
       banners,
-      dailyneed
+      dailyneed,
+      salesAgentStatus,
+      routeSetupStatus,
+      cartCount // ✅ return cart count in response
     });
 
   } catch (err) {
@@ -107,5 +121,7 @@ router.get('/', async (req, res) => {
     return res.status(401).json({ message: 'Invalid or expired token.' });
   }
 });
+
+
 
 module.exports = router;
