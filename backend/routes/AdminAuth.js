@@ -55,7 +55,6 @@ router.post('/login', async (req, res) => {
      // Adjust based on domain usage
     });
 
-
     res.status(200).json({
       token,
       admin: {

@@ -207,9 +207,6 @@ router.post('/', upload.single('photo'), async (req, res) => {
   }
 });
 
-
-
-
 router.post('/login', async (req, res) => {
   try {
     const { mobileNumber, MobileNumber } = req.body;

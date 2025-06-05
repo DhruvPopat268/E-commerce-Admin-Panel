@@ -1,10 +1,11 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation" 
+
 // Mock toast function - replace with your actual toast implementation
 const toast = {
   success: (message: string) => console.log('Success:', message),
@@ -48,7 +49,8 @@ export default function PendingOrdersPage() {
   const [selectAll, setSelectAll] = useState(false)
   const [confirmingOrders, setConfirmingOrders] = useState(false)
   const [cancellingOrders, setCancellingOrders] = useState(false)
-  const router = useRouter()
+  const [generatingInvoice, setGeneratingInvoice] = useState(false)
+  const [bulkPrinting, setBulkPrinting] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -62,6 +64,43 @@ export default function PendingOrdersPage() {
     }
   }, [selectedOrders, pendingOrders])
 
+  // Mock data for demonstration
+  useEffect(() => {
+    if (isMounted) {
+      const mockOrders: Order[] = [
+        {
+          _id: "6841790b4cf136a49533da8",
+          userId: "user123456",
+          orders: [
+            {
+              productId: "prod1",
+              productName: "Tea-Tree Face wash",
+              image: "/api/placeholder/60/60",
+              attributes: {
+                _id: "attr1",
+                name: "Unit",
+                discountedPrice: 350,
+                quantity: 1,
+                total: 350
+              },
+              _id: "order1"
+            }
+          ],
+          status: "pending",
+          orderDate: "2025-06-05T09:35:00Z",
+          __v: 0,
+          cartTotal: 350,
+          salesAgentName: "Vimal Sarvaiya",
+          salesAgentMobile: "9067787232",
+          villageName: "surat (સુરત)",
+          routeName: "Route 2"
+        }
+      ]
+      setPendingOrders(mockOrders)
+      setLoading(false)
+    }
+  }, [isMounted])
+
   const fetchPendingOrders = async () => {
     try {
       setLoading(true)
@@ -70,16 +109,288 @@ export default function PendingOrdersPage() {
       const data = await response.json()
 
       if (data.orders) {
-        // Filter only pending orders
         const pending = data.orders.filter((order: Order) => order.status.toLowerCase() === 'pending')
         setPendingOrders(pending)
-        setSelectedOrders(new Set()) // Clear selections when data refreshes
+        setSelectedOrders(new Set())
       }
     } catch (error) {
       console.error('Error fetching pending orders:', error)
       toast.error('Failed to fetch pending orders')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const generateInvoiceHTML = (order: Order) => {
+    const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
+    const currentDate = new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Invoice - ${order._id.slice(-6).toUpperCase()}</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+            .invoice-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #teal; padding-bottom: 20px; }
+            .company-name { font-size: 28px; font-weight: bold; color: #14b8a6; margin-bottom: 5px; }
+            .invoice-title { font-size: 24px; color: #666; }
+            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .info-section { flex: 1; }
+            .info-section h3 { color: #14b8a6; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px; }
+            .order-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            .order-table th, .order-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
+            .order-table th { background-color: #f8fafc; font-weight: bold; color: #374151; }
+            .total-section { text-align: right; margin-top: 20px; }
+            .total-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+            .total-label { font-weight: bold; margin-right: 20px; min-width: 120px; }
+            .total-amount { font-weight: bold; min-width: 100px; }
+            .grand-total { font-size: 18px; color: #14b8a6; border-top: 2px solid #14b8a6; padding-top: 10px; }
+            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+            @media print { body { margin: 0; } }
+        </style>
+    </head>
+    <body>
+        <div class="invoice-header">
+            <div class="company-name">Your Company Name</div>
+            <div class="invoice-title">INVOICE</div>
+        </div>
+        
+        <div class="invoice-info">
+            <div class="info-section">
+                <h3>Order Details</h3>
+                <p><strong>Order ID:</strong> ${order._id.slice(-6).toUpperCase()}</p>
+                <p><strong>Order Date:</strong> ${formatDate(order.orderDate)}</p>
+                <p><strong>Status:</strong> ${order.status}</p>
+                <p><strong>Invoice Date:</strong> ${currentDate}</p>
+            </div>
+            
+            <div class="info-section">
+                <h3>Customer Details</h3>
+                <p><strong>Sales Agent:</strong> ${order.salesAgentName || 'N/A'}</p>
+                <p><strong>Mobile:</strong> ${order.salesAgentMobile || 'N/A'}</p>
+                <p><strong>Village:</strong> ${order.villageName || 'N/A'}</p>
+                <p><strong>Route:</strong> ${order.routeName || 'N/A'}</p>
+            </div>
+        </div>
+        
+        <table class="order-table">
+            <thead>
+                <tr>
+                    <th>SL</th>
+                    <th>Item Details</th>
+                    <th>Attribute</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Discount Price</th>
+                    <th>Total Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${order.orders.map((item, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.productName}</td>
+                        <td>${item.attributes.name}</td>
+                        <td>₹${item.attributes.discountedPrice}</td>
+                        <td>${item.attributes.quantity}</td>
+                        <td>₹${item.attributes.discountedPrice}</td>
+                        <td>₹${item.attributes.total}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        
+        <div class="total-section">
+            <div class="total-row grand-total">
+                <div class="total-label">Grand Total:</div>
+                <div class="total-amount">₹${orderTotal.toLocaleString()}</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p>This is a computer generated invoice.</p>
+        </div>
+    </body>
+    </html>
+    `
+  }
+
+  const printSingleInvoice = async (order: Order) => {
+    try {
+      setGeneratingInvoice(true)
+      
+      const invoiceHTML = generateInvoiceHTML(order)
+      
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(invoiceHTML)
+        printWindow.document.close()
+        
+        // Wait for content to load then print
+        setTimeout(() => {
+          printWindow.print()
+          printWindow.close()
+        }, 500)
+        
+        toast.success('Invoice generated successfully!')
+      } else {
+        toast.error('Unable to open print window. Please check popup settings.')
+      }
+    } catch (error) {
+      console.error('Error generating invoice:', error)
+      toast.error('Failed to generate invoice')
+    } finally {
+      setGeneratingInvoice(false)
+    }
+  }
+
+  const printBulkInvoices = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error('Please select at least one order to print')
+      return
+    }
+
+    try {
+      setBulkPrinting(true)
+      
+      const selectedOrdersData = pendingOrders.filter(order => selectedOrders.has(order._id))
+      
+      // Generate combined HTML for all selected orders
+      const combinedHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="utf-8">
+          <title>Bulk Invoices</title>
+          <style>
+              body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+              .page-break { page-break-after: always; }
+              .invoice-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #teal; padding-bottom: 20px; }
+              .company-name { font-size: 28px; font-weight: bold; color: #14b8a6; margin-bottom: 5px; }
+              .invoice-title { font-size: 24px; color: #666; }
+              .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+              .info-section { flex: 1; }
+              .info-section h3 { color: #14b8a6; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px; }
+              .order-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+              .order-table th, .order-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
+              .order-table th { background-color: #f8fafc; font-weight: bold; color: #374151; }
+              .total-section { text-align: right; margin-top: 20px; }
+              .total-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+              .total-label { font-weight: bold; margin-right: 20px; min-width: 120px; }
+              .total-amount { font-weight: bold; min-width: 100px; }
+              .grand-total { font-size: 18px; color: #14b8a6; border-top: 2px solid #14b8a6; padding-top: 10px; }
+              .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+              @media print { body { margin: 0; } }
+          </style>
+      </head>
+      <body>
+          ${selectedOrdersData.map((order, index) => {
+            const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
+            const currentDate = new Date().toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            })
+            
+            return `
+            <div${index < selectedOrdersData.length - 1 ? ' class="page-break"' : ''}>
+                <div class="invoice-header">
+                    <div class="company-name">Your Company Name</div>
+                    <div class="invoice-title">INVOICE</div>
+                </div>
+                
+                <div class="invoice-info">
+                    <div class="info-section">
+                        <h3>Order Details</h3>
+                        <p><strong>Order ID:</strong> ${order._id.slice(-6).toUpperCase()}</p>
+                        <p><strong>Order Date:</strong> ${formatDate(order.orderDate)}</p>
+                        <p><strong>Status:</strong> ${order.status}</p>
+                        <p><strong>Invoice Date:</strong> ${currentDate}</p>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h3>Customer Details</h3>
+                        <p><strong>Sales Agent:</strong> ${order.salesAgentName || 'N/A'}</p>
+                        <p><strong>Mobile:</strong> ${order.salesAgentMobile || 'N/A'}</p>
+                        <p><strong>Village:</strong> ${order.villageName || 'N/A'}</p>
+                        <p><strong>Route:</strong> ${order.routeName || 'N/A'}</p>
+                    </div>
+                </div>
+                
+                <table class="order-table">
+                    <thead>
+                        <tr>
+                            <th>SL</th>
+                            <th>Item Details</th>
+                            <th>Attribute</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Discount Price</th>
+                            <th>Total Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${order.orders.map((item, itemIndex) => `
+                            <tr>
+                                <td>${itemIndex + 1}</td>
+                                <td>${item.productName}</td>
+                                <td>${item.attributes.name}</td>
+                                <td>₹${item.attributes.discountedPrice}</td>
+                                <td>${item.attributes.quantity}</td>
+                                <td>₹${item.attributes.discountedPrice}</td>
+                                <td>₹${item.attributes.total}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div class="total-section">
+                    <div class="total-row grand-total">
+                        <div class="total-label">Grand Total:</div>
+                        <div class="total-amount">₹${orderTotal.toLocaleString()}</div>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <p>Thank you for your business!</p>
+                    <p>This is a computer generated invoice.</p>
+                </div>
+            </div>
+            `
+          }).join('')}
+      </body>
+      </html>
+      `
+      
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(combinedHTML)
+        printWindow.document.close()
+        
+        // Wait for content to load then print
+        setTimeout(() => {
+          printWindow.print()
+          printWindow.close()
+        }, 1000)
+        
+        toast.success(`${selectedOrders.size} invoices generated successfully!`)
+      } else {
+        toast.error('Unable to open print window. Please check popup settings.')
+      }
+    } catch (error) {
+      console.error('Error generating bulk invoices:', error)
+      toast.error('Failed to generate invoices')
+    } finally {
+      setBulkPrinting(false)
     }
   }
 
@@ -93,7 +404,8 @@ export default function PendingOrdersPage() {
   }
 
   const handleViewOrder = (orderId: string) => {
-    router.push(`/dashboard/order-details/${orderId}`)
+    // router.push(`/dashboard/order-details/${orderId}`)
+    console.log('View order:', orderId)
   }
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
@@ -126,7 +438,6 @@ export default function PendingOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove confirmed orders from pending orders list
         setPendingOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
         setSelectedOrders(new Set())
         setSelectAll(false)
@@ -162,7 +473,6 @@ export default function PendingOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove cancelled orders from pending orders list
         setPendingOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
         setSelectedOrders(new Set())
         setSelectAll(false)
@@ -177,10 +487,6 @@ export default function PendingOrdersPage() {
       setCancellingOrders(false)
     }
   }
-
-  
-
-
 
   const calculateCartTotal = (orderItems: Order['orders']) => {
     return orderItems.reduce((total, item) => total + item.attributes.total, 0)
@@ -200,17 +506,14 @@ export default function PendingOrdersPage() {
   }
 
   const handleSearch = () => {
-    // Implement search functionality here
     console.log('Searching for:', searchTerm)
   }
 
   const handleShowData = () => {
-    // Implement date range filtering here
     console.log('Filtering from:', startDate, 'to:', endDate)
   }
 
   const exportToCSV = () => {
-    // Implement CSV export functionality
     const csvContent = pendingOrders.map((order, index) => {
       return [
         index + 1,
@@ -239,7 +542,7 @@ export default function PendingOrdersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Clock className="h-6 w-6 text-orange-500" />
@@ -316,13 +619,36 @@ export default function PendingOrdersPage() {
             Search
           </button>
         </div>
-        <button 
-          onClick={exportToCSV}
-          className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-        >
-          <Download className="h-4 w-4 mr-2 inline" />
-          Export
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={printBulkInvoices}
+            disabled={selectedOrders.size === 0 || bulkPrinting}
+            className={`px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              selectedOrders.size === 0 || bulkPrinting
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {bulkPrinting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                Printing...
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4 mr-2 inline" />
+                Print ({selectedOrders.size})
+              </>
+            )}
+          </button>
+          <button 
+            onClick={exportToCSV}
+            className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          >
+            <Download className="h-4 w-4 mr-2 inline" />
+            Export
+          </button>
+        </div>
       </div>
 
       {/* Bulk Actions */}
