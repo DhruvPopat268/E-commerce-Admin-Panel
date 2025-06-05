@@ -10,7 +10,7 @@ const RouteSetup = require('../models/routeSetup')
 const Cart = require('../models/Cart')
 
 
-router.get('/', async (req, res) => {
+router.post('/', async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
