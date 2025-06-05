@@ -96,10 +96,6 @@ router.post('/:routeId/setup', async (req, res) => {
     const { routeId } = req.params;
     const { selectedVillages, villageIds } = req.body;
 
-
-
-   
-
     // Validate input
     if (!selectedVillages || selectedVillages.length === 0) {
       return res.status(400).json({
@@ -108,58 +104,32 @@ router.post('/:routeId/setup', async (req, res) => {
       });
     }
 
-    // Extract village names from the selectedVillages array
-    const villageNames = selectedVillages.map(village => village.name);
+    // Extract village IDs from the selectedVillages array
+    const selectedVillageIds = selectedVillages.map(village => village.id);
 
-   
-    // Get all sales agents first
-    const allSalesAgents = await SalesAgent.find({ status: true });
-    
-   
+    // Get all sales agents with populated village data
+    const allSalesAgents = await SalesAgent.find({ status: true })
+      .populate('village', 'name') // Populate village field with name
+      .exec();
 
-    // IMPROVED MATCHING LOGIC
+    // Filter sales agents based on village IDs
     const filteredSalesAgents = allSalesAgents.filter(agent => {
       if (!agent.village) return false;
       
-      return villageNames.some(selectedVillageName => {
-        const agentVillage = agent.village.toLowerCase();
-        const selectedVillage = selectedVillageName.toLowerCase();
-        
-        // Multiple matching strategies:
-        // 1. Exact match
-        if (agentVillage === selectedVillage) return true;
-        
-        // 2. Contains match (for cases like "Botad (બોટાદ)" contains "botad")
-        if (agentVillage.includes(selectedVillage)) return true;
-        
-        // 3. Selected village contains agent village
-        if (selectedVillage.includes(agentVillage)) return true;
-        
-        // 4. Remove parentheses and special characters for comparison
-        const cleanAgentVillage = agentVillage.replace(/\([^)]*\)/g, '').trim();
-        const cleanSelectedVillage = selectedVillage.replace(/\([^)]*\)/g, '').trim();
-        
-        if (cleanAgentVillage === cleanSelectedVillage) return true;
-        if (cleanAgentVillage.includes(cleanSelectedVillage)) return true;
-        if (cleanSelectedVillage.includes(cleanAgentVillage)) return true;
-        
-        return false;
-      });
+      // Check if agent's village ID matches any selected village ID
+      const agentVillageId = agent.village._id.toString();
+      return selectedVillageIds.includes(agentVillageId);
     });
-
- 
 
     // Transform to customer format (to match your frontend expectations)
     const customers = filteredSalesAgents.map(agent => ({
       id: agent._id,
       name: agent.name,
-      villages: [agent.village],
+      villages: [agent.village.name], // Use the populated village name
       status: agent.status,
       email: agent.email || '',
       phone: agent.mobileNumber || ''
     }));
-
-   
 
     // Get full village details
     const villageIdList = selectedVillages.map(village => village.id);
