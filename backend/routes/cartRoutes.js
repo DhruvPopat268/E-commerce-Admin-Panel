@@ -4,6 +4,8 @@ const Cart = require('../models/Cart');
 const verifyToken = require('../middleware/authMiddleware');
 const Product = require('../models/product');
 
+// ✅ Make sure this import exists
+
 router.post('/add', verifyToken, async (req, res) => {
   try {
     const { productId, attributeId, quantity } = req.body;
@@ -16,46 +18,53 @@ router.post('/add', verifyToken, async (req, res) => {
     const attribute = product.attributes.find(attr => attr._id.toString() === attributeId);
     if (!attribute) return res.status(404).json({ error: 'Attribute not found in product' });
 
-    // Find existing cart with this product and attribute
+    // Check if item already in cart
     const existing = await Cart.findOne({
       userId,
       productId,
       'attributes._id': attributeId
     });
 
+    let result;
+
     if (existing) {
-      // Update quantity
+      // Update quantity and total
       existing.attributes.quantity += qty;
-      // Calculate total
       existing.attributes.total = existing.attributes.discountedPrice * existing.attributes.quantity;
 
-      const updated = await existing.save();
-
-      return res.status(200).json(updated);
+      result = await existing.save();
+    } else {
+      // Add new cart item
+      result = await Cart.create({
+        userId,
+        productId,
+        productName: product.name,
+        image: product.image,
+        attributes: {
+          _id: attribute._id,
+          name: attribute.name,
+          discountedPrice: attribute.discountedPrice,
+          quantity: qty,
+          total: attribute.discountedPrice * qty
+        },
+      });
     }
 
-    // Create new cart entry
-    const newCartItem = await Cart.create({
-      userId,
-      productId,
-      productName: product.name,
-      image: product.image,
-      attributes: {
-        _id: attribute._id,
-        name: attribute.name,
-      
-        discountedPrice: attribute.discountedPrice,
-        quantity: qty,
-        total: attribute.discountedPrice * qty
-      },
+    // ✅ Count total cart items for the user
+    const productsCount = await Cart.countDocuments({ userId });
+
+    return res.status(200).json({
+      message: 'Cart updated successfully',
+      cartItem: result,
+      productsCount
     });
 
-    res.status(200).json(newCartItem);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // 🛒 Get cart items
 router.post('/my-cart', verifyToken, async (req, res) => {

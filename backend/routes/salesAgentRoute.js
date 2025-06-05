@@ -5,6 +5,8 @@ const cloudinary = require('cloudinary').v2;
 const SalesAgent = require('../models/salesAgent');
 const jwt = require('jsonwebtoken');
 const Village = require('../models/village')
+const verifyToken = require('../middleware/authMiddleware');
+
 
 // Configure Cloudinary
 cloudinary.config({
@@ -205,6 +207,45 @@ router.post('/', upload.single('photo'), async (req, res) => {
   }
 });
 
+router.post('/getCustomerData', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const agent = await SalesAgent.findById(userId);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales agent not found'
+      });
+    }
+
+    // Optionally populate village name from Village collection if needed
+    const village = await Village.findById(agent.village);
+
+    res.status(200).json({
+      success: true,
+      message: 'Sales agent data retrieved successfully',
+      data: {
+        _id: agent._id,
+        name: agent.name,
+        businessName: agent.businessName,
+        mobileNumber: agent.mobileNumber,
+        address: agent.address,
+        village: agent.village,
+        villageName: village?.name || agent.villageName || null,
+        photo: agent.photo || {},
+        status: agent.status
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving sales agent data',
+      error: error.message
+    });
+  }
+});
 
 
 router.post('/login', async (req, res) => {
