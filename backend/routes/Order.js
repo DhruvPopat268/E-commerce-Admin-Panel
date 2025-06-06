@@ -20,8 +20,11 @@ const path = require('path');
 router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    const cartItems = await Cart.find({ userId });
 
+    // Fetch user for customer info
+    const user = await SalesAgent.findById(userId);
+
+    const cartItems = await Cart.find({ userId });
     if (!cartItems.length) {
       return res.status(400).json({ message: 'No items in cart to place order' });
     }
@@ -43,9 +46,15 @@ router.post('/', verifyToken, async (req, res) => {
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-    // ======= STEP 1: Generate PDF ==========
+    // Ensure invoice directory exists
+    const invoiceDir = path.join(__dirname, '../invoices');
+    if (!fs.existsSync(invoiceDir)) {
+      fs.mkdirSync(invoiceDir, { recursive: true });
+    }
+
+    // Generate PDF invoice
+    const filePath = path.join(invoiceDir, `invoice_${newOrder._id}.pdf`);
     const doc = new PDFDocument();
-    const filePath = path.join(__dirname, `../invoices/invoice_${newOrder._id}.pdf`);
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
@@ -55,21 +64,22 @@ router.post('/', verifyToken, async (req, res) => {
     doc.moveDown();
 
     // Order Info
-    doc.fontSize(12).text(`Order ID: ${newOrder._id}`);
-    doc.text(`Order Date: ${moment().format('DD MMM YYYY')}`);
-    doc.text(`Status: ${newOrder.status}`);
-    doc.text(`Invoice Date: ${moment().format('DD MMM YYYY')}`);
-    doc.moveDown();
+    doc.fontSize(12)
+      .text(`Order ID: ${newOrder._id}`)
+      .text(`Order Date: ${moment().format('DD MMM YYYY')}`)
+      .text(`Status: ${newOrder.status}`)
+      .text(`Invoice Date: ${moment().format('DD MMM YYYY')}`)
+      .moveDown();
 
-    // Customer Info (dummy for now, replace with real data if needed)
-    doc.text(`Sales Agent: Dummy Name`);
-    doc.text(`Mobile: 9999999999`);
-    doc.text(`Village: Sample`);
-    doc.text(`Route: Route 1`);
-    doc.moveDown();
+    // Customer Info
+    doc.text(`Sales Agent: ${user?.name || 'N/A'}`)
+      .text(`Mobile: ${user?.mobile || 'N/A'}`)
+      .text(`Village: ${user?.village || 'N/A'}`)
+      .text(`Route: ${user?.route || 'N/A'}`)
+      .moveDown();
 
     // Table Header
-    doc.text(`SL\tItem\tAttribute\tPrice\tQty\tTotal`, { continued: false });
+    doc.text(`SL\tItem\tAttribute\tPrice\tQty\tTotal`);
     doc.moveDown();
 
     let total = 0;
@@ -87,19 +97,20 @@ router.post('/', verifyToken, async (req, res) => {
 
     doc.end();
 
-    // STEP 2: Wait for PDF to be saved, then print
+    // Print after PDF generation
     stream.on('finish', async () => {
       try {
         await printer.print(filePath, {
-          printer: 'YourPrinterName' // Optional: remove this line to use default printer
+          printer: 'EPSON M100 Series' // Change to your real printer name or omit for default
         });
-        console.log('Invoice printed.');
+        console.log(`Printed invoice for Order ID: ${newOrder._id}`);
       } catch (printErr) {
         console.error('Print failed:', printErr);
       }
     });
 
-    res.status(201).json({ message: 'Order placed & invoice printed', order: newOrder });
+    res.status(201).json({ message: 'Order placed & invoice printing started', order: newOrder });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error placing order' });
