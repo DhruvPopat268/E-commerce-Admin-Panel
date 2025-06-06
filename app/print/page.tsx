@@ -11,7 +11,7 @@ export default function PrintPage() {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/${orderId}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/printer/${orderId}`);
         const data = await res.json();
         if (data.success) {
           setOrder(data.order);

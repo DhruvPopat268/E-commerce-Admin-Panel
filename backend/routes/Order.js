@@ -184,7 +184,7 @@ router.get('/:id', async (req, res) => {
 
 // ----------------------------------------------->>> orderId for admin 
 
-router.get('/:orderId', async (req, res) => {
+router.get('/printer/:orderId', async (req, res) => {
 
   try {
     const { orderId } = req.params;
