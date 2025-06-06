@@ -1,11 +1,10 @@
 'use client';
 
-export const dynamic = "force-dynamic"; // ← 🔥 THIS IS THE FIX
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function PrintPage() {
+// Separate the component that uses useSearchParams
+function PrintContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
   const [order, setOrder] = useState<any>(null);
@@ -85,6 +84,15 @@ export default function PrintPage() {
       <p style={{ marginTop: '40px', textAlign: 'center' }}>Thank you for your business!</p>
       <p style={{ fontSize: '12px', textAlign: 'center' }}><em>This is a computer generated invoice.</em></p>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function PrintPage() {
+  return (
+    <Suspense fallback={<div>Loading invoice...</div>}>
+      <PrintContent />
+    </Suspense>
   );
 }
 
