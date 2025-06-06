@@ -55,7 +55,6 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-
 router.get('/all', async (req, res) => {
   try {
     // Fetch all orders
