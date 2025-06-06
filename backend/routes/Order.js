@@ -9,12 +9,17 @@ const Route = require('../models/route');
 const mongoose = require('mongoose')
 const Village = require('../models/village')
 const jwt = require('jsonwebtoken')
+const PDFDocument = require('pdfkit');
+const printer = require('pdf-to-printer');
+const fs = require('fs');
+const moment = require('moment');
+const path = require('path');
+
 
 // Place order
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const userId = req.userId; // userId from token
-
+    const userId = req.userId;
     const cartItems = await Cart.find({ userId });
 
     if (!cartItems.length) {
@@ -24,10 +29,9 @@ router.post('/', verifyToken, async (req, res) => {
     const orderItems = cartItems.map(item => ({
       productId: item.productId?.toString(),
       productName: item.productName,
-      image: item.image,
       quantity: item.quantity || 1,
       price: item.price || 0,
-      attributes: item.attributes,
+      attributes: item.attributes || '-',
     }));
 
     const newOrder = new Order({
@@ -39,7 +43,63 @@ router.post('/', verifyToken, async (req, res) => {
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-    res.status(201).json({ message: 'Order placed successfully', order: newOrder });
+    // ======= STEP 1: Generate PDF ==========
+    const doc = new PDFDocument();
+    const filePath = path.join(__dirname, `../invoices/invoice_${newOrder._id}.pdf`);
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // Header
+    doc.fontSize(18).text('Your Company Name', { align: 'center' });
+    doc.fontSize(16).text('INVOICE', { align: 'center' });
+    doc.moveDown();
+
+    // Order Info
+    doc.fontSize(12).text(`Order ID: ${newOrder._id}`);
+    doc.text(`Order Date: ${moment().format('DD MMM YYYY')}`);
+    doc.text(`Status: ${newOrder.status}`);
+    doc.text(`Invoice Date: ${moment().format('DD MMM YYYY')}`);
+    doc.moveDown();
+
+    // Customer Info (dummy for now, replace with real data if needed)
+    doc.text(`Sales Agent: Dummy Name`);
+    doc.text(`Mobile: 9999999999`);
+    doc.text(`Village: Sample`);
+    doc.text(`Route: Route 1`);
+    doc.moveDown();
+
+    // Table Header
+    doc.text(`SL\tItem\tAttribute\tPrice\tQty\tTotal`, { continued: false });
+    doc.moveDown();
+
+    let total = 0;
+    orderItems.forEach((item, index) => {
+      const itemTotal = item.price * item.quantity;
+      total += itemTotal;
+      doc.text(`${index + 1}\t${item.productName}\t${item.attributes}\t₹${item.price}\t${item.quantity}\t₹${itemTotal}`);
+    });
+
+    doc.moveDown();
+    doc.text(`Grand Total: ₹${total}`, { align: 'right' });
+    doc.moveDown();
+    doc.text('Thank you for your business!', { align: 'center' });
+    doc.text('This is a computer-generated invoice.', { align: 'center' });
+
+    doc.end();
+
+    // STEP 2: Wait for PDF to be saved, then print
+    stream.on('finish', async () => {
+      try {
+        await printer.print(filePath, {
+          printer: 'YourPrinterName' // Optional: remove this line to use default printer
+        });
+        console.log('Invoice printed.');
+      } catch (printErr) {
+        console.error('Print failed:', printErr);
+      }
+    });
+
+    res.status(201).json({ message: 'Order placed & invoice printed', order: newOrder });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error placing order' });
