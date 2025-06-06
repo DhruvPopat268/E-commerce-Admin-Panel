@@ -169,6 +169,19 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// backend route: GET /api/orders/:id
+
+router.get('/:id', async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, order });
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // ----------------------------------------------->>> orderId for admin 
 
 router.get('/:orderId', async (req, res) => {
