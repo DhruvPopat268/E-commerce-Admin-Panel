@@ -13,6 +13,7 @@ function PrintContent() {
     const fetchOrder = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/printer/${orderId}`);
+        
         const data = await res.json();
         if (data.success) {
           setOrder(data.order);
@@ -90,8 +91,8 @@ function PrintContent() {
 // Main component with Suspense boundary
 export default function PrintPage() {
   return (
-    <Suspense fallback={
-       <PrintContent />}>
+    <Suspense fallback={<div>Loading invoice...</div>}>
+      <PrintContent />
     </Suspense>
   );
 }

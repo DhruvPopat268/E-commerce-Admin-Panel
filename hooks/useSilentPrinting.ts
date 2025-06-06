@@ -1,9 +1,9 @@
 export const useSilentPrinting = () => {
-  const printSilently = async (orderData: any): Promise<boolean> => {
+  const printSilently = async (order: any): Promise<boolean> => {
     try {
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
-      iframe.src = `/print?orderId=${orderData._id}`;
+      iframe.src = `/print?orderId=${order._id}`;
 
       document.body.appendChild(iframe);
 
