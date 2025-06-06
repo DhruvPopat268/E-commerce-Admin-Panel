@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic"; // ← 🔥 THIS IS THE FIX
+
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -50,8 +52,6 @@ export default function PrintPage() {
         <p><strong>Status:</strong> {status}</p>
         <p><strong>Invoice Date:</strong> {new Date().toLocaleDateString()}</p>
       </div>
-
-      {/* Optional: add customer or sales agent info if available */}
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
         <thead>
