@@ -21,9 +21,6 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
 
-    // Fetch user for customer info
-    const user = await SalesAgent.findById(userId);
-
     const cartItems = await Cart.find({ userId });
     if (!cartItems.length) {
       return res.status(400).json({ message: 'No items in cart to place order' });
@@ -32,9 +29,10 @@ router.post('/', verifyToken, async (req, res) => {
     const orderItems = cartItems.map(item => ({
       productId: item.productId?.toString(),
       productName: item.productName,
+      image: item.image,
       quantity: item.quantity || 1,
       price: item.price || 0,
-      attributes: item.attributes || '-',
+      attributes: item.attributes,
     }));
 
     const newOrder = new Order({
@@ -46,76 +44,17 @@ router.post('/', verifyToken, async (req, res) => {
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-    // Ensure invoice directory exists
-    const invoiceDir = path.join(__dirname, '../invoices');
-    if (!fs.existsSync(invoiceDir)) {
-      fs.mkdirSync(invoiceDir, { recursive: true });
-    }
+    // Emit event to admin dashboard for real-time update
+    const io = req.app.get('io');
+    io.emit('newOrder', newOrder); // Broadcast new order event
 
-    // Generate PDF invoice
-    const filePath = path.join(invoiceDir, `invoice_${newOrder._id}.pdf`);
-    const doc = new PDFDocument();
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
-
-    // Header
-    doc.fontSize(18).text('Your Company Name', { align: 'center' });
-    doc.fontSize(16).text('INVOICE', { align: 'center' });
-    doc.moveDown();
-
-    // Order Info
-    doc.fontSize(12)
-      .text(`Order ID: ${newOrder._id}`)
-      .text(`Order Date: ${moment().format('DD MMM YYYY')}`)
-      .text(`Status: ${newOrder.status}`)
-      .text(`Invoice Date: ${moment().format('DD MMM YYYY')}`)
-      .moveDown();
-
-    // Customer Info
-    doc.text(`Sales Agent: ${user?.name || 'N/A'}`)
-      .text(`Mobile: ${user?.mobile || 'N/A'}`)
-      .text(`Village: ${user?.village || 'N/A'}`)
-      .text(`Route: ${user?.route || 'N/A'}`)
-      .moveDown();
-
-    // Table Header
-    doc.text(`SL\tItem\tAttribute\tPrice\tQty\tTotal`);
-    doc.moveDown();
-
-    let total = 0;
-    orderItems.forEach((item, index) => {
-      const itemTotal = item.price * item.quantity;
-      total += itemTotal;
-      doc.text(`${index + 1}\t${item.productName}\t${item.attributes}\t₹${item.price}\t${item.quantity}\t₹${itemTotal}`);
-    });
-
-    doc.moveDown();
-    doc.text(`Grand Total: ₹${total}`, { align: 'right' });
-    doc.moveDown();
-    doc.text('Thank you for your business!', { align: 'center' });
-    doc.text('This is a computer-generated invoice.', { align: 'center' });
-
-    doc.end();
-
-    // Print after PDF generation
-    stream.on('finish', async () => {
-      try {
-        await printer.print(filePath, {
-          printer: 'EPSON M100 Series' // Change to your real printer name or omit for default
-        });
-        console.log(`Printed invoice for Order ID: ${newOrder._id}`);
-      } catch (printErr) {
-        console.error('Print failed:', printErr);
-      }
-    });
-
-    res.status(201).json({ message: 'Order placed & invoice printing started', order: newOrder });
-
+    res.status(201).json({ message: 'Order placed successfully', order: newOrder });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error placing order' });
   }
 });
+
 
 router.get('/all', async (req, res) => {
   try {
