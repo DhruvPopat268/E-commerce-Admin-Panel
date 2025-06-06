@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import axios from "axios"
 import Image from "next/image"
-import { Search, Plus, Pencil, Trash2, Download, UserCheck, Loader2, ChevronDown } from "lucide-react"
+import { Search, Plus, Pencil, Trash2, Download, UserCheck, Loader2, ChevronDown, Route } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -27,6 +27,7 @@ interface SalesAgent {
         url?: string
     }
     status: boolean
+    routeStatus: boolean
     createdAt: string
     updatedAt: string
 }
@@ -249,6 +250,34 @@ export default function SalesAgentPage() {
         }
     }
 
+    const handleToggleRouteStatus = async (id: string, currentRouteStatus: boolean) => {
+        try {
+            const { data } = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents/${id}/route-status`, {
+                routeStatus: !currentRouteStatus
+            })
+
+            if (data.success) {
+                toast({
+                    title: "Success",
+                    description: `Route status ${!currentRouteStatus ? 'activated' : 'deactivated'} successfully`,
+                })
+                fetchSalesAgents()
+            } else {
+                toast({
+                    title: "Error",
+                    description: data.message || 'Failed to update route status',
+                    variant: "destructive",
+                })
+            }
+        } catch {
+            toast({
+                title: "Error",
+                description: 'Network error occurred',
+                variant: "destructive",
+            })
+        }
+    }
+
     const handleDeleteAgent = async (id: string) => {
         if (!confirm('Are you sure you want to delete this sales agent?')) return
 
@@ -279,7 +308,7 @@ export default function SalesAgentPage() {
             const { data } = await axios.get<ApiResponse>(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents?limit=1000`)
             if (data.success) {
                 const csvContent = [
-                    ['Name', 'Business Name', 'Mobile Number', 'Address', 'Village', 'Status', 'Created At'].join(','),
+                    ['Name', 'Business Name', 'Mobile Number', 'Address', 'Village', 'Status', 'Route Status', 'Created At'].join(','),
                     ...data.data.map(agent => [
                         agent.name,
                         agent.businessName,
@@ -287,6 +316,7 @@ export default function SalesAgentPage() {
                         agent.address,
                         agent.village,
                         agent.status ? 'Active' : 'Inactive',
+                        agent.routeStatus ? 'Active' : 'Inactive',
                         new Date(agent.createdAt).toLocaleDateString()
                     ].join(','))
                 ].join('\n')
@@ -332,7 +362,6 @@ export default function SalesAgentPage() {
     }
 
     const handleVillageChange = (value: string) => {
-        
         setNewAgent({ ...newAgent, village: value })
         console.log(value)
     }
@@ -479,7 +508,7 @@ export default function SalesAgentPage() {
                                                 </SelectItem>
                                             ) : (
                                                 villages.map((village) => (
-                                                    <SelectItem key={village.id} value={village.id} >
+                                                    <SelectItem key={village._id} value={village._id} >
                                                         {village.name}
                                                     </SelectItem>
                                                 ))
@@ -548,20 +577,21 @@ export default function SalesAgentPage() {
                             <TableHead>Contact Info</TableHead>
                             <TableHead>Business Info</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Route Status</TableHead>
                             <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
+                                <TableCell colSpan={7} className="text-center py-8">
                                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                                     <p className="mt-2 text-muted-foreground">Loading sales agents...</p>
                                 </TableCell>
                             </TableRow>
                         ) : salesAgents.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                     No sales agents found
                                 </TableCell>
                             </TableRow>
@@ -573,7 +603,7 @@ export default function SalesAgentPage() {
                                         <div className="flex items-center space-x-3">
                                             <div className="h-10 w-10 relative overflow-hidden rounded-full">
                                                 <Image
-                                                    src={agent.photo?.url}
+                                                    src={agent.photo?.url || '/default-avatar.png'}
                                                     alt={agent.name}
                                                     fill
                                                     className="object-cover"
@@ -595,10 +625,35 @@ export default function SalesAgentPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Switch
-                                            checked={agent.status}
-                                            onCheckedChange={() => handleToggleStatus(agent._id, agent.status)}
-                                        />
+                                        <div className="flex items-center space-x-2">
+                                            <Switch
+                                                checked={agent.status}
+                                                onCheckedChange={() => handleToggleStatus(agent._id, agent.status)}
+                                            />
+                                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                                agent.status 
+                                                    ? 'bg-green-100 text-green-800' 
+                                                    : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                                {agent.status ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center space-x-2">
+                                            <Switch
+                                                checked={agent.routeStatus}
+                                                onCheckedChange={() => handleToggleRouteStatus(agent._id, agent.routeStatus)}
+                                            />
+                                            <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
+                                                agent.routeStatus 
+                                                    ? 'bg-blue-100 text-blue-800' 
+                                                    : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                                <Route className="h-3 w-3" />
+                                                {agent.routeStatus ? 'On Route' : 'Off Route'}
+                                            </span>
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end space-x-2">

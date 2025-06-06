@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Route = require('../models/route');
+const RouteSetup = require('../models/routeSetup')
+const SalesAgent = require('../models/salesAgent'); // Adjust path as needed
+
 
 // GET /api/routes - Get all routes
 router.get('/', async (req, res) => {
@@ -147,11 +150,13 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/routes/:id/status - Toggle route status
+// Add this import if missing
+
+// Your route handler (fixed version)
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    
+   
     // Validate ObjectId
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({
@@ -159,20 +164,47 @@ router.put('/:id/status', async (req, res) => {
         message: 'Invalid route ID format'
       });
     }
-    
+   
     const route = await Route.findById(id);
-    
+   
     if (!route) {
       return res.status(404).json({
         success: false,
         message: 'Route not found'
       });
     }
-    
+   
     // Toggle status
-    route.status = !route.status;
+    const newStatus = !route.status;
+    route.status = newStatus;
     const updatedRoute = await route.save();
-    
+   
+    // Update sales agents based on route status (both enable and disable)
+    try {
+      // Find route setup document by route ID
+      const routeSetup = await RouteSetup.findOne({ routeId: id });
+     
+      if (routeSetup && routeSetup.salesAgents && routeSetup.salesAgents.length > 0) {
+        // Extract agent IDs from salesAgents array
+        const agentIds = routeSetup.salesAgents.map(agent => agent.agentId);
+        console.log('Agent IDs to update:', agentIds);
+       
+        // Update route status for all these agents (true if route enabled, false if disabled)
+        const updateResult = await SalesAgent.updateMany(
+          { _id: { $in: agentIds } },
+          { $set: { routeStatus: newStatus } }
+        );
+       
+        console.log(`Route ${newStatus ? 'enabled' : 'disabled'}: Updated route status for ${updateResult.modifiedCount} sales agents out of ${agentIds.length} total agents`);
+      } else {
+        console.log(`Route ${newStatus ? 'enabled' : 'disabled'}: No route setup or sales agents found for route ID: ${id}`);
+      }
+    } catch (agentUpdateError) {
+      console.error('Error updating sales agents:', agentUpdateError);
+      // Note: We don't return error here as the route status was successfully updated
+      // This is a secondary operation that shouldn't fail the main request
+    }
+   
     // Format response
     const formattedRoute = {
       id: updatedRoute._id,
@@ -180,13 +212,15 @@ router.put('/:id/status', async (req, res) => {
       status: updatedRoute.status,
       createdAt: updatedRoute.formattedCreatedAt
     };
-    
+   
     res.status(200).json({
       success: true,
-      message: 'Route status updated successfully',
+      message: newStatus ?
+        'Route enabled and sales agents updated successfully' :
+        'Route disabled and sales agents updated successfully',
       data: formattedRoute
     });
-    
+   
   } catch (error) {
     console.error('Error updating route status:', error);
     res.status(500).json({

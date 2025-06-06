@@ -12,31 +12,29 @@ const Cart = require('../models/Cart')
 
 router.post('/', async (req, res) => {
   const authHeader = req.headers.authorization;
-
   if (!authHeader) {
     return res.status(403).json({ message: "Access denied. No token provided." });
   }
-
   const token = authHeader.split(' ')[1];
-
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
-
-    // 1. Fetch SalesAgent status
+    
+    // 1. Fetch SalesAgent with both status and routeStatus
     const agent = await SalesAgent.findById(userId);
     const salesAgentStatus = agent?.status ?? null;
-
-    // 2. Find routeSetup where this agent is assigned
+    const routeSetupStatus = agent?.routeStatus ?? null; // Get routeStatus from SalesAgent model
+    
+    // 2. Find routeSetup where this agent is assigned (optional - for additional validation)
     const routeDoc = await RouteSetup.findOne({
       'salesAgents.agentId': userId
     });
-
-    const routeSetupStatus = routeDoc?.isActive ?? null;
-
-    // ✅ 3. Count cart items for this user
+    // You can use this for additional checks if needed
+    // const routeDocStatus = routeDoc?.isActive ?? null;
+    
+    // 3. Count cart items for this user
     const cartCount = await Cart.countDocuments({ userId });
-
+    
     const [categories, bannersRaw, dailyNeedsProducts] = await Promise.all([
       Category.find(),
       Banner.find()
@@ -45,18 +43,18 @@ router.post('/', async (req, res) => {
         .populate('subcategoryId', 'name'),
       Product.find({ showInDailyNeeds: true })
     ]);
-
+    
     const categoryIds = [...new Set(dailyNeedsProducts.map(p => p.category).filter(Boolean))];
     const subCategoryIds = [...new Set(dailyNeedsProducts.map(p => p.subCategory).filter(Boolean))];
-
+    
     const [categoryDetails, subCategoryDetails] = await Promise.all([
       Category.find({ _id: { $in: categoryIds } }).select('_id name'),
       SubCategory.find({ _id: { $in: subCategoryIds } }).select('_id name')
     ]);
-
+    
     const categoryMap = new Map(categoryDetails.map(cat => [cat._id.toString(), cat]));
     const subCategoryMap = new Map(subCategoryDetails.map(subCat => [subCat._id.toString(), subCat]));
-
+    
     const banners = bannersRaw.map(banner => {
       const bannerObj = banner.toObject();
       return {
@@ -65,16 +63,16 @@ router.post('/', async (req, res) => {
         imageUrl: bannerObj.image ? `/uploads/${bannerObj.image}` : null
       };
     });
-
+    
     const dailyneed = dailyNeedsProducts.map(product => {
       const productObj = product.toObject();
       const firstAttribute = productObj.attributes && productObj.attributes.length > 0
         ? productObj.attributes[0]
         : null;
-
+        
       const categoryDetail = categoryMap.get(productObj.category);
       const subCategoryDetail = subCategoryMap.get(productObj.subCategory);
-
+      
       return {
         featured: productObj.featured,
         _id: productObj._id,
@@ -106,22 +104,20 @@ router.post('/', async (req, res) => {
         showInDailyNeeds: productObj.showInDailyNeeds
       };
     });
-
+    
     res.status(200).json({
       categories,
       banners,
       dailyneed,
       salesAgentStatus,
-      routeSetupStatus,
-      cartCount // ✅ return cart count in response
+      routeSetupStatus, // This now comes from SalesAgent.routeStatus
+      cartCount
     });
-
+    
   } catch (err) {
     console.error('Token verification failed:', err.message);
     return res.status(401).json({ message: 'Invalid or expired token.' });
   }
 });
-
-
 
 module.exports = router;

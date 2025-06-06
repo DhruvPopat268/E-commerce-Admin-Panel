@@ -54,6 +54,10 @@ const salesAgentSchema = new mongoose.Schema({
     type: Boolean,
     default: false // New agents start with false status
   },
+  routeStatus:{
+    type: Boolean,
+    default: false 
+  },
   createdAt: {
     type: Date,
     default: Date.now

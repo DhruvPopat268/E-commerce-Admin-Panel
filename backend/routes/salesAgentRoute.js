@@ -510,6 +510,50 @@ router.put('/:id/status', async (req, res) => {
   }
 });
 
+// PUT /api/salesAgents/:id/route-status
+
+router.put('/:id/route-status', async (req, res) => {
+  try {
+    const { routeStatus } = req.body;
+    const agentId = req.params.id;
+
+    // Validate routeStatus value
+    if (typeof routeStatus !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'routeStatus must be a boolean value (true or false)'
+      });
+    }
+
+    // Update routeStatus
+    const updatedAgent = await SalesAgent.findByIdAndUpdate(
+      agentId,
+      { routeStatus },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedAgent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales agent not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Route status ${routeStatus ? 'activated' : 'deactivated'} successfully`,
+      data: updatedAgent
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating route status',
+      error: error.message
+    });
+  }
+});
+
+
 // DELETE sales agent
 router.delete('/:id', async (req, res) => {
   try {
