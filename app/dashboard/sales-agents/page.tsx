@@ -83,7 +83,7 @@ export default function SalesAgentPage() {
         try {
             setVillagesLoading(true)
             const { data } = await axios.get<VillageApiResponse>(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages`)
-            
+
             if (data.success) {
                 setVillages(data.data)
             } else {
@@ -164,7 +164,7 @@ export default function SalesAgentPage() {
             if (photoFile) formData.append('photo', photoFile)
 
             const { data } = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents`, formData)
-             
+
             if (data.success) {
                 toast({ title: "Success", description: "Sales agent created successfully" })
                 resetForm()
@@ -621,7 +621,9 @@ export default function SalesAgentPage() {
                                     <TableCell>
                                         <div className="space-y-1">
                                             <div className="text-sm">{agent.businessName}</div>
-                                            <div className="text-xs text-muted-foreground">Village: {agent.village}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                Village: {typeof agent.village === 'string' ? agent.village : agent.village?.name || 'N/A'}
+                                            </div>
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -630,11 +632,10 @@ export default function SalesAgentPage() {
                                                 checked={agent.status}
                                                 onCheckedChange={() => handleToggleStatus(agent._id, agent.status)}
                                             />
-                                            <span className={`text-xs px-2 py-1 rounded-full ${
-                                                agent.status 
-                                                    ? 'bg-green-100 text-green-800' 
+                                            <span className={`text-xs px-2 py-1 rounded-full ${agent.status
+                                                    ? 'bg-green-100 text-green-800'
                                                     : 'bg-gray-100 text-gray-800'
-                                            }`}>
+                                                }`}>
                                                 {agent.status ? 'Active' : 'Inactive'}
                                             </span>
                                         </div>
@@ -645,11 +646,10 @@ export default function SalesAgentPage() {
                                                 checked={agent.routeStatus}
                                                 onCheckedChange={() => handleToggleRouteStatus(agent._id, agent.routeStatus)}
                                             />
-                                            <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
-                                                agent.routeStatus 
-                                                    ? 'bg-blue-100 text-blue-800' 
+                                            <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${agent.routeStatus
+                                                    ? 'bg-blue-100 text-blue-800'
                                                     : 'bg-gray-100 text-gray-800'
-                                            }`}>
+                                                }`}>
                                                 <Route className="h-3 w-3" />
                                                 {agent.routeStatus ? 'On Route' : 'Off Route'}
                                             </span>
