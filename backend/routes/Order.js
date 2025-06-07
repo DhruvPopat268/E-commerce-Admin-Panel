@@ -192,11 +192,6 @@ async function generateFallbackPDF(orderData, customerData) {
   });
 }
 
-// Updated main function with better error handling
-// Install puppeteer (not puppeteer-core) to get bundled Chromium
-// Run: npm install puppeteer
-
-const puppeteer = require('puppeteer');
 
 async function generateInvoicePDF(orderData, customerData) {
   try {
