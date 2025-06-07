@@ -9,12 +9,7 @@ const Route = require('../models/route');
 const mongoose = require('mongoose')
 const Village = require('../models/village')
 const jwt = require('jsonwebtoken')
-const PDFDocument = require('pdfkit');
-const printer = require('pdf-to-printer');
-const fs = require('fs');
-const moment = require('moment');
-const path = require('path');
-const puppeteer = require('puppeteer');
+
 
 
 
