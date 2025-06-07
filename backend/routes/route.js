@@ -307,9 +307,10 @@ router.put('/:id/status', async (req, res) => {
 });
 
 // Route to register agent's OneSignal player ID
-router.post('/register-agent-player', async (req, res) => {
+router.post('/register-agent-player',verifyToken, async (req, res) => {
   try {
-    const { agentId, playerId } = req.body;
+    const agentId = req.userId;
+    const {  playerId } = req.body;
     
     if (!agentId || !playerId) {
       return res.status(400).json({ 
