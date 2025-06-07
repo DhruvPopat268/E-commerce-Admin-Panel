@@ -85,26 +85,46 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // Helper function to generate PDF (you need to implement this)
+// Helper function to generate PDF - Fixed for Render deployment
 async function generateInvoicePDF(orderData, customerData) {
-  // You can use libraries like:
-  // - puppeteer (for HTML to PDF)
-  // - pdfkit (for programmatic PDF creation)
-  // - jsPDF (lightweight PDF generation)
-  
-  // Example with puppeteer:
-  
   try {
-    const browser = await puppeteer.launch({ headless: true });
+    // Render-specific Puppeteer configuration
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process', // Important for Render
+        '--disable-gpu'
+      ],
+      // Use system Chrome if available, fallback to bundled
+      executablePath: process.env.NODE_ENV === 'production' 
+        ? process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable'
+        : undefined
+    });
+    
     const page = await browser.newPage();
+    
+    // Set viewport and other page settings
+    await page.setViewport({ width: 1200, height: 800 });
     
     // Generate HTML content for invoice
     const htmlContent = generateInvoiceHTML(orderData, customerData);
     
-    await page.setContent(htmlContent);
+    await page.setContent(htmlContent, { 
+      waitUntil: 'networkidle0',
+      timeout: 30000 
+    });
+    
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
+      margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' },
+      timeout: 30000
     });
     
     await browser.close();
@@ -112,8 +132,87 @@ async function generateInvoicePDF(orderData, customerData) {
     
   } catch (error) {
     console.error('PDF generation error:', error);
-    throw error;
+    
+    // Fallback to simple text-based PDF using PDFKit
+    console.log('🔄 Falling back to PDFKit for PDF generation...');
+    return await generateFallbackPDF(orderData, customerData);
   }
+}
+
+// Fallback PDF generation using PDFKit (already installed)
+async function generateFallbackPDF(orderData, customerData) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument();
+      const buffers = [];
+      
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer);
+      });
+      
+      // Header
+      doc.fontSize(20).text('INVOICE', { align: 'center' });
+      doc.moveDown();
+      
+      // Order details
+      doc.fontSize(12).text(`Order ID: ${orderData._id}`);
+      doc.text(`Date: ${new Date(orderData.createdAt).toLocaleDateString()}`);
+      doc.moveDown();
+      
+      // Customer details
+      doc.fontSize(14).text('Customer Details:', { underline: true });
+      doc.fontSize(10);
+      doc.text(`Name: ${customerData?.name || 'N/A'}`);
+      doc.text(`Mobile: ${customerData?.mobile || 'N/A'}`);
+      doc.text(`Village: ${customerData?.village || 'N/A'}`);
+      doc.text(`Route: ${customerData?.route || 'N/A'}`);
+      doc.moveDown();
+      
+      // Items table header
+      doc.fontSize(12).text('Items:', { underline: true });
+      doc.moveDown(0.5);
+      
+      // Table headers
+      const startX = 50;
+      let currentY = doc.y;
+      
+      doc.text('Product', startX, currentY);
+      doc.text('Qty', startX + 200, currentY);
+      doc.text('Price', startX + 250, currentY);
+      doc.text('Total', startX + 300, currentY);
+      
+      currentY += 20;
+      doc.moveTo(startX, currentY).lineTo(startX + 350, currentY).stroke();
+      currentY += 10;
+      
+      // Items
+      let grandTotal = 0;
+      orderData.orders.forEach(item => {
+        const itemTotal = item.quantity * item.price;
+        grandTotal += itemTotal;
+        
+        doc.text(item.productName, startX, currentY);
+        doc.text(item.quantity.toString(), startX + 200, currentY);
+        doc.text(`₹${item.price}`, startX + 250, currentY);
+        doc.text(`₹${itemTotal.toFixed(2)}`, startX + 300, currentY);
+        currentY += 20;
+      });
+      
+      // Total
+      currentY += 10;
+      doc.moveTo(startX, currentY).lineTo(startX + 350, currentY).stroke();
+      currentY += 10;
+      
+      doc.fontSize(14).text(`Grand Total: ₹${grandTotal.toFixed(2)}`, startX + 200, currentY);
+      
+      doc.end();
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 function generateInvoiceHTML(orderData, customerData) {
