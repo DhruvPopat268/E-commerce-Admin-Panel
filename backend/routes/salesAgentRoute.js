@@ -209,14 +209,13 @@ router.post('/', upload.single('photo'), async (req, res) => {
   }
 });
 
+
+
 router.post('/login', async (req, res) => {
   try {
     const { mobileNumber, MobileNumber } = req.body;
-
-    // Handle both possible key formats
     const mobile = mobileNumber || MobileNumber;
 
-    // Validate mobile number is provided
     if (!mobile) {
       return res.status(400).json({
         success: false,
@@ -224,10 +223,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check if sales agent exists with this mobile number
     const salesAgent = await SalesAgent.findOne({ mobileNumber: mobile });
-
-    console.log(salesAgent);
 
     if (!salesAgent) {
       return res.status(404).json({
@@ -236,14 +232,20 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Generate JWT token
+    // Fetch village name using village ID
+    let villageName = '';
+    if (salesAgent.village) {
+      const villageData = await Village.findById(salesAgent.village);
+      villageName = villageData ? villageData.name : '';
+    }
+
     const token = jwt.sign(
       {
         id: salesAgent._id,
         mobileNumber: mobile,
         name: salesAgent.name,
         businessName: salesAgent.businessName,
-        village: salesAgent.village // ✅ Include village name in token payload if needed
+        village: salesAgent.village
       },
       process.env.JWT_SECRET || 'your-secret-key',
       {
@@ -251,7 +253,6 @@ router.post('/login', async (req, res) => {
       }
     );
 
-    // Return success response with token and complete data
     res.status(200).json({
       success: true,
       message: 'Login Successfully',
@@ -262,7 +263,8 @@ router.post('/login', async (req, res) => {
         name: salesAgent.name,
         businessName: salesAgent.businessName,
         mobileNumber: salesAgent.mobileNumber,
-        village: salesAgent.village, // ✅ Included here
+        village: salesAgent.village, // Send village ID
+        villageName: villageName,     // ✅ Send village name
         status: salesAgent.status,
         address: salesAgent.address,
         photo: salesAgent.photo
@@ -277,6 +279,7 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
 
 
 router.post('/getCustomerData', verifyToken, async (req, res) => {
