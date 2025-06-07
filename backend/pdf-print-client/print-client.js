@@ -9,7 +9,10 @@ const https = require('https');
 const SERVER_URL = 'https://e-commerce-admin-backend.onrender.com'; // Fixed: Backend URL
 
 // Your printer name (exactly as shown in Windows)
+// For automatic PDF saving, use a physical printer or network printer
+// Microsoft Print to PDF requires manual save dialog interaction
 const PRINTER_NAME = 'Microsoft Print to PDF'; // Change this to your exact printer name
+const PDF_SAVE_PATH = path.join(os.homedir(), 'Documents', 'Invoices'); // Auto-save location
 
 console.log('🖨️  PDF Print Client Starting...');
 console.log('🔌 Server URL:', SERVER_URL);
@@ -227,7 +230,7 @@ const setupSocketHandlers = () => {
   });
 };
 
-// Function to print PDF (unchanged)
+// Function to print PDF
 const printPDF = async (pdfPath, orderId) => {
   return new Promise((resolve, reject) => {
     // Verify PDF file exists
@@ -236,11 +239,46 @@ const printPDF = async (pdfPath, orderId) => {
       return;
     }
     
+    // Create invoices directory if it doesn't exist
+    if (!fs.existsSync(PDF_SAVE_PATH)) {
+      fs.mkdirSync(PDF_SAVE_PATH, { recursive: true });
+    }
+    
     let printCommand;
     
     if (os.platform() === 'win32') {
-      // Windows - Using PowerShell
+      // For Microsoft Print to PDF, copy file to Documents/Invoices instead
+      // because "Microsoft Print to PDF" requires manual dialog interaction
+      if (PRINTER_NAME === 'Microsoft Print to PDF') {
+        const savedPdfPath = path.join(PDF_SAVE_PATH, `Invoice_${orderId}_${Date.now()}.pdf`);
+        
+        try {
+          fs.copyFileSync(pdfPath, savedPdfPath);
+          console.log(`📁 PDF automatically saved to: ${savedPdfPath}`);
+          
+          // Optional: Open the saved PDF
+          exec(`start "" "${savedPdfPath}"`, (error) => {
+            if (error) {
+              console.log('Note: Could not auto-open PDF, but it was saved successfully');
+            } else {
+              console.log('📖 PDF opened for viewing');
+            }
+          });
+          
+          resolve();
+          return;
+        } catch (copyError) {
+          console.error('Failed to save PDF:', copyError.message);
+          reject(copyError);
+          return;
+        }
+      }
+      
+      // For other printers, use normal print command
       printCommand = `powershell -Command "Start-Process -FilePath '${pdfPath}' -Verb Print -WindowStyle Hidden -Wait"`;
+      
+      // Alternative for SumatraPDF (better for automated printing):
+      // printCommand = `"C:\\Program Files\\SumatraPDF\\SumatraPDF.exe" -print-to "${PRINTER_NAME}" "${pdfPath}" -silent`;
       
     } else if (os.platform() === 'darwin') {
       // macOS

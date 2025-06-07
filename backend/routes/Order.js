@@ -21,11 +21,11 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const cartItems = await Cart.find({ userId });
-    
+   
     if (!cartItems.length) {
       return res.status(400).json({ message: 'No items in cart to place order' });
     }
-
+    
     const orderItems = cartItems.map(item => ({
       productId: item.productId?.toString(),
       productName: item.productName,
@@ -34,51 +34,149 @@ router.post('/', verifyToken, async (req, res) => {
       price: item.price || 0,
       attributes: item.attributes,
     }));
-
+    
     const newOrder = new Order({
       userId,
       orders: orderItems,
       status: 'pending',
     });
-
     await newOrder.save();
     await Cart.deleteMany({ userId });
-
+    
     // Get customer/sales agent details for invoice
-   
     const customerData = await SalesAgent.findById(userId).select('name mobile village route');
-
+    
     // Get Socket.IO instance and print clients from app
     const io = req.app.get('io');
     const printClients = req.app.get('printClients');
-
-    // Prepare print data
+    
+    // Generate PDF buffer (you'll need to implement this function)
+    const pdfBuffer = await generateInvoicePDF(newOrder, customerData);
+    
+    // Prepare print data - FIXED: Use correct event name and include pdfBuffer
     const printData = {
       orderId: newOrder._id,
       orderData: newOrder,
       customerData: customerData,
+      pdfBuffer: pdfBuffer, // Required by your client
       timestamp: new Date()
     };
-
+    
     // Send print command to all connected print clients
+    // FIXED: Use the correct event name that matches your client
     if (printClients.size > 0) {
-      io.emit('print-invoice', printData);
+      io.emit('print-pdf-invoice', printData); // Changed from 'print-invoice'
       console.log(`📄 Invoice sent to ${printClients.size} print client(s) for Order: ${newOrder._id}`);
     } else {
       console.log(`⚠️  No print clients connected - Order ${newOrder._id} placed but not printed`);
     }
-
-    res.status(201).json({ 
-      message: 'Order placed successfully', 
+    
+    res.status(201).json({
+      message: 'Order placed successfully',
       order: newOrder,
       printStatus: printClients.size > 0 ? 'Invoice sent to printer' : 'No printer connected'
     });
-
   } catch (err) {
-    console.error(err);
+    console.error('Order placement error:', err);
     res.status(500).json({ message: 'Error placing order' });
   }
 });
+
+// Helper function to generate PDF (you need to implement this)
+async function generateInvoicePDF(orderData, customerData) {
+  // You can use libraries like:
+  // - puppeteer (for HTML to PDF)
+  // - pdfkit (for programmatic PDF creation)
+  // - jsPDF (lightweight PDF generation)
+  
+  // Example with puppeteer:
+  const puppeteer = require('puppeteer');
+  
+  try {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+    
+    // Generate HTML content for invoice
+    const htmlContent = generateInvoiceHTML(orderData, customerData);
+    
+    await page.setContent(htmlContent);
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
+    });
+    
+    await browser.close();
+    return pdfBuffer;
+    
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    throw error;
+  }
+}
+
+function generateInvoiceHTML(orderData, customerData) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Invoice - Order ${orderData._id}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .invoice-details { margin-bottom: 20px; }
+        .customer-info { margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .total { font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>INVOICE</h1>
+        <p>Order ID: ${orderData._id}</p>
+        <p>Date: ${new Date(orderData.createdAt).toLocaleDateString()}</p>
+      </div>
+      
+      <div class="customer-info">
+        <h3>Customer Details:</h3>
+        <p><strong>Name:</strong> ${customerData?.name || 'N/A'}</p>
+        <p><strong>Mobile:</strong> ${customerData?.mobile || 'N/A'}</p>
+        <p><strong>Village:</strong> ${customerData?.village || 'N/A'}</p>
+        <p><strong>Route:</strong> ${customerData?.route || 'N/A'}</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orderData.orders.map(item => `
+            <tr>
+              <td>${item.productName}</td>
+              <td>${item.quantity}</td>
+              <td>₹${item.price}</td>
+              <td>₹${(item.quantity * item.price).toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr class="total">
+            <td colspan="3">Total Amount:</td>
+            <td>₹${orderData.orders.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </body>
+    </html>
+  `;
+}
 
 router.get('/all', async (req, res) => {
   try {
