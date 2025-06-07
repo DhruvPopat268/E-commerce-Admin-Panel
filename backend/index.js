@@ -49,7 +49,7 @@ io.on('connection', (socket) => {
       connected: true,
       lastSeen: new Date()
     });
-    
+
     console.log(`🖨️  Print client registered: ${data.clientName} (${data.type})`);
     socket.emit('registration-success', { message: 'Print client registered successfully' });
   });
@@ -114,7 +114,7 @@ app.use('/api/orders', orderRoutes);
 // Health check endpoint for print clients
 app.get('/api/print-clients', (req, res) => {
   const clients = Array.from(printClients.values());
-  res.json({ 
+  res.json({
     totalClients: clients.length,
     clients: clients,
     status: clients.length > 0 ? 'Printer Connected' : 'No Printer Connected'

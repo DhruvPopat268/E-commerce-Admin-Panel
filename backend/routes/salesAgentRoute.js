@@ -212,10 +212,10 @@ router.post('/', upload.single('photo'), async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { mobileNumber, MobileNumber } = req.body;
-    
+
     // Handle both possible key formats
     const mobile = mobileNumber || MobileNumber;
-    
+
     // Validate mobile number is provided
     if (!mobile) {
       return res.status(400).json({
@@ -223,34 +223,35 @@ router.post('/login', async (req, res) => {
         message: 'Mobile number is required'
       });
     }
-    
+
     // Check if sales agent exists with this mobile number
     const salesAgent = await SalesAgent.findOne({ mobileNumber: mobile });
 
-    console.log(salesAgent)
-    
+    console.log(salesAgent);
+
     if (!salesAgent) {
       return res.status(404).json({
         success: false,
         message: 'Mobile number does not exist'
       });
     }
-    
+
     // Generate JWT token
     const token = jwt.sign(
-      { 
+      {
         id: salesAgent._id,
         mobileNumber: mobile,
         name: salesAgent.name,
-        businessName: salesAgent.businessName
+        businessName: salesAgent.businessName,
+        village: salesAgent.village // ✅ Include village name in token payload if needed
       },
-      process.env.JWT_SECRET || 'your-secret-key', // Make sure to use environment variable
-      { 
-        expiresIn: '30d' // Token expires in 30 days
+      process.env.JWT_SECRET || 'your-secret-key',
+      {
+        expiresIn: '30d'
       }
     );
-    
-    // Return success response with token and status
+
+    // Return success response with token and complete data
     res.status(200).json({
       success: true,
       message: 'Login Successfully',
@@ -261,13 +262,13 @@ router.post('/login', async (req, res) => {
         name: salesAgent.name,
         businessName: salesAgent.businessName,
         mobileNumber: salesAgent.mobileNumber,
-        village: salesAgent.village,
+        village: salesAgent.village, // ✅ Included here
         status: salesAgent.status,
-        address : salesAgent.address,
+        address: salesAgent.address,
         photo: salesAgent.photo
       }
     });
-    
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -276,6 +277,7 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
 
 router.post('/getCustomerData', verifyToken, async (req, res) => {
   try {

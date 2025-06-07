@@ -3,23 +3,76 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const os = require('os');
+const https = require('https');
 
 // ⚠️ IMPORTANT: Replace with your actual Render app URL
 const SERVER_URL = 'https://e-commerce-admin-frontend.onrender.com'; // Change this!
 
 // Your printer name (exactly as shown in Windows)
-const PRINTER_NAME = 'EPSON M100 Series'; // Change this to your exact printer name
+const PRINTER_NAME = 'Microsoft Print to PDF'; // Change this to your exact printer name
 
 console.log('🖨️  PDF Print Client Starting...');
-console.log('🔌 Connecting to server:', SERVER_URL);
+console.log('🔌 Server URL:', SERVER_URL);
 
-// Connect to your Render server
-const socket = io(SERVER_URL, {
-  reconnection: true,
-  reconnectionDelay: 1000,
-  reconnectionAttempts: 5,
-  maxReconnectionAttempts: 10
-});
+// Auto wake-up function for Render
+const wakeUpRenderServer = async () => {
+  console.log('🔄 Checking if server needs wake-up...');
+  
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+    
+    const req = https.get(SERVER_URL, (res) => {
+      const responseTime = Date.now() - startTime;
+      console.log(`📡 Server responded: ${res.statusCode} (${responseTime}ms)`);
+      
+      if (responseTime > 10000) {
+        console.log('⏰ Slow response - server was probably sleeping');
+        console.log('⏳ Waiting 30 seconds for full wake-up...');
+        setTimeout(() => resolve(true), 30000);
+      } else {
+        console.log('✅ Server was already awake');
+        resolve(true);
+      }
+    });
+    
+    req.on('error', (err) => {
+      console.log('⚠️  Server wake-up request failed - this is normal for sleeping servers');
+      console.log('⏳ Waiting 45 seconds for wake-up...');
+      setTimeout(() => resolve(true), 45000);
+    });
+    
+    req.setTimeout(60000, () => {
+      req.destroy();
+      console.log('⏰ Wake-up request timed out - server might be sleeping');
+      console.log('⏳ Waiting 60 seconds for wake-up...');
+      setTimeout(() => resolve(true), 60000);
+    });
+  });
+};
+
+// Socket.IO connection with Render-specific settings
+let socket;
+const createConnection = () => {
+  console.log('🔧 Using Render-optimized Socket.IO settings...');
+  
+  socket = io(SERVER_URL, {
+    reconnection: true,
+    reconnectionDelay: 5000,
+    reconnectionDelayMax: 30000,
+    reconnectionAttempts: 15,
+    timeout: 60000, // 60 seconds for Render
+    forceNew: true,
+    // Start with polling only (more reliable on Render)
+    transports: ['polling'],
+    upgrade: false, // Don't try to upgrade to websocket
+    rememberUpgrade: false,
+    // Render-specific options
+    closeOnBeforeunload: false,
+    autoConnect: true
+  });
+  
+  setupSocketHandlers();
+};
 
 // Create temp directory for PDFs
 const tempDir = path.join(os.tmpdir(), 'invoice-pdfs');
@@ -27,96 +80,150 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Register as print client when connected
-socket.on('connect', () => {
-  console.log('✅ Connected to server successfully!');
-  
-  socket.emit('register-print-client', {
-    clientName: 'PDF Print Client - EPSON M100',
-    location: 'Main Office',
-    printerModel: 'EPSON M100 Series',
-    type: 'PDF_PRINTER'
+// Connection tracking
+let connectionAttempts = 0;
+let isConnected = false;
+
+// Setup all socket event handlers
+const setupSocketHandlers = () => {
+  // Register as print client when connected
+  socket.on('connect', () => {
+    console.log('✅ Connected to server successfully!');
+    isConnected = true;
+    connectionAttempts = 0;
+    
+    socket.emit('register-print-client', {
+      clientName: 'PDF Print Client - Microsoft Print to PDF',
+      location: 'Main Office',
+      printerModel: 'Microsoft Print to PDF',
+      type: 'PDF_PRINTER'
+    });
   });
-});
 
-// Handle registration success
-socket.on('registration-success', (data) => {
-  console.log('✅ PDF Print client registered successfully');
-  console.log('🖨️  Ready to receive PDF print jobs...');
-  console.log('📄 Waiting for orders...\n');
-});
+  // Handle registration success
+  socket.on('registration-success', (data) => {
+    console.log('✅ PDF Print client registered successfully');
+    console.log('🖨️  Ready to receive PDF print jobs...');
+    console.log('📄 Waiting for orders...\n');
+  });
 
-// Handle PDF print command from server
-socket.on('print-pdf-invoice', async (data) => {
-  console.log(`\n📄 NEW PDF PRINT JOB RECEIVED!`);
-  console.log(`📋 Order ID: ${data.orderId}`);
-  console.log(`⏰ Time: ${new Date(data.timestamp).toLocaleString()}`);
-  
-  try {
-    // Save PDF buffer to temporary file
-    const tempPdfPath = path.join(tempDir, `invoice_${data.orderId}_${Date.now()}.pdf`);
-    fs.writeFileSync(tempPdfPath, data.pdfBuffer);
+  // Handle registration error
+  socket.on('registration-error', (error) => {
+    console.error('❌ Registration failed:', error.message || error);
+  });
+
+  // Handle PDF print command from server
+  socket.on('print-pdf-invoice', async (data) => {
+    console.log(`\n📄 NEW PDF PRINT JOB RECEIVED!`);
+    console.log(`📋 Order ID: ${data.orderId}`);
+    console.log(`⏰ Time: ${new Date(data.timestamp).toLocaleString()}`);
     
-    console.log('📁 PDF saved to temp location');
-    console.log('🖨️  Sending to printer...');
-    
-    // Print the PDF
-    await printPDF(tempPdfPath, data.orderId);
-    
-    // Clean up temp file after 30 seconds
-    setTimeout(() => {
-      try {
-        if (fs.existsSync(tempPdfPath)) {
-          fs.unlinkSync(tempPdfPath);
-          console.log('🗑️  Temp PDF file cleaned up');
-        }
-      } catch (err) {
-        console.error('Failed to clean up temp file:', err.message);
+    try {
+      // Validate data
+      if (!data.pdfBuffer || !data.orderId) {
+        throw new Error('Invalid print job data received');
       }
-    }, 30000);
+      
+      // Save PDF buffer to temporary file
+      const tempPdfPath = path.join(tempDir, `invoice_${data.orderId}_${Date.now()}.pdf`);
+      fs.writeFileSync(tempPdfPath, Buffer.from(data.pdfBuffer));
+      
+      console.log('📁 PDF saved to temp location');
+      console.log('🖨️  Sending to printer...');
+      
+      // Print the PDF
+      await printPDF(tempPdfPath, data.orderId);
+      
+      // Clean up temp file after 30 seconds
+      setTimeout(() => {
+        try {
+          if (fs.existsSync(tempPdfPath)) {
+            fs.unlinkSync(tempPdfPath);
+            console.log('🗑️  Temp PDF file cleaned up');
+          }
+        } catch (err) {
+          console.error('Failed to clean up temp file:', err.message);
+        }
+      }, 30000);
+      
+      // Confirm print completion to server
+      socket.emit('print-completed', {
+        orderId: data.orderId,
+        timestamp: new Date(),
+        success: true,
+        type: 'PDF'
+      });
+      
+      console.log(`✅ PDF Invoice printed successfully!`);
+      console.log(`📄 Waiting for next order...\n`);
+      
+    } catch (error) {
+      console.error(`❌ PDF Print failed for Order: ${data.orderId}`);
+      console.error('Error:', error.message);
+      
+      // Report print error to server
+      socket.emit('print-error', {
+        orderId: data.orderId,
+        error: error.message,
+        timestamp: new Date(),
+        type: 'PDF'
+      });
+    }
+  });
+
+  // Enhanced connection error handling
+  socket.on('connect_error', async (error) => {
+    connectionAttempts++;
+    console.error(`❌ Connection failed (attempt ${connectionAttempts}):`, error.message);
     
-    // Confirm print completion to server
-    socket.emit('print-completed', {
-      orderId: data.orderId,
-      timestamp: new Date(),
-      success: true,
-      type: 'PDF'
-    });
+    if (connectionAttempts === 1) {
+      console.log('🔧 This might be because the Render server is sleeping...');
+    }
     
-    console.log(`✅ PDF Invoice printed successfully!`);
-    console.log(`📄 Waiting for next order...\n`);
+    if (connectionAttempts === 3) {
+      console.log('🔄 Server might be sleeping. Attempting wake-up...');
+      await wakeUpRenderServer();
+      console.log('✅ Wake-up complete, retrying connection...');
+    }
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log('❌ Disconnected from server:', reason);
+    isConnected = false;
     
-  } catch (error) {
-    console.error(`❌ PDF Print failed for Order: ${data.orderId}`);
-    console.error('Error:', error.message);
-    
-    // Report print error to server
-    socket.emit('print-error', {
-      orderId: data.orderId,
-      error: error.message,
-      timestamp: new Date(),
-      type: 'PDF'
-    });
-  }
-});
+    if (reason !== 'io client disconnect') {
+      console.log('🔄 Attempting to reconnect...');
+    }
+  });
+
+  socket.on('reconnect_attempt', (attemptNumber) => {
+    console.log(`🔄 Reconnection attempt ${attemptNumber}...`);
+  });
+
+  socket.on('reconnect', (attemptNumber) => {
+    console.log(`✅ Reconnected after ${attemptNumber} attempts`);
+    connectionAttempts = 0;
+  });
+};
 
 // Function to print PDF
 const printPDF = async (pdfPath, orderId) => {
   return new Promise((resolve, reject) => {
+    // Verify PDF file exists
+    if (!fs.existsSync(pdfPath)) {
+      reject(new Error('PDF file not found'));
+      return;
+    }
+    
     let printCommand;
     
     if (os.platform() === 'win32') {
-      // Windows - Multiple options for printing
+      // Windows - Using PowerShell
+      printCommand = `powershell -Command "Start-Process -FilePath '${pdfPath}' -Verb Print -WindowStyle Hidden -Wait"`;
       
-      // Option 1: Using PowerShell (Default Windows PDF viewer)
-      printCommand = `powershell -Command "Start-Process -FilePath '${pdfPath}' -Verb Print -WindowStyle Hidden"`;
-      
-      // Option 2: Using SumatraPDF (Recommended - Download from sumatrapdfreader.org)
-      // Uncomment below line if you install SumatraPDF
-      // printCommand = `"C:\\Program Files\\SumatraPDF\\SumatraPDF.exe" -print-to "${PRINTER_NAME}" "${pdfPath}" -silent`;
-      
-      // Option 3: Using Adobe Reader (if installed)
-      // printCommand = `"C:\\Program Files\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe" /t "${pdfPath}" "${PRINTER_NAME}"`;
+      // Alternative commands (uncomment if needed):
+      // SumatraPDF: printCommand = `"C:\\Program Files\\SumatraPDF\\SumatraPDF.exe" -print-to "${PRINTER_NAME}" "${pdfPath}" -silent`;
+      // Adobe Reader: printCommand = `"C:\\Program Files\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe" /t "${pdfPath}" "${PRINTER_NAME}"`;
       
     } else if (os.platform() === 'darwin') {
       // macOS
@@ -127,9 +234,13 @@ const printPDF = async (pdfPath, orderId) => {
     }
 
     console.log('📤 Executing print command...');
-    console.log('🖨️  Command:', printCommand);
     
-    exec(printCommand, (error, stdout, stderr) => {
+    const execOptions = {
+      timeout: 30000, // 30 second timeout
+      killSignal: 'SIGKILL'
+    };
+    
+    exec(printCommand, execOptions, (error, stdout, stderr) => {
       if (error) {
         console.error('❌ Print command failed:', error.message);
         reject(error);
@@ -150,27 +261,37 @@ const printPDF = async (pdfPath, orderId) => {
   });
 };
 
-// Handle connection errors
-socket.on('connect_error', (error) => {
-  console.error('❌ Connection failed:', error.message);
-  console.log('🔄 Retrying connection...');
-});
-
-socket.on('disconnect', (reason) => {
-  console.log('❌ Disconnected from server:', reason);
-  if (reason !== 'io client disconnect') {
-    console.log('🔄 Attempting to reconnect...');
-  }
-});
-
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down print client...');
-  socket.disconnect();
+  if (socket) {
+    socket.disconnect();
+  }
   process.exit(0);
 });
 
-console.log('🚀 PDF Print Client Ready!');
-console.log('⚠️  Make sure your EPSON M100 printer is connected!');
-console.log('💡 For best results, install SumatraPDF from sumatrapdfreader.org');
-console.log('📝 Update SERVER_URL and PRINTER_NAME in this file before running');
+// Main startup sequence
+const startClient = async () => {
+  try {
+    console.log('🚀 Starting PDF Print Client...');
+    
+    // Step 1: Wake up server if needed
+    await wakeUpRenderServer();
+    
+    // Step 2: Create and connect socket
+    console.log('🔌 Connecting to server...');
+    createConnection();
+    
+    console.log('✅ Print client is ready!');
+    console.log('⚠️  Make sure your printer is connected!');
+    console.log('💡 For best results, install SumatraPDF from sumatrapdfreader.org');
+    console.log('📝 Update SERVER_URL and PRINTER_NAME in this file before running\n');
+    
+  } catch (error) {
+    console.error('❌ Failed to start client:', error.message);
+    process.exit(1);
+  }
+};
+
+// Start the client
+startClient();
