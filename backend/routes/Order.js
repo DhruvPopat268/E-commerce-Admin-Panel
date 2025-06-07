@@ -20,8 +20,8 @@ const path = require('path');
 router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-
     const cartItems = await Cart.find({ userId });
+    
     if (!cartItems.length) {
       return res.status(400).json({ message: 'No items in cart to place order' });
     }
@@ -44,11 +44,36 @@ router.post('/', verifyToken, async (req, res) => {
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-    // Emit event to admin dashboard for real-time update
-    const io = req.app.get('io');
-    io.emit('newOrder', newOrder); // Broadcast new order event
+    // Get customer/sales agent details for invoice
+    const User = require('../models/User'); // Adjust path as needed
+    const customerData = await User.findById(userId).select('name mobile village route');
 
-    res.status(201).json({ message: 'Order placed successfully', order: newOrder });
+    // Get Socket.IO instance and print clients from app
+    const io = req.app.get('io');
+    const printClients = req.app.get('printClients');
+
+    // Prepare print data
+    const printData = {
+      orderId: newOrder._id,
+      orderData: newOrder,
+      customerData: customerData,
+      timestamp: new Date()
+    };
+
+    // Send print command to all connected print clients
+    if (printClients.size > 0) {
+      io.emit('print-invoice', printData);
+      console.log(`📄 Invoice sent to ${printClients.size} print client(s) for Order: ${newOrder._id}`);
+    } else {
+      console.log(`⚠️  No print clients connected - Order ${newOrder._id} placed but not printed`);
+    }
+
+    res.status(201).json({ 
+      message: 'Order placed successfully', 
+      order: newOrder,
+      printStatus: printClients.size > 0 ? 'Invoice sent to printer' : 'No printer connected'
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error placing order' });

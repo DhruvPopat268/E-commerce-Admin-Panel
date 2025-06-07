@@ -66,32 +66,33 @@ router.get('/', async (req, res) => {
   try {
     const { search, page = 1, limit = 10, status } = req.query;
     const skip = (page - 1) * limit;
-    
+
     // Build query object
     let query = {};
-    
+
     // Add search functionality
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { businessName: { $regex: search, $options: 'i' } },
         { mobileNumber: { $regex: search, $options: 'i' } },
-        { village: { $regex: search, $options: 'i' } }
+        { 'village.name': { $regex: search, $options: 'i' } } // only works if embedded or populated
       ];
     }
-    
+
     // Filter by status if provided
     if (status !== undefined) {
       query.status = status === 'true';
     }
-    
+
     const salesAgents = await SalesAgent.find(query)
+      .populate('village', 'name') // ⬅️ Only populate village name
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-      
+
     const total = await SalesAgent.countDocuments(query);
-    
+
     res.status(200).json({
       success: true,
       data: salesAgents,
@@ -110,6 +111,7 @@ router.get('/', async (req, res) => {
     });
   }
 });
+
 
 // GET single sales agent by ID
 router.get('/:id', async (req, res) => {

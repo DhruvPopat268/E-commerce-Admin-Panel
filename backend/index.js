@@ -1,13 +1,10 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 const cors = require('cors');
-const http = require('http'); // Add this
-const { Server } = require('socket.io'); // Add this
 const cookieParser = require('cookie-parser');
-const path = require('path');
-
 const connectToDb = require('./database/db');
-
 const AdminauthRoutes = require('./routes/AdminAuth');
 const categoryRoutes = require('./routes/categoryRoutes');
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
@@ -23,35 +20,66 @@ const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/Order');
 
 const app = express();
-const server = http.createServer(app); // Create HTTP server
+const server = http.createServer(app);
 
-// Create Socket.IO server and attach it to HTTP server
-const io = new Server(server, {
+// Configure Socket.io with CORS
+const io = socketIo(server, {
   cors: {
     origin: [
       "http://localhost:3000",
       "https://e-commerce-admin-frontend.onrender.com",
     ],
-    credentials: true
+    methods: ["GET", "POST"]
   }
 });
 
-// Store io instance globally for use in routes
-app.set('io', io);
+// Store connected print clients
+const printClients = new Map();
 
-// Handle client connections
+// Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('🔌 Socket connected:', socket.id);
+  console.log('🔌 Client connected:', socket.id);
 
+  // Register print client
+  socket.on('register-print-client', (data) => {
+    printClients.set(socket.id, {
+      id: socket.id,
+      name: data.clientName || 'Print Client',
+      type: data.type || 'THERMAL',
+      connected: true,
+      lastSeen: new Date()
+    });
+    
+    console.log(`🖨️  Print client registered: ${data.clientName} (${data.type})`);
+    socket.emit('registration-success', { message: 'Print client registered successfully' });
+  });
+
+  // Handle disconnection
   socket.on('disconnect', () => {
-    console.log('❌ Socket disconnected:', socket.id);
+    if (printClients.has(socket.id)) {
+      console.log(`🖨️  Print client disconnected: ${printClients.get(socket.id).name}`);
+      printClients.delete(socket.id);
+    }
+  });
+
+  // Confirm print completion
+  socket.on('print-completed', (data) => {
+    console.log(`✅ Print completed for order: ${data.orderId} (${data.type})`);
+  });
+
+  // Handle print errors
+  socket.on('print-error', (data) => {
+    console.error(`❌ Print failed for order: ${data.orderId} (${data.type})`, data.error);
   });
 });
 
-// Connect to DB
+// Make io and printClients available to routes
+app.set('io', io);
+app.set('printClients', printClients);
+
 connectToDb();
 
-app.set('trust proxy', 1); // Required on Render for secure cookies to work
+app.set('trust proxy', 1);
 
 app.use(cors({
   origin: [
@@ -81,9 +109,21 @@ app.use("/api/routes", routeRoutes);
 app.use("/api/routesSetup", routeSetupRoutes);
 app.use("/api/c/b/d", combineRoutes);
 app.use('/api/cart', cartRoutes);
-app.use('/api/orders', orderRoutes); // Will emit socket from here
+app.use('/api/orders', orderRoutes);
+
+// Health check endpoint for print clients
+app.get('/api/print-clients', (req, res) => {
+  const clients = Array.from(printClients.values());
+  res.json({ 
+    totalClients: clients.length,
+    clients: clients,
+    status: clients.length > 0 ? 'Printer Connected' : 'No Printer Connected'
+  });
+});
 
 // Start server using http server instead of app.listen
-server.listen(process.env.PORT, () => {
-  console.log(`🚀 Server is running on port ${process.env.PORT}`);
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🖨️  Print service ready - Waiting for print clients...`);
 });
