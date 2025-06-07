@@ -5,8 +5,8 @@ const { exec } = require('child_process');
 const os = require('os');
 const https = require('https');
 
-// ⚠️ IMPORTANT: Replace with your actual Render app URL
-const SERVER_URL = 'https://e-commerce-admin-frontend.onrender.com'; // Change this!
+// ⚠️ IMPORTANT: This should be your BACKEND URL, not frontend!
+const SERVER_URL = 'https://e-commerce-admin-backend.onrender.com'; // Fixed: Backend URL
 
 // Your printer name (exactly as shown in Windows)
 const PRINTER_NAME = 'Microsoft Print to PDF'; // Change this to your exact printer name
@@ -50,25 +50,36 @@ const wakeUpRenderServer = async () => {
   });
 };
 
-// Socket.IO connection with Render-specific settings
+// Socket.IO connection with CORS and Render-specific settings
 let socket;
 const createConnection = () => {
-  console.log('🔧 Using Render-optimized Socket.IO settings...');
+  console.log('🔧 Using Render-optimized Socket.IO settings with CORS support...');
   
   socket = io(SERVER_URL, {
+    // CORS Configuration - CRITICAL for your error
+    withCredentials: true, // This fixes the CORS credentials error
+    
+    // Connection settings
     reconnection: true,
     reconnectionDelay: 5000,
     reconnectionDelayMax: 30000,
     reconnectionAttempts: 15,
     timeout: 60000, // 60 seconds for Render
     forceNew: true,
-    // Start with polling only (more reliable on Render)
-    transports: ['polling'],
-    upgrade: false, // Don't try to upgrade to websocket
+    
+    // Transport settings - start with polling for better CORS compatibility
+    transports: ['polling', 'websocket'], // Allow both, start with polling
+    upgrade: true, // Allow upgrade to websocket after successful polling
     rememberUpgrade: false,
+    
     // Render-specific options
     closeOnBeforeunload: false,
-    autoConnect: true
+    autoConnect: true,
+    
+    // Additional CORS-related options
+    extraHeaders: {
+      'Access-Control-Allow-Credentials': 'true'
+    }
   });
   
   setupSocketHandlers();
@@ -89,6 +100,7 @@ const setupSocketHandlers = () => {
   // Register as print client when connected
   socket.on('connect', () => {
     console.log('✅ Connected to server successfully!');
+    console.log('🔗 Connection ID:', socket.id);
     isConnected = true;
     connectionAttempts = 0;
     
@@ -171,10 +183,19 @@ const setupSocketHandlers = () => {
     }
   });
 
-  // Enhanced connection error handling
+  // Enhanced connection error handling with CORS debugging
   socket.on('connect_error', async (error) => {
     connectionAttempts++;
     console.error(`❌ Connection failed (attempt ${connectionAttempts}):`, error.message);
+    
+    // Check if it's a CORS error
+    if (error.message.includes('CORS') || error.message.includes('credentials')) {
+      console.error('🚫 CORS Error Detected!');
+      console.error('💡 Make sure your backend has CORS configured with:');
+      console.error('   - credentials: true');
+      console.error('   - origin: your frontend URL');
+      console.error('   - proper Socket.IO CORS settings');
+    }
     
     if (connectionAttempts === 1) {
       console.log('🔧 This might be because the Render server is sleeping...');
@@ -206,7 +227,7 @@ const setupSocketHandlers = () => {
   });
 };
 
-// Function to print PDF
+// Function to print PDF (unchanged)
 const printPDF = async (pdfPath, orderId) => {
   return new Promise((resolve, reject) => {
     // Verify PDF file exists
@@ -220,10 +241,6 @@ const printPDF = async (pdfPath, orderId) => {
     if (os.platform() === 'win32') {
       // Windows - Using PowerShell
       printCommand = `powershell -Command "Start-Process -FilePath '${pdfPath}' -Verb Print -WindowStyle Hidden -Wait"`;
-      
-      // Alternative commands (uncomment if needed):
-      // SumatraPDF: printCommand = `"C:\\Program Files\\SumatraPDF\\SumatraPDF.exe" -print-to "${PRINTER_NAME}" "${pdfPath}" -silent`;
-      // Adobe Reader: printCommand = `"C:\\Program Files\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe" /t "${pdfPath}" "${PRINTER_NAME}"`;
       
     } else if (os.platform() === 'darwin') {
       // macOS
@@ -285,7 +302,8 @@ const startClient = async () => {
     console.log('✅ Print client is ready!');
     console.log('⚠️  Make sure your printer is connected!');
     console.log('💡 For best results, install SumatraPDF from sumatrapdfreader.org');
-    console.log('📝 Update SERVER_URL and PRINTER_NAME in this file before running\n');
+    console.log('📝 Update SERVER_URL and PRINTER_NAME in this file before running');
+    console.log('🔧 CORS credentials enabled for backend communication\n');
     
   } catch (error) {
     console.error('❌ Failed to start client:', error.message);

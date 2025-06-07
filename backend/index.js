@@ -29,7 +29,8 @@ const io = socketIo(server, {
       "http://localhost:3000",
       "https://e-commerce-admin-frontend.onrender.com",
     ],
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
