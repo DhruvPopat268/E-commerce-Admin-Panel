@@ -14,6 +14,8 @@ const printer = require('pdf-to-printer');
 const fs = require('fs');
 const moment = require('moment');
 const path = require('path');
+const puppeteer = require('puppeteer');
+
 
 
 // Place order
@@ -90,7 +92,6 @@ async function generateInvoicePDF(orderData, customerData) {
   // - jsPDF (lightweight PDF generation)
   
   // Example with puppeteer:
-  const puppeteer = require('puppeteer');
   
   try {
     const browser = await puppeteer.launch({ headless: true });
