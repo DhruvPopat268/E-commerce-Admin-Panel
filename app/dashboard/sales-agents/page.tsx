@@ -85,6 +85,7 @@ export default function SalesAgentPage() {
             const { data } = await axios.get<VillageApiResponse>(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages`)
 
             if (data.success) {
+                console.log(data.data)
                 setVillages(data.data)
             } else {
                 toast({
@@ -508,7 +509,7 @@ export default function SalesAgentPage() {
                                                 </SelectItem>
                                             ) : (
                                                 villages.map((village) => (
-                                                    <SelectItem key={village._id} value={village._id} >
+                                                    <SelectItem key={village.id} value={village.id} >
                                                         {village.name}
                                                     </SelectItem>
                                                 ))

@@ -32,6 +32,7 @@ export default function ProductsPage() {
 
         if (productsRes.status === 200 && Array.isArray(productsRes.data)) {
           setProducts(productsRes.data)
+          console.log(productsRes.data)
         }
         if (categoriesRes.status === 200 && Array.isArray(categoriesRes.data)) {
           setCategories(categoriesRes.data)

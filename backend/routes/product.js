@@ -8,6 +8,8 @@ const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const jwt = require("jsonwebtoken")
 const subCategory = require('../models/SubCategory')
+const category = require('../models/category')
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -325,17 +327,26 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-
-
 router.get("/", async (req, res) => {
   try {
     let products = await Product.find({})
+      .populate({
+        path: "category", // This should match the field name in Product schema
+        model: "Category",  // Mongoose model name (should match how it's registered)
+        select: "name",     // Only fetch the category name
+      })
+      .populate({
+        path: "subCategory", // Same, adjust field name as per your schema
+        model: "SubCategory",
+        select: "name",        // Only fetch the subcategory name
+      });
 
     res.status(200).json(products);
   } catch (err) {
     console.log("Error: " + err);
+    res.status(500).json({ message: "Server error" });
   }
-})
+});
 
 router.patch("/:id/status", async (req, res) => {
   const productId = req.params.id;
