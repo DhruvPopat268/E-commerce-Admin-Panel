@@ -1,7 +1,7 @@
 // app/layout.tsx
 import type { Metadata } from 'next';
 import './globals.css';
-import SocketProvider from '../components/SocketProvider'; // path might change based on structure
+ // path might change based on structure
 
 export const metadata: Metadata = {
   title: 'v0 App',
@@ -17,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <SocketProvider />
+        
         {children}
       </body>
     </html>
