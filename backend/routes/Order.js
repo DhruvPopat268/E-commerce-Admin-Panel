@@ -193,6 +193,11 @@ async function generateFallbackPDF(orderData, customerData) {
 }
 
 // Updated main function with better error handling
+// Install puppeteer (not puppeteer-core) to get bundled Chromium
+// Run: npm install puppeteer
+
+const puppeteer = require('puppeteer');
+
 async function generateInvoicePDF(orderData, customerData) {
   try {
     // Validate input data first
@@ -202,18 +207,24 @@ async function generateInvoicePDF(orderData, customerData) {
 
     console.log('Attempting PDF generation with Puppeteer...');
     
-    // Render-specific Puppeteer configuration
+    // Configuration that works on both local and Render
     const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: process.platform === 'win32'
-        ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' // Windows path
-        : '/usr/bin/google-chrome-stable', // Linux path for deployment
+      headless: 'new', // Use new headless mode
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ]
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--run-all-compositor-stages-before-draw',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-default-apps',
+        '--disable-extensions'
+      ],
+      // Let Puppeteer find its own Chromium - don't specify executablePath
+      // This works on both Windows (local) and Linux (Render)
     });
 
     const page = await browser.newPage();
