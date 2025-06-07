@@ -47,6 +47,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       active: pathname === "/dashboard",
     },
     {
+      label: "Routes",
+      icon: Route,
+      href: "/dashboard/routes/setup",
+      active: pathname === "/dashboard/routes/setup",
+    },
+     {
+      label: "Customers",
+      icon: UserCheck,
+      href: "/dashboard/sales-agents",
+      active: pathname === "/dashboard/sales-agents",
+    },
+    
+     {
+      label: "Banner",
+      icon: ImageIcon,
+      href: "/dashboard/banner",
+      active: pathname === "/dashboard/banner",
+    },
+    {
       label: "Category",
       icon: Package,
       children: [
@@ -161,42 +180,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ],
       expanded: pathname.includes("/dashboard/orders"),
     },
-    {
-      label: "User Logs",
-      icon: Users,
-      href: "/dashboard/user-logs",
-      active: pathname === "/dashboard/user-logs",
-    },
-    {
-      label: "Analytics",
-      icon: BarChart3,
-      href: "/dashboard/analytics",
-      active: pathname === "/dashboard/analytics",
-    },
-    {
-      label: "Banner",
-      icon: ImageIcon,
-      href: "/dashboard/banner",
-      active: pathname === "/dashboard/banner",
-    },
+  
+   
     {
       label: "Village",
       icon: MapPin,
       href: "/dashboard/villages",
       active: pathname === "/dashboard/villages",
     },
-    {
-      label: "Customers",
-      icon: UserCheck,
-      href: "/dashboard/sales-agents",
-      active: pathname === "/dashboard/sales-agents",
-    },
-    {
-      label: "Routes",
-      icon: Route,
-      href: "/dashboard/routes/setup",
-      active: pathname === "/dashboard/routes/setup",
-    },
+   
   ])
 
   const toggleExpand = (index: number) => {

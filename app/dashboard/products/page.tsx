@@ -206,10 +206,10 @@ export default function ProductsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {getCategoryName(product.category)}
+                  {product.category?.name}
                 </TableCell>
                 <TableCell>
-                  {getSubcategoryName(product.subCategory)}
+                  {product.subCategory?.name}
                 </TableCell>
                 <TableCell>
                   {(() => {

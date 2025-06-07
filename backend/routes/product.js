@@ -77,6 +77,44 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate the product ID
+    if (!id) {
+      return res.status(400).json({ message: "Product ID is required" });
+    }
+
+    let product = await Product.findById(id)
+      .populate({
+        path: "category", // This should match the field name in Product schema
+        model: "Category",  // Mongoose model name (should match how it's registered)
+        select: "name",     // Only fetch the category name
+      })
+      .populate({
+        path: "subCategory", // Same, adjust field name as per your schema
+        model: "SubCategory",
+        select: "name",        // Only fetch the subcategory name
+      });
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json(product);
+  } catch (err) {
+    console.log("Error: " + err);
+    
+    // Handle specific MongoDB errors
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: "Invalid product ID format" });
+    }
+    
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.get('/daily-needs', async (req, res) => {
   try {
     const dailyNeedsProducts = await Product.find({ showInDailyNeeds: true })
@@ -209,8 +247,6 @@ router.post("/productDetail", async (req, res) => {
     });
   }
 });
-
-
 
 
 router.put('/:id', upload.single('image'), async (req, res) => {
