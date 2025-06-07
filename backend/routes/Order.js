@@ -87,15 +87,133 @@ router.post('/', verifyToken, async (req, res) => {
 
 // Helper function to generate PDF (you need to implement this)
 // Helper function to generate PDF - Fixed for Render deployment
+// Fallback PDF generation using PDFKit (already installed)
+async function generateFallbackPDF(orderData, customerData) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument();
+      const buffers = [];
+
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer);
+      });
+
+      // Helper function to safely convert values
+      const safeToString = (value, defaultValue = 'N/A') => {
+        if (value === undefined || value === null) {
+          return defaultValue;
+        }
+        return value.toString();
+      };
+
+      const safeToNumber = (value, defaultValue = 0) => {
+        if (value === undefined || value === null || isNaN(value)) {
+          return defaultValue;
+        }
+        return Number(value);
+      };
+
+      // Header
+      doc.fontSize(20).text('INVOICE', { align: 'center' });
+      doc.moveDown();
+
+      // Order details
+      doc.fontSize(12).text(`Order ID: ${safeToString(orderData?._id)}`);
+      doc.text(`Date: ${orderData?.createdAt ? new Date(orderData.createdAt).toLocaleDateString() : 'N/A'}`);
+      doc.moveDown();
+
+      // Customer details
+      doc.fontSize(14).text('Customer Details:', { underline: true });
+      doc.fontSize(10);
+      doc.text(`Name: ${safeToString(customerData?.name)}`);
+      doc.text(`Mobile: ${safeToString(customerData?.mobile)}`);
+      doc.text(`Village: ${safeToString(customerData?.village)}`);
+      doc.text(`Route: ${safeToString(customerData?.route)}`);
+      doc.moveDown();
+
+      // Items table header
+      doc.fontSize(12).text('Items:', { underline: true });
+      doc.moveDown(0.5);
+
+      // Table headers
+      const startX = 50;
+      let currentY = doc.y;
+
+      doc.text('Product', startX, currentY);
+      doc.text('Qty', startX + 200, currentY);
+      doc.text('Price', startX + 250, currentY);
+      doc.text('Total', startX + 300, currentY);
+
+      currentY += 20;
+      doc.moveTo(startX, currentY).lineTo(startX + 350, currentY).stroke();
+      currentY += 10;
+
+      // Items - with safe handling
+      let grandTotal = 0;
+      
+      // Check if orders array exists and has items
+      const orders = orderData?.orders || [];
+      
+      if (orders.length === 0) {
+        doc.text('No items found', startX, currentY);
+        currentY += 20;
+      } else {
+        orders.forEach(item => {
+          // Safely get values with defaults
+          const productName = safeToString(item?.productName, 'Unknown Product');
+          const quantity = safeToNumber(item?.quantity, 0);
+          const price = safeToNumber(item?.price, 0);
+          const itemTotal = quantity * price;
+          grandTotal += itemTotal;
+
+          doc.text(productName, startX, currentY);
+          doc.text(quantity.toString(), startX + 200, currentY);
+          doc.text(`₹${price.toFixed(2)}`, startX + 250, currentY);
+          doc.text(`₹${itemTotal.toFixed(2)}`, startX + 300, currentY);
+          currentY += 20;
+        });
+      }
+
+      // Total
+      currentY += 10;
+      doc.moveTo(startX, currentY).lineTo(startX + 350, currentY).stroke();
+      currentY += 10;
+
+      doc.fontSize(14).text(`Grand Total: ₹${grandTotal.toFixed(2)}`, startX + 200, currentY);
+
+      doc.end();
+
+    } catch (error) {
+      console.error('PDFKit generation error:', error);
+      reject(error);
+    }
+  });
+}
+
+// Updated main function with better error handling
 async function generateInvoicePDF(orderData, customerData) {
   try {
+    // Validate input data first
+    if (!orderData) {
+      throw new Error('Order data is required');
+    }
+
+    console.log('Attempting PDF generation with Puppeteer...');
+    
     // Render-specific Puppeteer configuration
     const browser = await puppeteer.launch({
       headless: true,
       executablePath: process.platform === 'win32'
         ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' // Windows path
         : '/usr/bin/google-chrome-stable', // Linux path for deployment
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ]
     });
 
     const page = await browser.newPage();
@@ -119,91 +237,21 @@ async function generateInvoicePDF(orderData, customerData) {
     });
 
     await browser.close();
+    console.log('PDF generated successfully with Puppeteer');
     return pdfBuffer;
 
   } catch (error) {
-    console.error('PDF generation error:', error);
+    console.error('PDF generation error:', error.message);
 
     // Fallback to simple text-based PDF using PDFKit
     console.log('🔄 Falling back to PDFKit for PDF generation...');
-    return await generateFallbackPDF(orderData, customerData);
-  }
-}
-
-// Fallback PDF generation using PDFKit (already installed)
-async function generateFallbackPDF(orderData, customerData) {
-  return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument();
-      const buffers = [];
-
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfBuffer = Buffer.concat(buffers);
-        resolve(pdfBuffer);
-      });
-
-      // Header
-      doc.fontSize(20).text('INVOICE', { align: 'center' });
-      doc.moveDown();
-
-      // Order details
-      doc.fontSize(12).text(`Order ID: ${orderData._id}`);
-      doc.text(`Date: ${new Date(orderData.createdAt).toLocaleDateString()}`);
-      doc.moveDown();
-
-      // Customer details
-      doc.fontSize(14).text('Customer Details:', { underline: true });
-      doc.fontSize(10);
-      doc.text(`Name: ${customerData?.name || 'N/A'}`);
-      doc.text(`Mobile: ${customerData?.mobile || 'N/A'}`);
-      doc.text(`Village: ${customerData?.village || 'N/A'}`);
-      doc.text(`Route: ${customerData?.route || 'N/A'}`);
-      doc.moveDown();
-
-      // Items table header
-      doc.fontSize(12).text('Items:', { underline: true });
-      doc.moveDown(0.5);
-
-      // Table headers
-      const startX = 50;
-      let currentY = doc.y;
-
-      doc.text('Product', startX, currentY);
-      doc.text('Qty', startX + 200, currentY);
-      doc.text('Price', startX + 250, currentY);
-      doc.text('Total', startX + 300, currentY);
-
-      currentY += 20;
-      doc.moveTo(startX, currentY).lineTo(startX + 350, currentY).stroke();
-      currentY += 10;
-
-      // Items
-      let grandTotal = 0;
-      orderData.orders.forEach(item => {
-        const itemTotal = item.quantity * item.price;
-        grandTotal += itemTotal;
-
-        doc.text(item.productName, startX, currentY);
-        doc.text(item.quantity.toString(), startX + 200, currentY);
-        doc.text(`₹${item.price}`, startX + 250, currentY);
-        doc.text(`₹${itemTotal.toFixed(2)}`, startX + 300, currentY);
-        currentY += 20;
-      });
-
-      // Total
-      currentY += 10;
-      doc.moveTo(startX, currentY).lineTo(startX + 350, currentY).stroke();
-      currentY += 10;
-
-      doc.fontSize(14).text(`Grand Total: ₹${grandTotal.toFixed(2)}`, startX + 200, currentY);
-
-      doc.end();
-
-    } catch (error) {
-      reject(error);
+      return await generateFallbackPDF(orderData, customerData);
+    } catch (fallbackError) {
+      console.error('PDFKit fallback also failed:', fallbackError.message);
+      throw new Error('Both PDF generation methods failed: ' + fallbackError.message);
     }
-  });
+  }
 }
 
 function generateInvoiceHTML(orderData, customerData) {
