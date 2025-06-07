@@ -45,8 +45,8 @@ router.post('/', verifyToken, async (req, res) => {
     await Cart.deleteMany({ userId });
 
     // Get customer/sales agent details for invoice
-    const User = require('../models/User'); // Adjust path as needed
-    const customerData = await User.findById(userId).select('name mobile village route');
+   
+    const customerData = await SalesAgent.findById(userId).select('name mobile village route');
 
     // Get Socket.IO instance and print clients from app
     const io = req.app.get('io');
