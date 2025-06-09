@@ -22,14 +22,10 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+  fileFilter: (req, file, cb) => { 
       cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
-    }
-  }
-});
+    } 
+  });
 
 // Helper function to upload image to Cloudinary
 const uploadToCloudinary = (buffer, folder = 'sales-agents') => {
@@ -111,7 +107,6 @@ router.get('/', async (req, res) => {
     });
   }
 });
-
 
 // GET single sales agent by ID
 router.get('/:id', async (req, res) => {
@@ -279,8 +274,6 @@ router.post('/login', async (req, res) => {
     });
   }
 });
-
-
 
 router.post('/getCustomerData', verifyToken, async (req, res) => {
   try {
