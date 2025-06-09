@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import axios from "axios"
+import { toast } from "react-toastify"
 
 
 interface Village {
@@ -77,11 +78,12 @@ export default function VillagePage() {
         setNewVillage("")
         setIsAddDialogOpen(false)
         setError("")
+        toast.success('village added successfully')
       } else {
         setError(result.message || "Failed to add village")
       }
     } catch (error) {
-      console.error("Error adding village:", error)
+      toast.error("Error adding village:")
       setError("Failed to connect to server")
     } finally {
       setLoading(false)

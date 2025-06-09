@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Settings } from "lucide-react"
+import { toast } from 'react-toastify';
+
 
 type Attribute = {
   _id: string
@@ -76,8 +78,10 @@ export default function AttributesPage() {
       setAttributes((prev) => [...prev, response.data])
       setNewAttribute({ name: "" })
       setIsAddDialogOpen(false)
+      toast.success('attribute added successfully')
     } catch (err: any) {
       setError(err.message || "Failed to add attribute")
+      toast.error('Failed to add attribute')
     } finally {
       setLoading(false)
     }

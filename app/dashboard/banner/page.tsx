@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Upload, Search } from "lucide-react"
 import Image from "next/image"
 import axios from 'axios'
+import { toast } from "react-toastify"
 
 interface Banner {
   _id: string; // MongoDB ID
@@ -299,7 +300,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
       if (response.data && response.data.success) {
         setBanners((prev) => [response.data.data, ...prev]);
-        alert("Banner created successfully!");
+        toast.success("Banner created successfully!");
         
         // Reset form after successful creation
         setFormData({
@@ -315,7 +316,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         if (fileInput) fileInput.value = "";
         
       } else {
-        alert(response.data?.error || response.data?.message || "Failed to create banner");
+        toast.error(response.data?.error || response.data?.message || "Failed to create banner");
       }
     }
 

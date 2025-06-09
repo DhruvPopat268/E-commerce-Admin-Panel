@@ -1,6 +1,8 @@
 // app/layout.tsx
 import type { Metadata } from 'next';
 import './globals.css';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
  // path might change based on structure
 
 export const metadata: Metadata = {
@@ -18,6 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         
+        <ToastContainer position="top-right" autoClose={3000} />
         {children}
       </body>
     </html>

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Eye, Trash2, Plus, Search, Download } from "lucide-react"
 import Link from "next/link"
 import axios from 'axios'
+import { toast } from "react-toastify"
 
 interface Route {
   id: number
@@ -66,7 +67,9 @@ const fetchRoutes = async () => {
         setRouteName("");
         setIsDialogOpen(false);
       }
+      toast.success("route added successfullt")
     } catch (error) {
+      toast.error("error in adding route")
       console.error('Error creating route:', error);
       // Handle error (show toast notification, etc.)
     }

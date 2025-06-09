@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
+import { toast } from 'react-toastify';
 
 
 type Category = {
@@ -108,10 +109,10 @@ export default function CategoriesPage() {
       setPreviewImage(null)
       setIsAddDialogOpen(false)
       
-      alert("Category added successfully!")
+      toast.success('category added successfully')
     } catch (error) {
       console.error("Error adding category", error)
-      alert("Error adding category. Please try again.")
+      toast.error("Error adding category. Please try again.")
     } finally {
       setIsAddingCategory(false)
     }

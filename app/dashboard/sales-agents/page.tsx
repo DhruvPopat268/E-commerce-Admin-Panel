@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from 'react-toastify';
+
 
 interface SalesAgent {
     _id: string
@@ -167,16 +169,13 @@ export default function SalesAgentPage() {
             const { data } = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents`, formData)
 
             if (data.success) {
-                toast({ title: "Success", description: "Sales agent created successfully" })
+                toast.success('Sales agent created successfully')
                 resetForm()
                 setIsDialogOpen(false)
                 fetchSalesAgents()
+                
             } else {
-                toast({
-                    title: "Error",
-                    description: data.message || 'Failed to create sales agent',
-                    variant: "destructive",
-                })
+               toast.error('Failed to create sales agent')
             }
         } catch {
             toast({
