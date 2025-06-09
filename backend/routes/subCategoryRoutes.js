@@ -116,8 +116,8 @@ router.post("/categoryId", async (req, res) => {
     });
     if (!categoryExists) {
       return res.status(200).json({
-        success : true,
-        sucategory: []
+        success:true,
+        category: []
       });
     }
 
@@ -134,7 +134,7 @@ router.post("/categoryId", async (req, res) => {
         success: true,
         categoryId,
         count: 0,
-        data: []
+        subCategories: []
       });
     }
 
