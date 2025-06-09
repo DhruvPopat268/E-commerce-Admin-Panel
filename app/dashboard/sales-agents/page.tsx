@@ -380,19 +380,32 @@ export default function SalesAgentPage() {
         }
     }
 
-    const handleEditClick = (agent: SalesAgent) => {
-        setIsEditMode(true)
-        setEditingAgentId(agent._id)
-        setNewAgent({
-            name: agent.name,
-            businessName: agent.businessName,
-            mobileNumber: agent.mobileNumber,
-            address: agent.address,
-            village: agent.village,
-        })
-        if (agent.photo?.url) setPhotoPreview(agent.photo.url)
-        setIsDialogOpen(true)
+ const handleEditClick = (agent: SalesAgent) => {
+    setIsEditMode(true)
+    setEditingAgentId(agent._id)
+    
+    // Handle village ID extraction properly
+    let villageId = '';
+    if (typeof agent.village === 'string') {
+        // If village is stored as string, find the matching village ID
+        const matchingVillage = villages.find(v => v.name === agent.village);
+        villageId = matchingVillage?._id || '';
+    } else if (agent.village && typeof agent.village === 'object') {
+        // If village is stored as object, use its _id
+        villageId = agent.village._id || '';
     }
+    
+    setNewAgent({
+        name: agent.name,
+        businessName: agent.businessName,
+        mobileNumber: agent.mobileNumber,
+        address: agent.address,
+        village: villageId, // Use the extracted village ID
+    })
+    
+    if (agent.photo?.url) setPhotoPreview(agent.photo.url)
+    setIsDialogOpen(true)
+}
 
     const handleDialogClose = (open: boolean) => {
         if (!open) {
