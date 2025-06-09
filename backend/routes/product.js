@@ -248,7 +248,6 @@ router.post("/productDetail", async (req, res) => {
   }
 });
 
-
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     // Parse JSON strings back to objects
@@ -431,6 +430,41 @@ router.patch("/:id/daily-needs", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+router.post('/by-tags', async (req, res) => {
+  try {
+    const { tagName } = req.body;
+    
+    // Validate input
+    if (!tagName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tag name is required'
+      });
+    }
+
+    // Find products that contain the specified tag and have status: true
+    const products = await Product.find({
+      tags: { $in: [tagName] },
+      status: true
+    });
+
+    // Return response - always 200 status code
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products
+    });
+
+  } catch (error) {
+    console.error('Error fetching products by tag:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching products'
+    });
+  }
+});
+
 
 
 module.exports = router;
