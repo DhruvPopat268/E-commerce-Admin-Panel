@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
     
     const [categories, bannersRaw, dailyNeedsProducts] = await Promise.all([
       Category.find({ status: true }), // Only fetch categories with status: true
-      Banner.find()
+      Banner.find({ status: true }) // Only fetch banners with status: true
         .sort({ createdAt: -1 })
         .populate('categoryId', 'name')
         .populate('subcategoryId', 'name'),
