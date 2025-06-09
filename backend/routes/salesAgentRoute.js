@@ -6,6 +6,7 @@ const SalesAgent = require('../models/salesAgent');
 const jwt = require('jsonwebtoken');
 const Village = require('../models/village')
 const verifyToken = require('../middleware/authMiddleware');
+const mongoose = require('mongoose')
 
 // Configure Cloudinary
 cloudinary.config({
@@ -314,6 +315,7 @@ router.post('/getCustomerData', verifyToken, async (req, res) => {
   }
 });
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>beloew put route is for android>>>>
 router.put('/updateCustomerData', verifyToken, upload.single('photo'), async (req, res) => {
   try {
     const userId = req.userId;
@@ -381,6 +383,22 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
     const { name, businessName, mobileNumber, address, village } = req.body;
     const agentId = req.params.id;
 
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(agentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid agent ID format'
+      });
+    }
+
+    // Validate village ID if provided
+    if (village && !mongoose.Types.ObjectId.isValid(village)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid village ID format'
+      });
+    }
+
     // Find existing agent
     const existingAgent = await SalesAgent.findById(agentId);
     if (!existingAgent) {
@@ -396,6 +414,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         mobileNumber,
         _id: { $ne: agentId }
       });
+      
       if (duplicateAgent) {
         return res.status(400).json({
           success: false,
@@ -431,7 +450,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         if (existingAgent.photo?.public_id) {
           await deleteFromCloudinary(existingAgent.photo.public_id);
         }
-
+        
         const result = await uploadToCloudinary(req.file.buffer);
         updateData.photo = {
           public_id: result.public_id,
@@ -458,100 +477,19 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
       message: 'Sales agent updated successfully',
       data: updatedAgent
     });
+
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error updating sales agent',
-      error: error.message
-    });
-  }
-});
-
-// below put is for android
-
-router.put('/:id', upload.single('photo'), async (req, res) => {
-  try {
-    const { name, businessName, mobileNumber, address, village } = req.body;
-    const agentId = req.params.id;
-
-    // Find existing agent
-    const existingAgent = await SalesAgent.findById(agentId);
-    if (!existingAgent) {
-      return res.status(404).json({
+    console.error('Error updating sales agent:', error);
+    
+    // Handle specific Mongoose validation errors
+    if (error.name === 'CastError') {
+      return res.status(400).json({
         success: false,
-        message: 'Sales agent not found'
+        message: 'Invalid ID format provided',
+        error: 'The provided ID is not a valid ObjectId'
       });
     }
-
-    // Check for duplicate mobile number if changed
-    if (mobileNumber && mobileNumber !== existingAgent.mobileNumber) {
-      const duplicateAgent = await SalesAgent.findOne({
-        mobileNumber,
-        _id: { $ne: agentId }
-      });
-      if (duplicateAgent) {
-        return res.status(400).json({
-          success: false,
-          message: 'Sales agent with this mobile number already exists'
-        });
-      }
-    }
-
-    // Prepare update data
-    const updateData = {
-      ...(name && { name }),
-      ...(businessName && { businessName }),
-      ...(mobileNumber && { mobileNumber }),
-      ...(address && { address }),
-      ...(village && { village })
-    };
-
-    // If village is updated, fetch the village name
-    if (village) {
-      const villageDoc = await Village.findById(village);
-      if (!villageDoc) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid village ID'
-        });
-      }
-      updateData.villageName = villageDoc.name;
-    }
-
-    // Handle photo upload if new photo is provided
-    if (req.file) {
-      try {
-        if (existingAgent.photo?.public_id) {
-          await deleteFromCloudinary(existingAgent.photo.public_id);
-        }
-
-        const result = await uploadToCloudinary(req.file.buffer);
-        updateData.photo = {
-          public_id: result.public_id,
-          url: result.secure_url
-        };
-      } catch (uploadError) {
-        return res.status(400).json({
-          success: false,
-          message: 'Error uploading image',
-          error: uploadError.message
-        });
-      }
-    }
-
-    // Update agent
-    const updatedAgent = await SalesAgent.findByIdAndUpdate(
-      agentId,
-      updateData,
-      { new: true, runValidators: true }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Sales agent updated successfully',
-      data: updatedAgent
-    });
-  } catch (error) {
+    
     res.status(500).json({
       success: false,
       message: 'Error updating sales agent',
