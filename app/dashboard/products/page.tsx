@@ -212,16 +212,10 @@ export default function ProductsPage() {
                   {product.subCategory?.name}
                 </TableCell>
                 <TableCell>
-                  {(() => {
-                    const unitAttr = product.attributes?.find(attr => attr.name === "Unit");
-                    return unitAttr ? `${unitAttr.price}` : "N/A";
-                  })()}
+                  {product.attributes?.[0]?.price ?? "N/A"}
                 </TableCell>
                 <TableCell>
-                  {(() => {
-                    const unitAttr = product.attributes?.find(attr => attr.name === "Unit");
-                    return unitAttr ? `${unitAttr.discountedPrice}` : "N/A";
-                  })()}
+                  {product.attributes?.[0]?.discountedPrice ?? "N/A"}
                 </TableCell>
                 <TableCell>
                   <Switch

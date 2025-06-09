@@ -116,7 +116,7 @@ export default function AddProductPage() {
 
         // If we're in edit mode, fetch the product data
         if (productId) {
-          const productRes = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${producidtId}`);
+          const productRes = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`);
           const productData = productRes.data;
 
           // Set the product state first
