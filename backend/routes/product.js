@@ -438,10 +438,9 @@ router.post('/by-tags', async (req, res) => {
   }
   const token = authHeader.split(' ')[1];
   try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { tagName } = req.body;
-    
+   
     // Validate input
     if (!tagName) {
       return res.status(400).json({
@@ -449,20 +448,43 @@ router.post('/by-tags', async (req, res) => {
         message: 'Tag name is required'
       });
     }
-
+    
     // Find products that contain the specified tag and have status: true
     const products = await Product.find({
       tags: { $in: [tagName] },
       status: true
     });
-
+    
+    // Transform products to include only first attribute's specific fields
+    const transformedProducts = products.map(product => {
+      const productObj = product.toObject();
+      
+      // Get first attribute and merge its fields directly into product object
+      if (productObj.attributes && productObj.attributes.length > 0) {
+        const firstAttribute = productObj.attributes[0];
+        productObj.attributeName = firstAttribute.name;
+        productObj.price = firstAttribute.price;
+        productObj.discountedPrice = firstAttribute.discountedPrice;
+        productObj.attributeId = firstAttribute._id;
+      } else {
+        productObj.attributeName = null;
+        productObj.price = null;
+        productObj.discountedPrice = null;
+        productObj.attributeId = null;
+      }
+      
+      // Remove the original attributes array
+      delete productObj.attributes;
+      
+      return productObj;
+    });
+    
     // Return response - always 200 status code
     res.status(200).json({
       success: true,
-      count: products.length,
-      data: products
+      count: transformedProducts.length,
+      data: transformedProducts
     });
-
   } catch (error) {
     console.error('Error fetching products by tag:', error);
     res.status(500).json({
