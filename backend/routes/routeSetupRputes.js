@@ -9,7 +9,6 @@ const Route = require('../models/route');
 router.get('/:routeId/setup', async (req, res) => {
   try {
     const { routeId } = req.params;
-
     // Check if route exists
     const route = await Route.findById(routeId);
     if (!route) {
@@ -18,15 +17,12 @@ router.get('/:routeId/setup', async (req, res) => {
         message: 'Route not found'
       });
     }
-
     // Get existing route setup
     let routeSetup = await RouteSetup.findOne({ routeId })
       .populate('villages.villageId')
       .populate('salesAgents.agentId');
-
     // Get all villages for the checkboxes
     const allVillages = await Village.find({ status: true }).sort({ name: 1 });
-
     // If no setup exists, return all villages as unselected
     if (!routeSetup) {
       const villagesData = allVillages.map(village => ({
@@ -34,7 +30,6 @@ router.get('/:routeId/setup', async (req, res) => {
         name: village.name,
         checked: false
       }));
-
       return res.status(200).json({
         success: true,
         data: {
@@ -45,30 +40,28 @@ router.get('/:routeId/setup', async (req, res) => {
         }
       });
     }
-
     // Map villages with their selection status
     const villagesData = allVillages.map(village => {
       const isSelected = routeSetup.villages.some(
-        setupVillage => setupVillage.villageId._id.toString() === village._id.toString()
+        setupVillage => setupVillage.villageId && setupVillage.villageId._id.toString() === village._id.toString()
       );
-
       return {
         id: village._id.toString(),
         name: village.name,
         checked: isSelected
       };
     });
-
-    // Map sales agents to customer format
-    const customers = routeSetup.salesAgents.map(agent => ({
-      id: agent.agentId._id,
-      name: agent.agentName,
-      villages: [agent.village],
-      status: agent.status,
-      email: agent.agentId.email || '',
-      phone: agent.agentId.mobileNumber || ''
-    }));
-
+    // Map sales agents to customer format - Filter out null/deleted agents
+    const customers = routeSetup.salesAgents
+      .filter(agent => agent.agentId !== null && agent.agentId !== undefined) // Filter out null agents
+      .map(agent => ({
+        id: agent.agentId._id,
+        name: agent.agentName,
+        villages: [agent.village],
+        status: agent.status,
+        email: agent.agentId.email || '',
+        phone: agent.agentId.mobileNumber || ''
+      }));
     res.status(200).json({
       success: true,
       data: {
@@ -78,7 +71,6 @@ router.get('/:routeId/setup', async (req, res) => {
         hasExistingSetup: true
       }
     });
-
   } catch (error) {
     console.error('Error fetching route setup:', error);
     res.status(500).json({
