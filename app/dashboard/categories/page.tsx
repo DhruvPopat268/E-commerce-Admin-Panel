@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
 
+
 type Category = {
   _id: string
   name: string
@@ -35,10 +36,10 @@ export default function CategoriesPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editCategory, setEditCategory] = useState<Category | null>(null)
 
-
   const [isMounted, setIsMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-
+  const [isAddingCategory, setIsAddingCategory] = useState(false)
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false)
 
   // Fetch categories from backend on component mount
   useEffect(() => {
@@ -60,13 +61,15 @@ export default function CategoriesPage() {
     }
   }
 
-
   const filteredCategories = categories.filter(
     (category) => category && category.name?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const handleAddCategory = async () => {
-    if (newCategory.name.trim() === "") return
+    if (newCategory.name.trim() === "") {
+      alert("Please enter a category name")
+      return
+    }
 
     if (!imageFile) {
       alert("Please select an image")
@@ -79,23 +82,38 @@ export default function CategoriesPage() {
     formData.append("image", imageFile)
 
     try {
+      setIsAddingCategory(true)
       const res = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       })
 
-      // Append new category from response
-      setCategories([...categories, res.data.category])
+      // Handle different possible response structures
+      let newCategoryData;
+      if (res.data.category) {
+        newCategoryData = res.data.category;
+      } else if (res.data.data) {
+        newCategoryData = res.data.data;
+      } else {
+        newCategoryData = res.data;
+      }
+
+      // Add new category to the list
+      setCategories(prevCategories => [...prevCategories, newCategoryData])
 
       // Reset form
       setNewCategory({ name: "", status: true })
       setImageFile(null)
       setPreviewImage(null)
       setIsAddDialogOpen(false)
+      
+      alert("Category added successfully!")
     } catch (error) {
       console.error("Error adding category", error)
-      alert("Error adding category")
+      alert("Error adding category. Please try again.")
+    } finally {
+      setIsAddingCategory(false)
     }
   }
 
@@ -137,8 +155,6 @@ export default function CategoriesPage() {
     }
   }
 
-  // Add these above the return statement
-
   const handleEditClick = (category: Category) => {
     setEditCategory(category)
     setPreviewImage(category.image)
@@ -156,19 +172,33 @@ export default function CategoriesPage() {
     }
 
     try {
-      // Use environment variable instead of hardcoded URL
+      setIsUpdatingCategory(true)
       const res = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${editCategory._id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
 
-      setCategories(categories.map((cat) => (cat._id === editCategory._id ? res.data.category : cat)))
+      // Handle different possible response structures
+      let updatedCategoryData;
+      if (res.data.category) {
+        updatedCategoryData = res.data.category;
+      } else if (res.data.data) {
+        updatedCategoryData = res.data.data;
+      } else {
+        updatedCategoryData = res.data;
+      }
+
+      setCategories(categories.map((cat) => (cat._id === editCategory._id ? updatedCategoryData : cat)))
       setEditCategory(null)
       setPreviewImage(null)
       setImageFile(null)
       setIsEditDialogOpen(false)
+      
+      alert("Category updated successfully!")
     } catch (error) {
       console.error("Failed to update category", error)
-      alert("Update failed")
+      alert("Update failed. Please try again.")
+    } finally {
+      setIsUpdatingCategory(false)
     }
   }
 
@@ -176,13 +206,27 @@ export default function CategoriesPage() {
     if (!confirm("Are you sure you want to delete this category?")) return
 
     try {
-      // Use environment variable instead of hardcoded URL
       await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories/${id}`)
       setCategories(categories.filter((cat) => cat._id !== id))
+      alert("Category deleted successfully!")
     } catch (error) {
       console.error("Failed to delete category", error)
-      alert("Delete failed")
+      alert("Delete failed. Please try again.")
     }
+  }
+
+  const resetAddForm = () => {
+    setNewCategory({ name: "", status: true })
+    setImageFile(null)
+    setPreviewImage(null)
+    setIsAddDialogOpen(false)
+  }
+
+  const resetEditForm = () => {
+    setEditCategory(null)
+    setPreviewImage(null)
+    setImageFile(null)
+    setIsEditDialogOpen(false)
   }
 
   if (isLoading) {
@@ -192,7 +236,6 @@ export default function CategoriesPage() {
       </div>
     )
   }
-
 
   return (
     <div className="space-y-6">
@@ -244,18 +287,9 @@ export default function CategoriesPage() {
                   <TableRow key={category._id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
-                      {/* <div className="relative h-16 w-16 border rounded-md overflow-hidden">
-                        <Image
-                          src={`${process.env.NEXT_PUBLIC_BASE_URL}/uploads/${category.image}`}
-                          alt={category.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div> */}
-                  
                       <div className="relative h-16 w-16 border rounded-md overflow-hidden">
                         <Image
-                          src={category.image || '/placeholder-image.jpg'} // Direct Cloudinary URL
+                          src={category.image || '/placeholder-image.jpg'}
                           alt={category.name}
                           fill
                           className="object-cover"
@@ -290,7 +324,6 @@ export default function CategoriesPage() {
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
                         </Button>
-
                       </div>
                     </TableCell>
                   </TableRow>
@@ -301,6 +334,7 @@ export default function CategoriesPage() {
         </div>
       </div>
 
+      {/* Add Category Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -315,12 +349,20 @@ export default function CategoriesPage() {
                 value={newCategory.name}
                 onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                 placeholder="e.g. Electronics"
+                disabled={isAddingCategory}
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="image">Category Image</Label>
               <div className="flex items-center gap-4">
-                <Input id="image" type="file" accept="image/*" onChange={handleImageChange} className="flex-1" />
+                <Input 
+                  id="image" 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleImageChange} 
+                  className="flex-1" 
+                  disabled={isAddingCategory}
+                />
                 {isMounted && previewImage && (
                   <div className="relative h-16 w-16">
                     <Image
@@ -334,6 +376,7 @@ export default function CategoriesPage() {
                       size="icon"
                       className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-background"
                       onClick={() => setPreviewImage(null)}
+                      disabled={isAddingCategory}
                     >
                       <X className="h-4 w-4" />
                       <span className="sr-only">Remove image</span>
@@ -349,22 +392,39 @@ export default function CategoriesPage() {
                   checked={newCategory.status}
                   onCheckedChange={(checked) => setNewCategory({ ...newCategory, status: checked })}
                   className="data-[state=checked]:bg-teal-500"
+                  disabled={isAddingCategory}
                 />
                 <Label>{newCategory.status ? "Active" : "Inactive"}</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={resetAddForm}
+              disabled={isAddingCategory}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddCategory} className="bg-teal-600 hover:bg-teal-700">
-              Add Category
+            <Button 
+              onClick={handleAddCategory} 
+              className="bg-teal-600 hover:bg-teal-700"
+              disabled={isAddingCategory}
+            >
+              {isAddingCategory ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  Adding...
+                </>
+              ) : (
+                "Add Category"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Edit Category Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -382,6 +442,7 @@ export default function CategoriesPage() {
                     prev ? { ...prev, name: e.target.value } : prev
                   )
                 }
+                disabled={isUpdatingCategory}
               />
             </div>
             <div className="grid gap-2">
@@ -393,6 +454,7 @@ export default function CategoriesPage() {
                   accept="image/*"
                   onChange={handleImageChange}
                   className="flex-1"
+                  disabled={isUpdatingCategory}
                 />
                 {previewImage && (
                   <div className="relative h-16 w-16">
@@ -410,6 +472,7 @@ export default function CategoriesPage() {
                         setPreviewImage(null)
                         setImageFile(null)
                       }}
+                      disabled={isUpdatingCategory}
                     >
                       <X className="h-4 w-4" />
                       <span className="sr-only">Remove image</span>
@@ -429,22 +492,37 @@ export default function CategoriesPage() {
                     )
                   }
                   className="data-[state=checked]:bg-teal-500"
+                  disabled={isUpdatingCategory}
                 />
                 <Label>{editCategory?.status ? "Active" : "Inactive"}</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={resetEditForm}
+              disabled={isUpdatingCategory}
+            >
               Cancel
             </Button>
-            <Button onClick={handleUpdateCategory} className="bg-teal-600 hover:bg-teal-700 text-white">
-              Update Category
+            <Button 
+              onClick={handleUpdateCategory} 
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+              disabled={isUpdatingCategory}
+            >
+              {isUpdatingCategory ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  Updating...
+                </>
+              ) : (
+                "Update Category"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }

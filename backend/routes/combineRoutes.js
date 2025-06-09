@@ -9,7 +9,6 @@ const SalesAgent = require('../models/salesAgent')
 const RouteSetup = require('../models/routeSetup')
 const Cart = require('../models/Cart')
 
-
 router.post('/', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -36,7 +35,7 @@ router.post('/', async (req, res) => {
     const cartCount = await Cart.countDocuments({ userId });
     
     const [categories, bannersRaw, dailyNeedsProducts] = await Promise.all([
-      Category.find(),
+      Category.find({ status: true }), // Only fetch categories with status: true
       Banner.find()
         .sort({ createdAt: -1 })
         .populate('categoryId', 'name')
@@ -48,7 +47,10 @@ router.post('/', async (req, res) => {
     const subCategoryIds = [...new Set(dailyNeedsProducts.map(p => p.subCategory).filter(Boolean))];
     
     const [categoryDetails, subCategoryDetails] = await Promise.all([
-      Category.find({ _id: { $in: categoryIds } }).select('_id name'),
+      Category.find({ 
+        _id: { $in: categoryIds },
+        status: true // Only fetch active categories for product mapping
+      }).select('_id name'),
       SubCategory.find({ _id: { $in: subCategoryIds } }).select('_id name')
     ]);
     
@@ -64,46 +66,52 @@ router.post('/', async (req, res) => {
       };
     });
     
-    const dailyneed = dailyNeedsProducts.map(product => {
-      const productObj = product.toObject();
-      const firstAttribute = productObj.attributes && productObj.attributes.length > 0
-        ? productObj.attributes[0]
-        : null;
+    // Filter daily needs products to only include those with active categories
+    const dailyneed = dailyNeedsProducts
+      .filter(product => {
+        // Only include products whose category has status: true
+        return categoryMap.has(product.category?.toString());
+      })
+      .map(product => {
+        const productObj = product.toObject();
+        const firstAttribute = productObj.attributes && productObj.attributes.length > 0
+          ? productObj.attributes[0]
+          : null;
+          
+        const categoryDetail = categoryMap.get(productObj.category);
+        const subCategoryDetail = subCategoryMap.get(productObj.subCategory);
         
-      const categoryDetail = categoryMap.get(productObj.category);
-      const subCategoryDetail = subCategoryMap.get(productObj.subCategory);
-      
-      return {
-        featured: productObj.featured,
-        _id: productObj._id,
-        productName: productObj.name,
-        name: firstAttribute?.name || productObj.name,
-        description: productObj.description,
-        category: categoryDetail ? {
-          _id: categoryDetail._id,
-          name: categoryDetail.name
-        } : {
-          _id: productObj.category,
-          name: null
-        },
-        subCategory: subCategoryDetail ? {
-          _id: subCategoryDetail._id,
-          name: subCategoryDetail.name
-        } : {
-          _id: productObj.subCategory,
-          name: null
-        },
-        visibility: productObj.visibility,
-        status: productObj.status,
-        price: firstAttribute?.price || productObj.price,
-        discountedPrice: firstAttribute?.discountedPrice || productObj.discountedPrice,
-        image: productObj.image,
-        createdAt: productObj.createdAt,
-        updatedAt: productObj.updatedAt,
-        __v: productObj.__v,
-        showInDailyNeeds: productObj.showInDailyNeeds
-      };
-    });
+        return {
+          featured: productObj.featured,
+          _id: productObj._id,
+          productName: productObj.name,
+          name: firstAttribute?.name || productObj.name,
+          description: productObj.description,
+          category: categoryDetail ? {
+            _id: categoryDetail._id,
+            name: categoryDetail.name
+          } : {
+            _id: productObj.category,
+            name: null
+          },
+          subCategory: subCategoryDetail ? {
+            _id: subCategoryDetail._id,
+            name: subCategoryDetail.name
+          } : {
+            _id: productObj.subCategory,
+            name: null
+          },
+          visibility: productObj.visibility,
+          status: productObj.status,
+          price: firstAttribute?.price || productObj.price,
+          discountedPrice: firstAttribute?.discountedPrice || productObj.discountedPrice,
+          image: productObj.image,
+          createdAt: productObj.createdAt,
+          updatedAt: productObj.updatedAt,
+          __v: productObj.__v,
+          showInDailyNeeds: productObj.showInDailyNeeds
+        };
+      });
     
     res.status(200).json({
       categories,

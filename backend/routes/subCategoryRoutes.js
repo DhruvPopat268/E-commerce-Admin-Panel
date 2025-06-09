@@ -109,17 +109,23 @@ router.post("/categoryId", async (req, res) => {
       });
     }
 
-    // ✅ Check if category exists
-    const categoryExists = await category.findById(categoryId);
+    // ✅ Check if category exists and has status: true
+    const categoryExists = await category.findOne({ 
+      _id: categoryId, 
+      status: true 
+    });
     if (!categoryExists) {
-      return res.status(404).json({
-        success: false,
-        message: "Category ID does not exist"
+      return res.status(200).json({
+        success : true,
+        sucategory: []
       });
     }
 
-    // ✅ Find related subcategories
-    const subCategories = await SubCategory.find({ category: categoryId })
+    // ✅ Find related subcategories with status: true only
+    const subCategories = await SubCategory.find({ 
+      category: categoryId,
+      status: true // Only fetch subcategories with status: true
+    })
       .populate("category", "name")
       .exec();
 

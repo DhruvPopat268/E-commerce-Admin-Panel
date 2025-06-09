@@ -7,7 +7,6 @@ const jwt = require('jsonwebtoken');
 const Village = require('../models/village')
 const verifyToken = require('../middleware/authMiddleware');
 
-
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
