@@ -53,8 +53,6 @@ router.put('/:id/status', async (req, res) => {
         const title = 'Order Fast';
         const message = 'Hello Customers, today is your day — order fast!';
 
-
-
         for (const agent of agents) {
           if (agent.oneSignalPlayerId) {
             await sendNotificationToPlayer(agent.oneSignalPlayerId, title, message, {
