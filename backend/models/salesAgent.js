@@ -65,6 +65,10 @@ const salesAgentSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  oneSignalPlayerId:{
+          type: String,
+
   }
 }, {
   timestamps: true

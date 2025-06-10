@@ -6,6 +6,8 @@ import React from "react"
 import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+
+
 // Mock toast function - replace with your actual toast implementation
 const toast = {
   success: (message: string) => console.log('Success:', message),
@@ -156,10 +158,12 @@ export default function PendingOrdersPage() {
         </style>
     </head>
     <body>
-        <div class="invoice-header">
-            <div class="company-name">Your Company Name</div>
-            <div class="invoice-title">INVOICE</div>
-        </div>
+       <div class="invoice-header" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+  <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" style="height: 30px;" />
+  <div style="font-size: 24px; font-weight: bold; color: #1abc9c;">Zoya Traders</div>
+</div>
+<div class="invoice-title" style="text-align: center; font-size: 18px; color: #555; margin-bottom: 20px;">INVOICE</div>
+
         
         <div class="invoice-info">
             <div class="info-section">
@@ -225,21 +229,21 @@ export default function PendingOrdersPage() {
   const printSingleInvoice = async (order: Order) => {
     try {
       setGeneratingInvoice(true)
-      
+
       const invoiceHTML = generateInvoiceHTML(order)
-      
+
       // Create a new window for printing
       const printWindow = window.open('', '_blank')
       if (printWindow) {
         printWindow.document.write(invoiceHTML)
         printWindow.document.close()
-        
+
         // Wait for content to load then print
         setTimeout(() => {
           printWindow.print()
           printWindow.close()
         }, 500)
-        
+
         toast.success('Invoice generated successfully!')
       } else {
         toast.error('Unable to open print window. Please check popup settings.')
@@ -260,9 +264,9 @@ export default function PendingOrdersPage() {
 
     try {
       setBulkPrinting(true)
-      
+
       const selectedOrdersData = pendingOrders.filter(order => selectedOrders.has(order._id))
-      
+
       // Generate combined HTML for all selected orders
       const combinedHTML = `
       <!DOCTYPE html>
@@ -293,19 +297,20 @@ export default function PendingOrdersPage() {
       </head>
       <body>
           ${selectedOrdersData.map((order, index) => {
-            const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
-            const currentDate = new Date().toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric'
-            })
-            
-            return `
-            <div${index < selectedOrdersData.length - 1 ? ' class="page-break"' : ''}>
-                <div class="invoice-header">
-                    <div class="company-name">Your Company Name</div>
-                    <div class="invoice-title">INVOICE</div>
-                </div>
+        const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
+        const currentDate = new Date().toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+
+        return `
+           <div class="invoice-header" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+  <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" style="height: 30px;" />
+  <div style="font-size: 24px; font-weight: bold; color: #1abc9c;">Zoya Traders</div>
+</div>
+<div class="invoice-title" style="text-align: center; font-size: 18px; color: #555; margin-bottom: 20px;">INVOICE</div>
+
                 
                 <div class="invoice-info">
                     <div class="info-section">
@@ -365,23 +370,23 @@ export default function PendingOrdersPage() {
                 </div>
             </div>
             `
-          }).join('')}
+      }).join('')}
       </body>
       </html>
       `
-      
+
       // Create a new window for printing
       const printWindow = window.open('', '_blank')
       if (printWindow) {
         printWindow.document.write(combinedHTML)
         printWindow.document.close()
-        
+
         // Wait for content to load then print
         setTimeout(() => {
           printWindow.print()
           printWindow.close()
         }, 1000)
-        
+
         toast.success(`${selectedOrders.size} invoices generated successfully!`)
       } else {
         toast.error('Unable to open print window. Please check popup settings.')
@@ -620,14 +625,13 @@ export default function PendingOrdersPage() {
           </button>
         </div>
         <div className="flex gap-2">
-          <button 
+          <button
             onClick={printBulkInvoices}
             disabled={selectedOrders.size === 0 || bulkPrinting}
-            className={`px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-              selectedOrders.size === 0 || bulkPrinting
-                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+            className={`px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${selectedOrders.size === 0 || bulkPrinting
+              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
           >
             {bulkPrinting ? (
               <>
@@ -641,7 +645,7 @@ export default function PendingOrdersPage() {
               </>
             )}
           </button>
-          <button 
+          <button
             onClick={exportToCSV}
             className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
           >
@@ -789,19 +793,19 @@ export default function PendingOrdersPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleViewOrder(order._id)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <button 
+                          <button
                             className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
                           >
                             <Printer className="h-4 w-4" />
                           </button>
-                      
+
                         </div>
                       </td>
                     </tr>
