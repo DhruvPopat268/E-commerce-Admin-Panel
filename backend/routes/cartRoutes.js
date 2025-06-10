@@ -3,6 +3,7 @@ const router = express.Router();
 const Cart = require('../models/Cart');
 const verifyToken = require('../middleware/authMiddleware');
 const Product = require('../models/product');
+const Village = require('../models/village')
 
 // ✅ Make sure this import exists
 
@@ -64,7 +65,6 @@ router.post('/add', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // 🛒 Get cart items
 router.post('/my-cart', verifyToken, async (req, res) => {
@@ -136,8 +136,6 @@ router.put('/update', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 // 🛒 Remove a specific attribute (variation) from cart
 router.delete('/remove', verifyToken, async (req, res) => {

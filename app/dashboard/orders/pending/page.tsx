@@ -1,12 +1,9 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
 import React from "react"
 import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-
 
 // Mock toast function - replace with your actual toast implementation
 const toast = {
@@ -443,6 +440,9 @@ export default function PendingOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
+        // Generate report before clearing the selection
+        await generateOrderReport(Array.from(selectedOrders));
+
         setPendingOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
         setSelectedOrders(new Set())
         setSelectAll(false)
@@ -457,6 +457,153 @@ export default function PendingOrdersPage() {
       setConfirmingOrders(false)
     }
   }
+
+  // PDF Generation function
+  const generateOrderReport = async (orderIds) => {
+    try {
+      // Fetch the selected orders data (you might already have this in state)
+      const selectedOrdersData = pendingOrders.filter(order => orderIds.includes(order._id));
+
+      // Create a new window with the report template
+      const reportWindow = window.open('', '_blank');
+
+      // Generate the HTML content
+      const htmlContent = generateReportHTML(selectedOrdersData);
+
+      // Write the content to the new window
+      reportWindow.document.write(htmlContent);
+      reportWindow.document.close();
+
+      // Wait a bit for the content to load before printing
+      setTimeout(() => {
+        reportWindow.print();
+        // reportWindow.close(); // Uncomment this if you want to auto-close after printing
+      }, 500);
+
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast.error('Failed to generate report');
+    }
+  };
+
+  // Function to generate HTML for the report
+const generateReportHTML = (orders) => {
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Order Confirmation Report</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+          border-bottom: 2px solid #333;
+          padding-bottom: 10px;
+        }
+        .company-name {
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
+        .report-title {
+          font-size: 18px;
+          margin-bottom: 10px;
+        }
+        .report-info {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 20px;
+        }
+        table {
+          width: 50%;
+          border-collapse: collapse;
+          margin: 20px 0;
+        }
+        th, td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: left;
+        }
+        th {
+          background-color: #f2f2f2;
+        }
+        .total-row {
+          font-weight: bold;
+          background-color: #f9f9f9;
+        }
+        .footer {
+          margin-top: 30px;
+          text-align: center;
+          font-style: italic;
+          color: #666;
+        }
+        @media print {
+          body {
+            margin: 0;
+            padding: 10px;
+          }
+          button {
+            display: none;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="company-name">Your Company Name</div>
+        <div class="report-title">Order Confirmation Report</div>
+      </div>
+      
+      <div class="report-info">
+        <div>Date: ${new Date().toLocaleDateString()}</div>
+        <div>Total Orders: ${orders.length}</div>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Village Code</th>
+            <th>Customer Name</th>
+            <th>Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orders.map(order => `
+            <tr>
+              <td>${order.villageCode}</td>
+              <td>${order.salesAgentName}</td>
+              <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td colspan="2">Total</td>
+            <td>₹${orders.reduce((sum, order) => sum + order.cartTotal, 0).toLocaleString('en-IN')}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="footer">
+        <p>This report contains all confirmed orders as of ${new Date().toLocaleDateString()}</p>
+      </div>
+      
+      <script>
+        // Auto-print when the page loads
+        window.addEventListener('load', function() {
+          setTimeout(function() {
+            window.print();
+          }, 200);
+        });
+      </script>
+    </body>
+    </html>
+  `;
+};
 
   const cancelSelectedOrders = async () => {
     if (selectedOrders.size === 0) {
@@ -805,7 +952,6 @@ export default function PendingOrdersPage() {
                           >
                             <Printer className="h-4 w-4" />
                           </button>
-
                         </div>
                       </td>
                     </tr>

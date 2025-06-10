@@ -69,7 +69,8 @@ const salesAgentSchema = new mongoose.Schema({
   oneSignalPlayerId:{
           type: String,
 
-  }
+  },
+  villageCode: { type: String }
 }, {
   timestamps: true
 });

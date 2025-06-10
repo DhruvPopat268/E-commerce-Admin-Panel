@@ -10,10 +10,8 @@ const axios = require('axios')
 const sendNotificationToPlayer = require('../utils/sendNotification');
 const updateAgentTags = require('../utils/updateAgentTags');
 
-
 const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID
 const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY
-
 
 // IMPROVED: Route status endpoint with better error handling
 router.put('/:id/status', async (req, res) => {
@@ -92,7 +90,6 @@ router.put('/:id/status', async (req, res) => {
   }
 });
 
-
 // Route to register agent's OneSignal player ID
 router.post('/register-agent-player', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -155,7 +152,6 @@ router.post('/register-agent-player', async (req, res) => {
     });
   }
 });
-
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 
 

@@ -10,12 +10,15 @@ const mongoose = require('mongoose')
 const Village = require('../models/village')
 const jwt = require('jsonwebtoken')
 
-
-
-
 router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
+
+    // Find the sales agent to get village code
+    const salesAgent = await SalesAgent.findById(userId);
+    if (!salesAgent) {
+      return res.status(404).json({ message: 'Sales agent not found' });
+    }
 
     const cartItems = await Cart.find({ userId });
     if (!cartItems.length) {
@@ -35,13 +38,16 @@ router.post('/', verifyToken, async (req, res) => {
       userId,
       orders: orderItems,
       status: 'pending',
+      villageCode: salesAgent.villageCode, // Add village code from sales agent
     });
 
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-  
-    res.status(201).json({ message: 'Order placed successfully', order: newOrder });
+    res.status(201).json({ 
+      message: 'Order placed successfully', 
+      order: newOrder 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error placing order' });

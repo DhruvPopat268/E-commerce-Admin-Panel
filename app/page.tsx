@@ -17,9 +17,7 @@ export default function Home() {
           <Button asChild className="w-full">
             <Link href="/login">Login</Link>
           </Button>
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/signup">Sign Up</Link>
-          </Button>
+         
         </div>
       </div>
     </div>

@@ -173,8 +173,16 @@ router.post('/', upload.single('photo'), async (req, res) => {
         });
       }
     }
-    
-    const villageName = await Village.findById(village)
+
+    // Fetch village details
+    const villageData = await Village.findById(village);
+    if (!villageData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Village not found'
+      });
+    }
+
     // Create new sales agent
     const newSalesAgent = new SalesAgent({
       name,
@@ -182,20 +190,21 @@ router.post('/', upload.single('photo'), async (req, res) => {
       mobileNumber,
       address,
       village,
-      villageName:villageName.name,
+      villageName: villageData.name,
+      villageCode: villageData.code || 'LT', // Use villageData.code or fallback to 'LT'
       photo: photoData,
-      status: false // Default status is false for new agents
+      status: false // Default status
     });
-    
+
     const savedAgent = await newSalesAgent.save();
-    
+
     res.status(200).json({
       success: true,
       message: 'Sales agent created successfully',
       data: savedAgent
     });
   } catch (error) {
-    console.log(error)
+    console.error(error);
     res.status(500).json({
       success: false,
       message: 'Error creating sales agent',
@@ -414,7 +423,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         mobileNumber,
         _id: { $ne: agentId }
       });
-      
+
       if (duplicateAgent) {
         return res.status(400).json({
           success: false,
@@ -432,7 +441,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
       ...(village && { village })
     };
 
-    // If village is updated, fetch the village name
+    // If village is updated, fetch the village name and code
     if (village) {
       const villageDoc = await Village.findById(village);
       if (!villageDoc) {
@@ -442,6 +451,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         });
       }
       updateData.villageName = villageDoc.name;
+      updateData.villageCode = villageDoc.code || 'LT'; // Default to 'LT' if code is not available
     }
 
     // Handle photo upload if new photo is provided
@@ -450,7 +460,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         if (existingAgent.photo?.public_id) {
           await deleteFromCloudinary(existingAgent.photo.public_id);
         }
-        
+
         const result = await uploadToCloudinary(req.file.buffer);
         updateData.photo = {
           public_id: result.public_id,
@@ -480,8 +490,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
 
   } catch (error) {
     console.error('Error updating sales agent:', error);
-    
-    // Handle specific Mongoose validation errors
+
     if (error.name === 'CastError') {
       return res.status(400).json({
         success: false,
@@ -489,7 +498,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
         error: 'The provided ID is not a valid ObjectId'
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: 'Error updating sales agent',
@@ -497,6 +506,7 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
     });
   }
 });
+
 
 // PUT update sales agent status
 router.put('/:id/status', async (req, res) => {
