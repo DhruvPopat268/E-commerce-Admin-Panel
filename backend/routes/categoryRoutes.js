@@ -87,10 +87,61 @@ router.post('/', upload.single('image'), async (req, res) => {
 // GET all categories
 router.get('/', async (req, res) => {
   try {
-    const categories = await Category.find();
-    res.json(categories);
+    const { search, page = 1, limit = 100, status } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+   
+    // Build query object
+    let query = {};
+   
+    // Add search functionality - only search in fields that exist
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } }
+        // Remove description search if your Category model doesn't have this field
+        // Add other searchable fields if they exist, for example:
+        // { slug: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+   
+    // Filter by status if provided
+    if (status !== undefined && status !== '') {
+      query.status = status === 'true';
+    }
+   
+    // Execute query with proper error handling
+    const [categories, total] = await Promise.all([
+      Category.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(), // Use lean() for better performance
+      Category.countDocuments(query)
+    ]);
+   
+    // Calculate pagination info
+    const totalPages = Math.ceil(total / parseInt(limit));
+    const currentPage = parseInt(page);
+   
+    res.status(200).json({
+      success: true,
+      data: categories,
+      pagination: {
+        current: currentPage,
+        total: totalPages,
+        count: categories.length,
+        totalRecords: total,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching categories',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 

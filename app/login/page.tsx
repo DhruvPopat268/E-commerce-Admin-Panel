@@ -90,12 +90,7 @@ export default function LoginPage() {
             <Button type="submit" className="w-full">
               Login
             </Button>
-            <div className="text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <Link href="/signup" className="text-primary underline underline-offset-4 hover:text-primary/90">
-                Sign up
-              </Link>
-            </div>
+            
           </CardFooter>
         </form>
       </Card>

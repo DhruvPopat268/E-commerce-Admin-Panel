@@ -60,7 +60,7 @@ const deleteFromCloudinary = async (publicId) => {
 // GET all sales agents with search functionality
 router.get('/', async (req, res) => {
   try {
-    const { search, page = 1, limit = 10, status } = req.query;
+    const { search, page = 1, limit = 100, status } = req.query;
     const skip = (page - 1) * limit;
 
     // Build query object
@@ -212,8 +212,6 @@ router.post('/', upload.single('photo'), async (req, res) => {
     });
   }
 });
-
-
 
 router.post('/login', async (req, res) => {
   try {

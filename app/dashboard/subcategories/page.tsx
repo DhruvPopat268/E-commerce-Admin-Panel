@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import axios from "axios"
 import Image from "next/image"
-import { Pencil, Plus, Search, Trash2, X } from "lucide-react"
+import { Pencil, Plus, Search, Trash2, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -21,7 +21,7 @@ import { Switch } from "@/components/ui/switch"
 
 export default function SubCategoriesPage() {
   const [subCategories, setSubCategories] = useState([])
-  const [categories, setCategories] = useState([])
+  const [categories, setCategories] = useState([]) // Initialize as empty array
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newSubCategory, setNewSubCategory] = useState({ 
     categoryId: "", 
@@ -34,79 +34,141 @@ export default function SubCategoriesPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [loadingSubCategories, setLoadingSubCategories] = useState(true)
-  const [isUpdating, setIsUpdating] = useState(false) // New state for update spinner
+  const [isUpdating, setIsUpdating] = useState(false)
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [limit, setLimit] = useState(10) // Items per page - now changeable
+  const [isSearching, setIsSearching] = useState(false)
+
+  // Status filter
+  const [statusFilter, setStatusFilter] = useState("")
+
+  // Records per page options
+  const recordsPerPageOptions = [5, 10, 25, 50, 100]
 
   // Fetch categories from backend
   const fetchCategories = async () => {
     try {
       const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`)
-      setCategories(data)
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setCategories(data)
+      } else if (data && Array.isArray(data.data)) {
+        setCategories(data.data)
+      } else {
+        console.warn("Categories data is not an array:", data)
+        setCategories([]) // Fallback to empty array
+      }
     } catch (err) {
       console.error("Failed to fetch categories", err)
+      setCategories([]) // Fallback to empty array on error
     }
   }
 
-  // Fetch subcategories from backend
-  const fetchSubCategories = async (retries = 5, delay = 1000) => {
+  // Fetch subcategories with search and pagination
+  const fetchSubCategories = async (page = currentPage, search = searchQuery, status = statusFilter, pageLimit = limit) => {
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+      setLoadingSubCategories(true)
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pageLimit.toString()
+      })
+      
+      if (search.trim()) {
+        params.append('search', search.trim())
+      }
+      
+      if (status !== "" && status !== "all") {
+        params.append('status', status)
+      }
+
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories?${params.toString()}`
+      )
+      
       if (response.status === 200) {
         const responseData = response.data
-        console.log(responseData)
+        console.log("SubCategories Response:", responseData)
         
-        // Handle the new API response structure
+        // Handle the API response structure
         if (Array.isArray(responseData) && responseData.length > 0) {
-          // The response is an array with the first element containing the actual data
           const firstItem = responseData[0]
           if (firstItem.success && firstItem.data && Array.isArray(firstItem.data)) {
             setSubCategories(firstItem.data)
+            setTotalCount(firstItem.totalCount || firstItem.count || firstItem.data.length)
+            setTotalPages(Math.ceil((firstItem.totalCount || firstItem.count || firstItem.data.length) / pageLimit))
           } else {
             console.error("Expected success and data array but got:", firstItem)
             setSubCategories([])
+            setTotalCount(0)
+            setTotalPages(1)
           }
         } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
-          // Fallback for direct object response
           setSubCategories(responseData.data)
+          setTotalCount(responseData.totalCount || responseData.count || responseData.data.length)
+          setTotalPages(Math.ceil((responseData.totalCount || responseData.count || responseData.data.length) / pageLimit))
         } else if (Array.isArray(responseData)) {
-          // Fallback: if the response is directly an array
           setSubCategories(responseData)
+          setTotalCount(responseData.length)
+          setTotalPages(Math.ceil(responseData.length / pageLimit))
         } else {
           console.error("Unexpected response structure:", responseData)
           setSubCategories([])
+          setTotalCount(0)
+          setTotalPages(1)
         }
-      } else {
-        throw new Error("Non-200 status")
       }
     } catch (err) {
       console.error("Failed to fetch subcategories", err)
-      if (retries > 0) {
-        setTimeout(() => fetchSubCategories(retries - 1, delay * 2), delay)
-      } else {
-        setSubCategories([]) // fallback on failure
-      }
+      setSubCategories([])
+      setTotalCount(0)
+      setTotalPages(1)
     } finally {
       setLoadingSubCategories(false)
+      setIsSearching(false)
     }
   }
 
   useEffect(() => {
     fetchCategories()
-    fetchSubCategories()
   }, [])
 
-  // Fixed filter function with proper null/undefined checks
-  const filteredSubCategories = subCategories.filter((subCategory) => {
-    if (!subCategory) return false
-    
-    const subCategoryName = subCategory.name || ""
-    const categoryName = subCategory.category?.name || ""
-    const query = searchQuery || ""
-    
-    return (
-      subCategoryName.toLowerCase().includes(query.toLowerCase()) ||
-      categoryName.toLowerCase().includes(query.toLowerCase())
-    )
-  })
+  useEffect(() => {
+    fetchSubCategories()
+  }, [currentPage, limit])
+
+  // Handle search
+  const handleSearch = () => {
+    setIsSearching(true)
+    setCurrentPage(1) // Reset to first page
+    fetchSubCategories(1, searchQuery, statusFilter, limit)
+  }
+
+  // Handle pagination
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+    }
+  }
+
+  // Handle status filter change
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value)
+    setCurrentPage(1) // Reset to first page
+    fetchSubCategories(1, searchQuery, value, limit)
+  }
+
+  // Handle records per page change
+  const handleLimitChange = (newLimit) => {
+    setLimit(parseInt(newLimit))
+    setCurrentPage(1) // Reset to first page
+    fetchSubCategories(1, searchQuery, statusFilter, parseInt(newLimit))
+  }
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0]
@@ -125,7 +187,7 @@ export default function SubCategoriesPage() {
   const handleSaveSubCategory = async () => {
     if (!newSubCategory.name.trim() || !newSubCategory.categoryId) return
 
-    setIsUpdating(true) // Start spinner
+    setIsUpdating(true)
 
     const formData = new FormData()
     formData.append("categoryId", newSubCategory.categoryId)
@@ -137,7 +199,7 @@ export default function SubCategoriesPage() {
 
     try {
       if (isEditMode) {
-        const { data } = await axios.put(
+        await axios.put(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${editingId}`, 
           formData,
           {
@@ -146,36 +208,8 @@ export default function SubCategoriesPage() {
             },
           }
         )
-
-        // Handle different possible response structures for update
-        let updatedSubCategory = data
-        if (data.data) {
-          updatedSubCategory = data.data
-        } else if (data.success && data.data) {
-          updatedSubCategory = data.data
-        }
-
-        // Update the subcategory in the list
-        setSubCategories((prev) => 
-          prev.map((sc) => {
-            if (sc._id === editingId) {
-              // Ensure we preserve the category information
-              return {
-                ...updatedSubCategory,
-                category: updatedSubCategory.category || 
-                         categories.find(cat => cat._id === updatedSubCategory.categoryId) ||
-                         sc.category
-              }
-            }
-            return sc
-          })
-        )
-
-        // Alternative: Refetch data to ensure consistency
-        // await fetchSubCategories()
-        
       } else {
-        const { data } = await axios.post(
+        await axios.post(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`, 
           formData,
           {
@@ -184,23 +218,10 @@ export default function SubCategoriesPage() {
             },
           }
         )
-
-        // Handle different possible response structures for create
-        let newSubCategoryData = data
-        if (data.data) {
-          newSubCategoryData = data.data
-        } else if (data.success && data.data) {
-          newSubCategoryData = data.data
-        }
-
-        // Ensure category information is included
-        const categoryInfo = categories.find(cat => cat._id === newSubCategoryData.categoryId)
-        if (categoryInfo && !newSubCategoryData.category) {
-          newSubCategoryData.category = categoryInfo
-        }
-
-        setSubCategories((prev) => [...prev, newSubCategoryData])
       }
+
+      // Refresh the data
+      await fetchSubCategories()
 
       setNewSubCategory({ categoryId: "", name: "", status: true })
       setImageFile(null)
@@ -210,38 +231,20 @@ export default function SubCategoriesPage() {
       setEditingId(null)
     } catch (err) {
       console.error(err)
-      // Optionally show error message to user
     } finally {
-      setIsUpdating(false) // Stop spinner
+      setIsUpdating(false)
     }
   }
 
   // Toggle subcategory status via API PATCH
   const toggleStatus = async (id, currentStatus) => {
     try {
-      const { data } = await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${id}`, {
+      await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${id}`, {
         status: !currentStatus,
       })
 
-      // Handle different possible response structures
-      let updatedSubCategory = data
-      if (data.data) {
-        updatedSubCategory = data.data
-      } else if (data.success && data.data) {
-        updatedSubCategory = data.data
-      }
-
-      setSubCategories((prev) =>
-        prev.map((sc) => {
-          if (sc._id === id) {
-            return {
-              ...updatedSubCategory,
-              category: updatedSubCategory.category || sc.category
-            }
-          }
-          return sc
-        })
-      )
+      // Refresh the data
+      await fetchSubCategories()
     } catch (err) {
       console.error(err)
     }
@@ -253,7 +256,8 @@ export default function SubCategoriesPage() {
 
     try {
       await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories/${id}`)
-      setSubCategories((prev) => prev.filter((sc) => sc._id !== id))
+      // Refresh the data
+      await fetchSubCategories()
     } catch (err) {
       console.error(err)
     }
@@ -269,7 +273,7 @@ export default function SubCategoriesPage() {
     setIsAddDialogOpen(false)
   }
 
-  if (loadingSubCategories) {
+  if (loadingSubCategories && currentPage === 1) {
     return (
       <div className="flex justify-center items-center h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
@@ -296,7 +300,7 @@ export default function SubCategoriesPage() {
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold">
-              Sub Category Table <span className="text-sm text-gray-500 ml-2">{subCategories.length}</span>
+              Sub Category Table <span className="text-sm text-gray-500 ml-2">({totalCount})</span>
             </h3>
             <div className="flex gap-4">
               <div className="relative">
@@ -306,14 +310,54 @@ export default function SubCategoriesPage() {
                   className="pl-10 w-[300px]"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch()
+                    }
+                  }}
                 />
               </div>
+              <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="true">Active</SelectItem>
+                  <SelectItem value="false">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
-                onClick={() => { }}
+                onClick={handleSearch}
                 className="bg-teal-600 hover:bg-teal-700 text-white"
+                disabled={isSearching}
               >
-                Search
+                {isSearching ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                ) : (
+                  "Search"
+                )}
               </Button>
+            </div>
+          </div>
+
+          {/* Records per page selector */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show</span>
+              <Select value={limit.toString()} onValueChange={handleLimitChange}>
+                <SelectTrigger className="w-[80px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {recordsPerPageOptions.map((option) => (
+                    <SelectItem key={option} value={option.toString()}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-gray-600">entries</span>
             </div>
           </div>
 
@@ -330,68 +374,142 @@ export default function SubCategoriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSubCategories.map((subCategory, index) => (
-                  <TableRow key={subCategory._id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>
-                      {subCategory.image && (
-                        <div className="relative h-16 w-16 border rounded-md overflow-hidden">
-                          <Image
-                            src={subCategory.image || "/placeholder.svg"}
-                            alt={subCategory.name || "Sub category"}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>{subCategory.category?.name || "N/A"}</TableCell>
-                    <TableCell>{subCategory.name || "N/A"}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={subCategory.status}
-                        onCheckedChange={() => toggleStatus(subCategory._id, subCategory.status)}
-                        className="data-[state=checked]:bg-teal-500"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 border-blue-500 text-blue-500"
-                          onClick={() => {
-                            setNewSubCategory({
-                              categoryId: subCategory.category?._id || "",
-                              name: subCategory.name || "",
-                              status: subCategory.status || true,
-                            })
-                            setPreviewImage(subCategory.image || null)
-                            setEditingId(subCategory._id)
-                            setIsEditMode(true)
-                            setIsAddDialogOpen(true)
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 border-red-500 text-red-500"
-                          onClick={() => handleDelete(subCategory._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
+                {loadingSubCategories ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-gray-600"></div>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : subCategories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      No subcategories found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  subCategories.map((subCategory, index) => (
+                    <TableRow key={subCategory._id}>
+                      <TableCell>{((currentPage - 1) * limit) + index + 1}</TableCell>
+                      <TableCell>
+                        {subCategory.image && (
+                          <div className="relative h-16 w-16 border rounded-md overflow-hidden">
+                            <Image
+                              src={subCategory.image || "/placeholder.svg"}
+                              alt={subCategory.name || "Sub category"}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>{subCategory.category?.name || "N/A"}</TableCell>
+                      <TableCell>{subCategory.name || "N/A"}</TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={subCategory.status}
+                          onCheckedChange={() => toggleStatus(subCategory._id, subCategory.status)}
+                          className="data-[state=checked]:bg-teal-500"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 border-blue-500 text-blue-500"
+                            onClick={() => {
+                              setNewSubCategory({
+                                categoryId: subCategory.category?._id || "",
+                                name: subCategory.name || "",
+                                status: subCategory.status || true,
+                              })
+                              setPreviewImage(subCategory.image || null)
+                              setEditingId(subCategory._id)
+                              setIsEditMode(true)
+                              setIsAddDialogOpen(true)
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 border-red-500 text-red-500"
+                            onClick={() => handleDelete(subCategory._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-gray-500">
+                Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalCount)} of {totalCount} entries
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || loadingSubCategories}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className={currentPage === pageNum ? "bg-teal-600 hover:bg-teal-700" : ""}
+                        onClick={() => handlePageChange(pageNum)}
+                        disabled={loadingSubCategories}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages || loadingSubCategories}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -414,11 +532,20 @@ export default function SubCategoriesPage() {
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category._id || category.id} value={category._id || category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(categories) && categories
+                    .filter(category => {
+                      // Filter out categories without valid IDs and ensure ID is not empty string
+                      const categoryId = category?._id || category?.id;
+                      return category && categoryId && categoryId.trim() !== '';
+                    })
+                    .map((category) => {
+                      const categoryId = category._id || category.id;
+                      return (
+                        <SelectItem key={categoryId} value={categoryId}>
+                          {category.name || 'Unnamed Category'}
+                        </SelectItem>
+                      );
+                    })}
                 </SelectContent>
               </Select>
             </div>

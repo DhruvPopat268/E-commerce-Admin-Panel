@@ -39,22 +39,59 @@ const upload = multer({
 // GET /api/subcategories?categoryId=123 - Get subcategories by category ID
 router.get("/", async (req, res) => {
   try {
-    const { categoryId } = req.query;
+    const { categoryId, search, page = 1, limit = 10, status } = req.query;
 
-    let filter = {};
+    // Parse pagination parameters
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit))); // Max 100 items per page
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query object for filtering
+    let query = {};
+
+    // Filter by category if provided
     if (categoryId) {
-      filter.category = categoryId;
+      query.category = categoryId;
     }
 
-    const subCategories = await SubCategory.find(filter)
+    // Add search functionality
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } }
+        // You can add more searchable fields here if needed
+        // { description: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+
+    // Filter by status if provided
+    if (status !== undefined && status !== '') {
+      query.status = status === 'true';
+    }
+
+    // Get total count for pagination
+    const totalCount = await SubCategory.countDocuments(query);
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    // Fetch subcategories with pagination
+    const subCategories = await SubCategory.find(query)
       .populate("category", "name")
+      .sort({ createdAt: -1 }) // Sort by newest first, you can change this
+      .skip(skip)
+      .limit(limitNum)
       .exec();
 
+    // Return response in the expected format
     res.json([{
       success: true,
       count: subCategories.length,
+      totalCount: totalCount,
+      totalPages: totalPages,
+      currentPage: pageNum,
+      limit: limitNum,
       data: subCategories
     }]);
+
   } catch (err) {
     console.error('Error fetching subcategories:', err);
     res.status(500).json({

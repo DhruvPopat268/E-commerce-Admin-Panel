@@ -364,7 +364,49 @@ router.delete('/:id', async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    let products = await Product.find({})
+    const { categoryId, subCategoryId, search, page = 1, limit = 10, status } = req.query;
+    
+    // Parse pagination parameters
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit))); // Max 100 items per page
+    const skip = (pageNum - 1) * limitNum;
+    
+    // Build query object for filtering
+    let query = {};
+    
+    // Filter by category if provided
+    if (categoryId) {
+      query.category = categoryId;
+    }
+    
+    // Filter by subcategory if provided
+    if (subCategoryId) {
+      query.subCategory = subCategoryId;
+    }
+    
+    // Add search functionality
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { description: { $regex: searchTerm, $options: 'i' } },
+        { sku: { $regex: searchTerm, $options: 'i' } }
+        // You can add more searchable fields here if needed
+        // { brand: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+    
+    // Filter by status if provided
+    if (status !== undefined && status !== '') {
+      query.status = status === 'true';
+    }
+    
+    // Get total count for pagination
+    const totalCount = await Product.countDocuments(query);
+    const totalPages = Math.ceil(totalCount / limitNum);
+    
+    // Fetch products with pagination
+    const products = await Product.find(query)
       .populate({
         path: "category", // This should match the field name in Product schema
         model: "Category",  // Mongoose model name (should match how it's registered)
@@ -374,12 +416,29 @@ router.get("/", async (req, res) => {
         path: "subCategory", // Same, adjust field name as per your schema
         model: "SubCategory",
         select: "name",        // Only fetch the subcategory name
-      });
-
-    res.status(200).json(products);
+      })
+      .sort({ createdAt: -1 }) // Sort by newest first, you can change this
+      .skip(skip)
+      .limit(limitNum)
+      .exec();
+    
+    // Return response in the expected format
+    res.json([{
+      success: true,
+      count: products.length,
+      totalCount: totalCount,
+      totalPages: totalPages,
+      currentPage: pageNum,
+      limit: limitNum,
+      data: products
+    }]);
+    
   } catch (err) {
-    console.log("Error: " + err);
-    res.status(500).json({ message: "Server error" });
+    console.error('Error fetching products:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 });
 

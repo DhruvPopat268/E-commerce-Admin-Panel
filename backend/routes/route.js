@@ -158,10 +158,12 @@ router.post('/register-agent-player', async (req, res) => {
 // GET /api/routes - Get all routes
 router.get('/', async (req, res) => {
   try {
-    const { search } = req.query;
-
+     const { search, page = 1, limit = 100, status } = req.query;
+    const skip = (page - 1) * limit;
+   
     // Build query object
     let query = {};
+
     if (search) {
       query.name = { $regex: search, $options: 'i' }; // Case-insensitive search
     }

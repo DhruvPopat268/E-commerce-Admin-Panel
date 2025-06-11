@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import axios from "axios"
 import Image from "next/image"
-import { Search, Plus, Pencil, Trash2, Download, UserCheck, Loader2, ChevronDown, Route } from "lucide-react"
+import { Search, Plus, Pencil, Trash2, Download, UserCheck, Loader2, ChevronDown, Route, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -62,6 +62,14 @@ export default function SalesAgentPage() {
     const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([])
     const [villages, setVillages] = useState<Village[]>([])
     const [searchTerm, setSearchTerm] = useState("")
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage, setItemsPerPage] = useState(100)
+    const [pagination, setPagination] = useState({
+        current: 1,
+        total: 1,
+        count: 0,
+        totalRecords: 0
+    })
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isEditMode, setIsEditMode] = useState(false)
     const [editingAgentId, setEditingAgentId] = useState<string | null>(null)
@@ -107,18 +115,23 @@ export default function SalesAgentPage() {
         }
     }
 
-    const fetchSalesAgents = async () => {
+    const fetchSalesAgents = async (page: number = currentPage, limit: number = itemsPerPage) => {
         try {
             setLoading(true)
             setError(null)
 
             const queryParams = new URLSearchParams()
             if (searchTerm) queryParams.append('search', searchTerm)
+            queryParams.append('page', page.toString())
+            queryParams.append('limit', limit.toString())
 
             const { data } = await axios.get<ApiResponse>(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents?${queryParams}`)
 
             if (data.success) {
                 setSalesAgents(data.data)
+                if (data.pagination) {
+                    setPagination(data.pagination)
+                }
             } else {
                 setError(data.message || 'Failed to fetch sales agents')
                 toast({
@@ -145,10 +158,33 @@ export default function SalesAgentPage() {
 
     useEffect(() => {
         const debounceTimer = setTimeout(() => {
-            fetchSalesAgents()
+            setCurrentPage(1) // Reset to first page when searching
+            fetchSalesAgents(1, itemsPerPage)
         }, 300)
         return () => clearTimeout(debounceTimer)
     }, [searchTerm])
+
+    useEffect(() => {
+        fetchSalesAgents(currentPage, itemsPerPage)
+    }, [currentPage, itemsPerPage])
+
+    // Pagination handlers
+    const handleNextPage = () => {
+        if (currentPage < pagination.total) {
+            setCurrentPage(currentPage + 1)
+        }
+    }
+
+    const handlePreviousPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1)
+        }
+    }
+
+    const handlePageSizeChange = (newSize: string) => {
+        setItemsPerPage(parseInt(newSize))
+        setCurrentPage(1) // Reset to first page when changing page size
+    }
 
     const handleAddAgent = async () => {
         if (!newAgent.name || !newAgent.businessName || !newAgent.mobileNumber || !newAgent.address || !newAgent.village) {
@@ -172,7 +208,7 @@ export default function SalesAgentPage() {
                 toast.success('Sales agent created successfully')
                 resetForm()
                 setIsDialogOpen(false)
-                fetchSalesAgents()
+                fetchSalesAgents(currentPage, itemsPerPage)
                 
             } else {
                toast.error('Failed to create sales agent')
@@ -203,7 +239,7 @@ export default function SalesAgentPage() {
                 toast({ title: "Success", description: "Sales agent updated successfully" })
                 resetForm()
                 setIsDialogOpen(false)
-                fetchSalesAgents()
+                fetchSalesAgents(currentPage, itemsPerPage)
             } else {
                 toast({
                     title: "Error",
@@ -233,7 +269,7 @@ export default function SalesAgentPage() {
                     title: "Success",
                     description: `Sales agent status ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
                 })
-                fetchSalesAgents()
+                fetchSalesAgents(currentPage, itemsPerPage)
             } else {
                 toast({
                     title: "Error",
@@ -261,7 +297,7 @@ export default function SalesAgentPage() {
                     title: "Success",
                     description: `Route status ${!currentRouteStatus ? 'activated' : 'deactivated'} successfully`,
                 })
-                fetchSalesAgents()
+                fetchSalesAgents(currentPage, itemsPerPage)
             } else {
                 toast({
                     title: "Error",
@@ -286,7 +322,7 @@ export default function SalesAgentPage() {
 
             if (data.success) {
                 toast({ title: "Success", description: "Sales agent deleted successfully" })
-                fetchSalesAgents()
+                fetchSalesAgents(currentPage, itemsPerPage)
             } else {
                 toast({
                     title: "Error",
@@ -305,7 +341,7 @@ export default function SalesAgentPage() {
 
     const handleExport = async () => {
         try {
-            const { data } = await axios.get<ApiResponse>(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents?limit=1000`)
+            const { data } = await axios.get<ApiResponse>(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents`)
             if (data.success) {
                 const csvContent = [
                     ['Name', 'Business Name', 'Mobile Number', 'Address', 'Village', 'Status', 'Route Status', 'Created At'].join(','),
@@ -380,32 +416,32 @@ export default function SalesAgentPage() {
         }
     }
 
- const handleEditClick = (agent: SalesAgent) => {
-    setIsEditMode(true)
-    setEditingAgentId(agent._id)
-    
-    // Handle village ID extraction properly
-    let villageId = '';
-    if (typeof agent.village === 'string') {
-        // If village is stored as string, find the matching village ID
-        const matchingVillage = villages.find(v => v.name === agent.village);
-        villageId = matchingVillage?._id || '';
-    } else if (agent.village && typeof agent.village === 'object') {
-        // If village is stored as object, use its _id
-        villageId = agent.village._id || '';
+    const handleEditClick = (agent: SalesAgent) => {
+        setIsEditMode(true)
+        setEditingAgentId(agent._id)
+        
+        // Handle village ID extraction properly
+        let villageId = '';
+        if (typeof agent.village === 'string') {
+            // If village is stored as string, find the matching village ID
+            const matchingVillage = villages.find(v => v.name === agent.village);
+            villageId = matchingVillage?._id || '';
+        } else if (agent.village && typeof agent.village === 'object') {
+            // If village is stored as object, use its _id
+            villageId = agent.village._id || '';
+        }
+        
+        setNewAgent({
+            name: agent.name,
+            businessName: agent.businessName,
+            mobileNumber: agent.mobileNumber,
+            address: agent.address,
+            village: villageId, // Use the extracted village ID
+        })
+        
+        if (agent.photo?.url) setPhotoPreview(agent.photo.url)
+        setIsDialogOpen(true)
     }
-    
-    setNewAgent({
-        name: agent.name,
-        businessName: agent.businessName,
-        mobileNumber: agent.mobileNumber,
-        address: agent.address,
-        village: villageId, // Use the extracted village ID
-    })
-    
-    if (agent.photo?.url) setPhotoPreview(agent.photo.url)
-    setIsDialogOpen(true)
-}
 
     const handleDialogClose = (open: boolean) => {
         if (!open) {
@@ -421,7 +457,7 @@ export default function SalesAgentPage() {
                     <UserCheck className="h-8 w-8" />
                     Customer List
                     <span className="ml-2 rounded-full bg-blue-100 px-2.5 py-0.5 text-sm text-blue-800">
-                        {salesAgents.length}
+                        {pagination.totalRecords}
                     </span>
                 </h2>
                 <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
@@ -521,7 +557,7 @@ export default function SalesAgentPage() {
                                                 </SelectItem>
                                             ) : (
                                                 villages.map((village) => (
-                                                    <SelectItem key={village.id} value={village.id} >
+                                                    <SelectItem key={village._id} value={village._id} >
                                                         {village.name}
                                                     </SelectItem>
                                                 ))
@@ -569,10 +605,24 @@ export default function SalesAgentPage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <Button variant="outline" onClick={handleExport}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Select value={itemsPerPage.toString()} onValueChange={handlePageSizeChange}>
+                        <SelectTrigger className="w-20">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="25">25</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button variant="outline" onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
+                </div>
             </div>
 
             {error && (
@@ -611,7 +661,7 @@ export default function SalesAgentPage() {
                         ) : (
                             salesAgents.map((agent, index) => (
                                 <TableRow key={agent._id}>
-                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{((currentPage - 1) * itemsPerPage) + index + 1}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center space-x-3">
                                             <div className="h-10 w-10 relative overflow-hidden rounded-full">
@@ -692,6 +742,45 @@ export default function SalesAgentPage() {
                         )}
                     </TableBody>
                 </Table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between border-t pt-4">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <span>
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, pagination.totalRecords)} of {pagination.totalRecords} entries
+                    </span>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1 || loading}
+                        className="flex items-center gap-1"
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                    </Button>
+                    
+                    <div className="flex items-center space-x-1">
+                        <span className="text-sm text-muted-foreground">
+                            Page {currentPage} of {pagination.total}
+                        </span>
+                    </div>
+                    
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === pagination.total || loading}
+                        className="flex items-center gap-1"
+                    >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
         </div>
     )
