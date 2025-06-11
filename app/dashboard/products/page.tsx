@@ -3,79 +3,118 @@
 import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Pencil, Trash2, Download, Package } from "lucide-react"
+import { Pencil, Trash2, Download, Package, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([]) // New state for categories
-  const [subcategories, setSubcategories] = useState([]) // New state for subcategories
+  const [categories, setCategories] = useState([])
+  const [subcategories, setSubcategories] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("")
+  const [selectedSubcategory, setSelectedSubcategory] = useState("")
+  const [selectedStatus, setSelectedStatus] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
 
   const router = useRouter()
 
+  // Fetch categories and subcategories once
   useEffect(() => {
-    async function fetchData() {
+    async function fetchStaticData() {
       try {
-        // Fetch all data in parallel
-        const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products`),
+        const [categoriesRes, subcategoriesRes] = await Promise.all([
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`),
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ])
 
-        if (productsRes.status === 200 && Array.isArray(productsRes.data)) {
-          setProducts(productsRes.data)
-          console.log(productsRes.data)
+        if (categoriesRes.status === 200) {
+          const categoryData = categoriesRes.data.data || categoriesRes.data
+          setCategories(Array.isArray(categoryData) ? categoryData : [])
         }
-        if (categoriesRes.status === 200 && Array.isArray(categoriesRes.data)) {
-          setCategories(categoriesRes.data)
-        }
-        if (subcategoriesRes.status === 200 && Array.isArray(subcategoriesRes.data)) {
-          setSubcategories(subcategoriesRes.data)
+        if (subcategoriesRes.status === 200) {
+          const subcategoryData = subcategoriesRes.data.data || subcategoriesRes.data
+          setSubcategories(Array.isArray(subcategoryData) ? subcategoryData : [])
         }
       } catch (error) {
-        console.error("Failed to fetch data:", error)
-        // Ensure arrays remain as arrays even on error
-        setProducts(prev => Array.isArray(prev) ? prev : [])
-        setCategories(prev => Array.isArray(prev) ? prev : [])
-        setSubcategories(prev => Array.isArray(prev) ? prev : [])
-      } finally {
-        setIsLoading(false)
+        console.error("Failed to fetch categories/subcategories:", error)
+        setCategories([])
+        setSubcategories([])
       }
     }
-    fetchData()
+    fetchStaticData()
   }, [])
 
-  // Helper function to get category name by ID
-  const getCategoryName = (categoryId) => {
-    if (!Array.isArray(categories) || !categoryId) return 'N/A'
-    const category = categories.find(cat => cat._id === categoryId)
-    return category ? category.name : 'N/A'
+  // Fetch products with pagination and filters
+  const fetchProducts = async (page = 1, search = "", categoryId = "", subCategoryId = "", status = "") => {
+    try {
+      setIsLoading(true)
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pageSize.toString(),
+      })
+
+      if (search.trim()) params.append('search', search.trim())
+      if (categoryId) params.append('categoryId', categoryId)
+      if (subCategoryId) params.append('subCategoryId', subCategoryId)
+      if (status !== "") params.append('status', status)
+
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params}`)
+      
+      if (response.status === 200 && response.data.success) {
+        const { data, pagination } = response.data
+        setProducts(Array.isArray(data) ? data : [])
+        setCurrentPage(pagination.current)
+        setTotalPages(pagination.total)
+        setTotalRecords(pagination.totalRecords)
+        setHasNext(pagination.hasNext)
+        setHasPrev(pagination.hasPrev)
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error)
+      setProducts([])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  // Helper function to get subcategory name by ID
-  const getSubcategoryName = (subcategoryId) => {
-    if (!Array.isArray(subcategories) || !subcategoryId) return 'N/A'
-    const subcategory = subcategories.find(sub => sub._id === subcategoryId)
-    return subcategory ? subcategory.name : 'N/A'
+  // Initial load and when filters change
+  useEffect(() => {
+    fetchProducts(1, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)
+    setCurrentPage(1) // Reset to first page when filters change
+  }, [selectedCategory, selectedSubcategory, selectedStatus, pageSize])
+
+  // Handle search with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchProducts(1, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)
+      setCurrentPage(1)
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+      fetchProducts(newPage, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)
+    }
   }
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.id?.toString().includes(searchQuery),
-    )
-  }, [products, searchQuery])
-
-  const toggleShowInDailyNeeds = async (id: string) => {
+  const toggleShowInDailyNeeds = async (id) => {
     const product = products.find(p => p._id === id)
     if (!product) return
 
@@ -90,15 +129,31 @@ export default function ProductsPage() {
       })
     } catch (error) {
       console.error("Failed to update daily needs toggle:", error)
-      setProducts(products) // revert if error
+      // Revert on error
+      setProducts(products)
     }
   }
 
-  const toggleFeatured = (id: number) => {
-    setProducts(products.map((product) => (product.id === id ? { ...product, featured: !product.featured } : product)))
+  const toggleFeatured = async (id) => {
+    const product = products.find(p => p._id === id)
+    if (!product) return
+
+    const updatedProducts = products.map(p =>
+      p._id === id ? { ...p, featured: !p.featured } : p
+    )
+    setProducts(updatedProducts)
+
+    try {
+      await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${id}/featured`, {
+        featured: !product.featured,
+      })
+    } catch (error) {
+      console.error("Failed to update featured toggle:", error)
+      setProducts(products)
+    }
   }
 
-  const toggleStatus = async (id: string) => {
+  const toggleStatus = async (id) => {
     const product = products.find(p => p._id === id)
     if (!product) return
 
@@ -117,20 +172,47 @@ export default function ProductsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this product?")) return
+    
     try {
       await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${id}`)
-      setProducts(products.filter((product) => product._id !== id))
+      // Refresh current page after deletion
+      fetchProducts(currentPage, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)
     } catch (error) {
       console.error("Failed to delete product:", error)
     }
   }
 
-  const handleEdit = (productId: string) => {
+  const handleEdit = (productId) => {
     router.push(`/dashboard/products/add?productId=${productId}`)
   }
 
-  if (isLoading) {
+  const clearFilters = () => {
+    setSearchQuery("")
+    setSelectedCategory("")
+    setSelectedSubcategory("")
+    setSelectedStatus("")
+  }
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = []
+    const maxVisiblePages = 5
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i)
+    }
+    return pages
+  }
+
+  if (isLoading && products.length === 0) {
     return (
       <div className="flex justify-center items-center h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
@@ -143,24 +225,87 @@ export default function ProductsPage() {
       <div className="flex items-center gap-2">
         <Package className="h-8 w-8 text-amber-600" />
         <h2 className="text-3xl font-bold tracking-tight">
-          Product List <span className="text-sm text-gray-500 ml-2">{products.length}</span>
+          Product List <span className="text-sm text-gray-500 ml-2">({totalRecords})</span>
         </h2>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex gap-2">
-          <div className="relative w-full md:w-80">
-            <Input
-              placeholder="Search by ID or name"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-3"
-            />
-          </div>
-          <Button onClick={() => { }} className="bg-teal-600 hover:bg-teal-700 text-white">
-            Search
-          </Button>
+      {/* Filters Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="relative">
+          <Input
+            placeholder="Search by name, description, or SKU"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-3"
+          />
         </div>
+        
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category._id} value={category._id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select Subcategory" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Subcategories</SelectItem>
+            {subcategories.map((subcategory) => (
+              <SelectItem key={subcategory._id} value={subcategory._id}>
+                {subcategory.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="true">Active</SelectItem>
+            <SelectItem value="false">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Button 
+          variant="outline" 
+          onClick={clearFilters}
+          className="border-gray-300"
+        >
+          Clear Filters
+        </Button>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Show:</span>
+          <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(parseInt(value))}>
+            <SelectTrigger className="w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5</SelectItem>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-gray-600">per page</span>
+        </div>
+        
         <div className="flex gap-2">
           <Button variant="outline" className="border-teal-500 text-teal-500">
             <Download className="mr-2 h-4 w-4" /> Export
@@ -172,14 +317,15 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Products Table */}
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader className="bg-gray-50">
             <TableRow>
               <TableHead className="w-[60px]">SL</TableHead>
               <TableHead>Product Name</TableHead>
-              <TableHead>Category</TableHead> {/* New column */}
-              <TableHead>Subcategory</TableHead> {/* New column */}
+              <TableHead>Category</TableHead>
+              <TableHead>Subcategory</TableHead>
               <TableHead>Selling Price</TableHead>
               <TableHead>Discounted Price</TableHead>
               <TableHead>Show In Daily Needs</TableHead>
@@ -189,83 +335,139 @@ export default function ProductsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.map((product, index) => (
-              <TableRow key={product._id}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="relative h-12 w-12 border rounded-md overflow-hidden">
-                      <Image
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <span>{product.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {product.category?.name}
-                </TableCell>
-                <TableCell>
-                  {product.subCategory?.name}
-                </TableCell>
-                <TableCell>
-                  {product.attributes?.[0]?.price ?? "N/A"}
-                </TableCell>
-                <TableCell>
-                  {product.attributes?.[0]?.discountedPrice ?? "N/A"}
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={product.showInDailyNeeds}
-                    onCheckedChange={() => toggleShowInDailyNeeds(product._id)}
-                    className="data-[state=checked]:bg-teal-500"
-                  />
-
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={product.featured}
-                    onCheckedChange={() => toggleFeatured(product.id)}
-                    className="data-[state=checked]:bg-teal-500"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={product.status}
-                    onCheckedChange={() => toggleStatus(product._id)}
-                    className="data-[state=checked]:bg-teal-500"
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 border-blue-500 text-blue-500"
-                      onClick={() => handleEdit(product._id)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 border-red-500 text-red-500"
-                      onClick={() => handleDelete(product._id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
-                  </div>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-black border-t-transparent mx-auto"></div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : products.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                  No products found
+                </TableCell>
+              </TableRow>
+            ) : (
+              products.map((product, index) => (
+                <TableRow key={product._id}>
+                  <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="relative h-12 w-12 border rounded-md overflow-hidden">
+                        <Image
+                          src={product.image || "/placeholder.svg"}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <span>{product.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {product.category?.name || 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {product.subCategory?.name || 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {product.attributes?.[0]?.price ?? "N/A"}
+                  </TableCell>
+                  <TableCell>
+                    {product.attributes?.[0]?.discountedPrice ?? "N/A"}
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={product.showInDailyNeeds}
+                      onCheckedChange={() => toggleShowInDailyNeeds(product._id)}
+                      className="data-[state=checked]:bg-teal-500"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={product.featured}
+                      onCheckedChange={() => toggleFeatured(product._id)}
+                      className="data-[state=checked]:bg-teal-500"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={product.status}
+                      onCheckedChange={() => toggleStatus(product._id)}
+                      className="data-[state=checked]:bg-teal-500"
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 border-blue-500 text-blue-500"
+                        onClick={() => handleEdit(product._id)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 border-red-500 text-red-500"
+                        onClick={() => handleDelete(product._id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} results
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={!hasPrev}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            
+            {getPageNumbers().map((pageNum) => (
+              <Button
+                key={pageNum}
+                variant={pageNum === currentPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => handlePageChange(pageNum)}
+                className={pageNum === currentPage ? "bg-teal-600 hover:bg-teal-700" : ""}
+              >
+                {pageNum}
+              </Button>
+            ))}
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={!hasNext}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

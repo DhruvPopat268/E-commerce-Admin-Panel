@@ -365,25 +365,25 @@ router.delete('/:id', async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const { categoryId, subCategoryId, search, page = 1, limit = 10, status } = req.query;
-    
+   
     // Parse pagination parameters
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.max(1, Math.min(100, parseInt(limit))); // Max 100 items per page
     const skip = (pageNum - 1) * limitNum;
-    
+   
     // Build query object for filtering
     let query = {};
-    
+   
     // Filter by category if provided
     if (categoryId) {
       query.category = categoryId;
     }
-    
+   
     // Filter by subcategory if provided
     if (subCategoryId) {
       query.subCategory = subCategoryId;
     }
-    
+   
     // Add search functionality
     if (search && search.trim()) {
       const searchTerm = search.trim();
@@ -395,49 +395,55 @@ router.get("/", async (req, res) => {
         // { brand: { $regex: searchTerm, $options: 'i' } }
       ];
     }
-    
+   
     // Filter by status if provided
     if (status !== undefined && status !== '') {
       query.status = status === 'true';
     }
-    
-    // Get total count for pagination
-    const totalCount = await Product.countDocuments(query);
+   
+    // Execute query with Promise.all for better performance
+    const [products, totalCount] = await Promise.all([
+      Product.find(query)
+        .populate({
+          path: "category", // This should match the field name in Product schema
+          model: "Category",  // Mongoose model name (should match how it's registered)
+          select: "name",     // Only fetch the category name
+        })
+        .populate({
+          path: "subCategory", // Same, adjust field name as per your schema
+          model: "SubCategory",
+          select: "name",        // Only fetch the subcategory name
+        })
+        .sort({ createdAt: -1 }) // Sort by newest first, you can change this
+        .skip(skip)
+        .limit(limitNum)
+        .lean(), // Use lean() for better performance
+      Product.countDocuments(query)
+    ]);
+   
+    // Calculate pagination info
     const totalPages = Math.ceil(totalCount / limitNum);
-    
-    // Fetch products with pagination
-    const products = await Product.find(query)
-      .populate({
-        path: "category", // This should match the field name in Product schema
-        model: "Category",  // Mongoose model name (should match how it's registered)
-        select: "name",     // Only fetch the category name
-      })
-      .populate({
-        path: "subCategory", // Same, adjust field name as per your schema
-        model: "SubCategory",
-        select: "name",        // Only fetch the subcategory name
-      })
-      .sort({ createdAt: -1 }) // Sort by newest first, you can change this
-      .skip(skip)
-      .limit(limitNum)
-      .exec();
-    
-    // Return response in the expected format
-    res.json([{
+   
+    // Return response in consistent format with category route
+    res.status(200).json({
       success: true,
-      count: products.length,
-      totalCount: totalCount,
-      totalPages: totalPages,
-      currentPage: pageNum,
-      limit: limitNum,
-      data: products
-    }]);
-    
-  } catch (err) {
-    console.error('Error fetching products:', err);
+      data: products,
+      pagination: {
+        current: pageNum,
+        total: totalPages,
+        count: products.length,
+        totalRecords: totalCount,
+        hasNext: pageNum < totalPages,
+        hasPrev: pageNum > 1
+      }
+    });
+   
+  } catch (error) {
+    console.error('Error fetching products:', error);
     res.status(500).json({
       success: false,
-      message: err.message
+      message: 'Error fetching products',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
