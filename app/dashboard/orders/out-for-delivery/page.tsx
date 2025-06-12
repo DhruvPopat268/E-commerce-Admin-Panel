@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import React from "react"
 import { useRouter } from "next/navigation" 
-import { Calendar, Eye, Printer, Download, Truck, Package, CheckCircle2 } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Truck, Package, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 // Mock toast function - replace with your actual toast implementation
 const toast = {
@@ -37,22 +37,47 @@ interface Order {
   routeName?: string
 }
 
+interface PaginationInfo {
+  currentPage: number
+  totalPages: number
+  totalOrders: number
+  limit: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+  startIndex: number
+  endIndex: number
+}
+
 export default function OutForDeliveryOrdersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [outForDeliveryOrders, setOutForDeliveryOrders] = useState<Order[]>([])
+  const [allOrders, setAllOrders] = useState<Order[]>([]) // Store all filtered orders
   const [loading, setLoading] = useState(true)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const [processingOrders, setProcessingOrders] = useState(false)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [paginationInfo, setPaginationInfo] = useState<PaginationInfo | null>(null)
+  
   const router = useRouter()
 
   useEffect(() => {
     setIsMounted(true)
     fetchOutForDeliveryOrders()
   }, [])
+
+  // Handle pagination when currentPage or itemsPerPage changes
+  useEffect(() => {
+    if (allOrders.length > 0) {
+      paginateOrders()
+    }
+  }, [currentPage, itemsPerPage, allOrders])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
@@ -64,8 +89,10 @@ export default function OutForDeliveryOrdersPage() {
   const fetchOutForDeliveryOrders = async () => {
     try {
       setLoading(true)
-      // Replace with your actual API endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/all`)
+      // Fetch all orders without pagination to filter properly
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/orders/all?page=1&limit=1000` // Fetch large number to get all
+      )
       const data = await response.json()
 
       if (data.orders) {
@@ -75,8 +102,10 @@ export default function OutForDeliveryOrdersPage() {
           order.status.toLowerCase().includes('outfordelivery') ||
           order.status.toLowerCase() === 'shipped'
         )
-        setOutForDeliveryOrders(outForDelivery)
+        
+        setAllOrders(outForDelivery)
         setSelectedOrders(new Set()) // Clear selections when data refreshes
+        setCurrentPage(1) // Reset to first page
       }
     } catch (error) {
       console.error('Error fetching out for delivery orders:', error)
@@ -84,6 +113,32 @@ export default function OutForDeliveryOrdersPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const paginateOrders = () => {
+    const totalOrders = allOrders.length
+    const totalPages = Math.ceil(totalOrders / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage + 1
+    const endIndex = Math.min(currentPage * itemsPerPage, totalOrders)
+    
+    // Get current page orders
+    const currentPageOrders = allOrders.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    )
+    
+    setOutForDeliveryOrders(currentPageOrders)
+    
+    setPaginationInfo({
+      currentPage,
+      totalPages,
+      totalOrders,
+      limit: itemsPerPage,
+      hasNextPage: currentPage < totalPages,
+      hasPreviousPage: currentPage > 1,
+      startIndex: totalOrders > 0 ? startIndex : 0,
+      endIndex: totalOrders > 0 ? endIndex : 0
+    })
   }
 
   const handleViewOrder = (orderId: string) => {
@@ -129,8 +184,9 @@ export default function OutForDeliveryOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove delivered orders from out for delivery orders list
-        setOutForDeliveryOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
+        // Remove delivered orders from all orders list
+        const updatedAllOrders = allOrders.filter(order => !selectedOrders.has(order._id))
+        setAllOrders(updatedAllOrders)
         setSelectedOrders(new Set())
         setSelectAll(false)
         toast.success(`${selectedOrders.size} order(s) marked as delivered successfully!`)
@@ -158,8 +214,9 @@ export default function OutForDeliveryOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove the order from out for delivery orders list
-        setOutForDeliveryOrders(prev => prev.filter(order => order._id !== orderId))
+        // Remove the order from all orders list
+        const updatedAllOrders = allOrders.filter(order => order._id !== orderId)
+        setAllOrders(updatedAllOrders)
         toast.success('Order marked as delivered successfully!')
       } else {
         toast.error(data.message || 'Failed to mark order as delivered')
@@ -188,23 +245,54 @@ export default function OutForDeliveryOrdersPage() {
   }
 
   const handleSearch = () => {
-    // Implement search functionality here
-    console.log('Searching for:', searchTerm)
+    if (!searchTerm.trim()) {
+      // If search is empty, show all out for delivery orders
+      fetchOutForDeliveryOrders()
+      return
+    }
+
+    // Filter orders based on search term
+    const filteredOrders = allOrders.filter(order => {
+      const orderId = order._id.slice(-6).toUpperCase()
+      const customerName = (order.salesAgentName || "").toLowerCase()
+      const status = order.status.toLowerCase()
+      const searchLower = searchTerm.toLowerCase()
+
+      return (
+        orderId.includes(searchLower.toUpperCase()) ||
+        customerName.includes(searchLower) ||
+        status.includes(searchLower)
+      )
+    })
+
+    setAllOrders(filteredOrders)
+    setCurrentPage(1) // Reset to first page after search
   }
 
   const handleShowData = () => {
-    // Implement date range filtering here
-    console.log('Filtering from:', startDate, 'to:', endDate)
+    if (!startDate || !endDate) {
+      toast.error('Please select both start and end dates')
+      return
+    }
+
+    // Filter orders by date range
+    const filteredOrders = allOrders.filter(order => {
+      const orderDate = new Date(order.orderDate).toISOString().split('T')[0]
+      return orderDate >= startDate && orderDate <= endDate
+    })
+
+    setAllOrders(filteredOrders)
+    setCurrentPage(1) // Reset to first page after filtering
   }
 
   const exportToCSV = () => {
-    // Implement CSV export functionality
-    const csvContent = outForDeliveryOrders.map((order, index) => {
+    // Export all filtered orders, not just current page
+    const csvContent = allOrders.map((order, index) => {
       return [
         index + 1,
         order._id.slice(-6).toUpperCase(),
         formatDate(order.orderDate),
-        order.userId.slice(-8).toUpperCase(),
+        order.salesAgentName || order.userId.slice(-8).toUpperCase(),
         calculateCartTotal(order.orders),
         order.status
       ].join(',')
@@ -222,6 +310,54 @@ export default function OutForDeliveryOrdersPage() {
     window.URL.revokeObjectURL(url)
   }
 
+  // Pagination handlers
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setItemsPerPage(newLimit)
+    setCurrentPage(1) // Reset to first page when changing items per page
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handlePreviousPage = () => {
+    if (paginationInfo?.hasPreviousPage) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const handleNextPage = () => {
+    if (paginationInfo?.hasNextPage) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    if (!paginationInfo) return []
+    
+    const { totalPages, currentPage } = paginationInfo
+    const pages = []
+    
+    if (totalPages <= 5) {
+      // Show all pages if total pages <= 5
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Show first page, current page context, and last page
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, '...', totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 2, totalPages - 1, totalPages)
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages)
+      }
+    }
+    
+    return pages
+  }
+
   if (!isMounted) {
     return null
   }
@@ -233,7 +369,7 @@ export default function OutForDeliveryOrdersPage() {
         <Truck className="h-6 w-6 text-orange-500" />
         <h1 className="text-2xl font-bold text-gray-900">Out for Delivery Orders</h1>
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-          {outForDeliveryOrders.length}
+          {paginationInfo?.totalOrders || allOrders.length}
         </span>
       </div>
 
@@ -295,6 +431,7 @@ export default function OutForDeliveryOrdersPage() {
             placeholder="Ex : Search by ID, order or payment status"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
           />
           <button
@@ -311,6 +448,30 @@ export default function OutForDeliveryOrdersPage() {
           <Download className="h-4 w-4 mr-2 inline" />
           Export
         </button>
+      </div>
+
+      {/* Items per page selector - Above table */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-700">Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+            className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span className="text-sm text-gray-700">entries</span>
+        </div>
+        
+        {paginationInfo && (
+          <div className="text-sm text-gray-700">
+            Showing {paginationInfo.startIndex} to {paginationInfo.endIndex} of {paginationInfo.totalOrders} entries
+          </div>
+        )}
       </div>
 
       {/* Bulk Actions */}
@@ -405,7 +566,7 @@ export default function OutForDeliveryOrdersPage() {
                           className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                         />
                       </td>
-                      <td className="p-4">{index + 1}</td>
+                      <td className="p-4">{paginationInfo ? paginationInfo.startIndex + index : index + 1}</td>
                       <td className="p-4 font-medium text-blue-600">
                         {order._id.slice(-6).toUpperCase()}
                       </td>
@@ -441,7 +602,6 @@ export default function OutForDeliveryOrdersPage() {
                           >
                             <Printer className="h-4 w-4" />
                           </button>
-                        
                         </div>
                       </td>
                     </tr>
@@ -452,6 +612,69 @@ export default function OutForDeliveryOrdersPage() {
           )}
         </div>
       </div>
+
+      {/* Pagination Controls - Below table */}
+      {paginationInfo && paginationInfo.totalPages > 1 && (
+        <div className="flex items-center justify-between bg-white px-4 py-3 border rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700">
+              Showing {paginationInfo.startIndex} to {paginationInfo.endIndex} of {paginationInfo.totalOrders} entries
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Previous Button */}
+            <button
+              onClick={handlePreviousPage}
+              disabled={!paginationInfo.hasPreviousPage}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                !paginationInfo.hasPreviousPage
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50 border border-gray-300'
+              }`}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </button>
+
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1">
+              {getPageNumbers().map((page, index) => (
+                <React.Fragment key={index}>
+                  {page === '...' ? (
+                    <span className="px-3 py-2 text-sm text-gray-500">...</span>
+                  ) : (
+                    <button
+                      onClick={() => handlePageChange(page as number)}
+                      className={`px-3 py-2 text-sm font-medium rounded-md ${
+                        page === paginationInfo.currentPage
+                          ? 'bg-orange-600 text-white'
+                          : 'text-gray-700 hover:bg-gray-50 border border-gray-300'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Next Button */}
+            <button
+              onClick={handleNextPage}
+              disabled={!paginationInfo.hasNextPage}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                !paginationInfo.hasNextPage
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50 border border-gray-300'
+              }`}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

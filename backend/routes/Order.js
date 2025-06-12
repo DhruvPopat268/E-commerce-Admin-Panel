@@ -44,9 +44,9 @@ router.post('/', verifyToken, async (req, res) => {
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-    res.status(201).json({ 
-      message: 'Order placed successfully', 
-      order: newOrder 
+    res.status(201).json({
+      message: 'Order placed successfully',
+      order: newOrder
     });
   } catch (err) {
     console.error(err);
@@ -72,29 +72,29 @@ router.get('/all', async (req, res) => {
 
     // Get unique user IDs from orders
     const userIds = [...new Set(rawOrders.map(order => order.userId?.toString()))];
-    
+
     // Fetch sales agents for these user IDs
     const agents = await SalesAgent.find({ _id: { $in: userIds } }).lean();
-    
+
     // Create agent map for quick lookup
     const agentMap = new Map(agents.map(agent => [agent._id.toString(), agent]));
-    
+
     // Extract valid village IDs from agents
     const validVillageIds = agents
       .map(agent => agent.village?.toString())
       .filter(id => id && mongoose.Types.ObjectId.isValid(id));
-    
+
     // Fetch village details
     const villages = await Village.find({ _id: { $in: validVillageIds } }).lean();
     const villageMap = new Map(villages.map(v => [v._id.toString(), v.name]));
-    
+
     // Fetch route setups that contain any of our village IDs
     const routeSetups = await RouteSetup.find({
       'villages.villageId': {
         $in: validVillageIds.map(id => new mongoose.Types.ObjectId(id))
       }
     }).lean();
-    
+
     // Create village to route mapping
     const villageToRouteMap = new Map();
     for (const setup of routeSetups) {
@@ -108,14 +108,14 @@ router.get('/all', async (req, res) => {
         }
       }
     }
-    
+
     // Get unique route IDs
     const routeIds = [...new Set([...villageToRouteMap.values()].filter(Boolean))];
-    
+
     // Fetch route details
     const routes = await Route.find({ _id: { $in: routeIds } }).lean();
     const routeMap = new Map(routes.map(route => [route._id.toString(), route.name]));
-    
+
     // Process orders with all details
     const ordersWithDetails = rawOrders.map(order => {
       // Calculate cart total
@@ -123,16 +123,16 @@ router.get('/all', async (req, res) => {
         (sum, item) => sum + (item.attributes?.total || 0),
         0
       );
-      
+
       // Get agent details
       const agent = agentMap.get(order.userId?.toString());
       const villageId = agent?.village?.toString();
       const villageName = villageMap.get(villageId) || 'Unknown';
-      
+
       // Get route details
       const routeId = villageToRouteMap.get(villageId);
       const routeName = routeMap.get(routeId) || 'Unknown';
-      
+
       // Debug logging for troubleshooting
       if (routeName === 'Unknown') {
         console.warn(`⚠️ Route lookup failed:`, {
@@ -145,7 +145,7 @@ router.get('/all', async (req, res) => {
           routeFound: routeId ? routeMap.has(routeId) : false
         });
       }
-      
+
       return {
         ...order._doc,
         cartTotal,
@@ -282,6 +282,9 @@ router.patch('/confirm-bulk', async (req, res) => {
       {
         status: 'confirmed',
         confirmedAt: new Date() // Optional: add confirmation timestamp
+      },
+      {
+        runValidators: true
       }
     );
 
@@ -336,6 +339,9 @@ router.patch('/out-for-delivery-bulk', async (req, res) => {
       {
         status: 'out for delivery',
         outForDeliveryAt: new Date() // Optional: add timestamp
+      },
+      {
+        runValidators: true
       }
     );
 
@@ -390,6 +396,9 @@ router.patch('/cancel-bulk', async (req, res) => {
       {
         status: 'cancelled',
         cancelledAt: new Date() // Optional: add timestamp
+      },
+      {
+        runValidators: true
       }
     );
 
@@ -443,6 +452,9 @@ router.patch('/delivered-bulk', async (req, res) => {
       {
         status: 'delivered',
         deliveredAt: new Date() // Optional: add timestamp
+      },
+      {
+        runValidators: true
       }
     );
 
@@ -496,6 +508,9 @@ router.patch('/returned-bulk', async (req, res) => {
       {
         status: 'returned',
         returnedAt: new Date() // Optional: add timestamp
+      },
+      {
+        runValidators: true
       }
     );
 
