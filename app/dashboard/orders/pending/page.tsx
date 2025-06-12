@@ -488,151 +488,248 @@ export default function PendingOrdersPage() {
   }
 
   // PDF Generation function
-  const generateOrderReport = async (orderIds) => {
-    try {
-      // Fetch the selected orders data (you might already have this in state)
-      const selectedOrdersData = pendingOrders.filter(order => orderIds.includes(order._id));
+const generateOrderReport = async (orderIds) => {
+  try {
+    // Fetch the selected orders data (you might already have this in state)
+    const selectedOrdersData = pendingOrders.filter(order => orderIds.includes(order._id));
 
-      // Create a new window with the report template
-      const reportWindow = window.open('', '_blank');
+    // Create a new window with the report template
+    const reportWindow = window.open('', '_blank');
 
-      // Generate the HTML content
-      const htmlContent = generateReportHTML(selectedOrdersData);
+    // Generate the HTML content
+    const htmlContent = generateReportHTML(selectedOrdersData);
 
-      // Write the content to the new window
-      reportWindow.document.write(htmlContent);
-      reportWindow.document.close();
+    // Write the content to the new window
+    reportWindow.document.write(htmlContent);
+    reportWindow.document.close();
 
-      // Wait a bit for the content to load before printing
-      setTimeout(() => {
-        reportWindow.print();
-        // reportWindow.close(); // Uncomment this if you want to auto-close after printing
-      }, 500);
+    // Wait a bit for the content to load before printing
+    setTimeout(() => {
+      reportWindow.print();
+      // reportWindow.close(); // Uncomment this if you want to auto-close after printing
+    }, 500);
 
-    } catch (error) {
-      console.error('Error generating report:', error);
-      toast.error('Failed to generate report');
-    }
+  } catch (error) {
+    console.error('Error generating report:', error);
+    toast.error('Failed to generate report');
+  }
+};
+
+// Function to generate HTML for the report
+const generateReportHTML = (orders) => {
+  // Split orders into two columns
+  const midPoint = Math.ceil(orders.length / 2);
+  const leftColumnOrders = orders.slice(0, midPoint);
+  const rightColumnOrders = orders.slice(midPoint);
+  
+  // Calculate totals
+  const leftTotal = leftColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
+  const rightTotal = rightColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
+  const grandTotal = orders.reduce((sum, order) => sum + order.cartTotal, 0);
+
+  const generateTableRows = (orderList) => {
+    return orderList.map(order => `
+      <tr>
+        <td>${order.villageCode}</td>
+        <td>${order.salesAgentName}</td>
+        <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
+      </tr>
+    `).join('');
   };
 
-  // Function to generate HTML for the report
-  const generateReportHTML = (orders) => {
-    return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Order Confirmation Report</title>
-      <style>
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        font-size: 12px;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #333;
+        padding-bottom: 10px;
+      }
+      .company-name {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .report-title {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      .report-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        font-weight: bold;
+      }
+      .columns-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      .column {
+        flex: 1;
+      }
+      .column-header {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 10px;
+        padding: 5px;
+        background-color: #f0f0f0;
+        border: 1px solid #ddd;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 6px;
+        text-align: left;
+        font-size: 11px;
+      }
+      th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+      }
+      .total-row {
+        font-weight: bold;
+        background-color: #f9f9f9;
+      }
+      .grand-total {
+        margin-top: 20px;
+        text-align: center;
+        padding: 10px;
+        background-color: #e6f3ff;
+        border: 2px solid #0066cc;
+        font-weight: bold;
+        font-size: 14px;
+      }
+      .footer {
+        margin-top: 30px;
+        text-align: center;
+        font-style: italic;
+        color: #666;
+        font-size: 10px;
+      }
+      @media print {
         body {
-          font-family: Arial, sans-serif;
-          margin: 20px;
+          margin: 0;
+          padding: 10px;
+          font-size: 10px;
         }
         .header {
-          text-align: center;
-          margin-bottom: 20px;
-          border-bottom: 2px solid #333;
-          padding-bottom: 10px;
+          margin-bottom: 15px;
         }
         .company-name {
-          font-size: 24px;
-          font-weight: bold;
-          margin-bottom: 5px;
+          font-size: 20px;
         }
         .report-title {
-          font-size: 18px;
-          margin-bottom: 10px;
+          font-size: 16px;
         }
-        .report-info {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 20px;
-        }
-        table {
-          width: 50%;
-          border-collapse: collapse;
-          margin: 20px 0;
+        .columns-container {
+          gap: 15px;
         }
         th, td {
-          border: 1px solid #ddd;
-          padding: 8px;
-          text-align: left;
+          padding: 4px;
+          font-size: 9px;
         }
-        th {
-          background-color: #f2f2f2;
+        .grand-total {
+          font-size: 12px;
+          margin-top: 15px;
         }
-        .total-row {
-          font-weight: bold;
-          background-color: #f9f9f9;
+        button {
+          display: none;
         }
-        .footer {
-          margin-top: 30px;
-          text-align: center;
-          font-style: italic;
-          color: #666;
-        }
-        @media print {
-          body {
-            margin: 0;
-            padding: 10px;
-          }
-          button {
-            display: none;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div class="company-name">Your Company Name</div>
-        <div class="report-title">Order Confirmation Report</div>
-      </div>
-      
-      <div class="report-info">
-        <div>Date: ${new Date().toLocaleDateString()}</div>
-        <div>Total Orders: ${orders.length}</div>
-      </div>
-      
-      <table>
-        <thead>
-          <tr>
-            <th>Village Code</th>
-            <th>Customer Name</th>
-            <th>Total Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${orders.map(order => `
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="company-name">Your Company Name</div>
+      <div class="report-title">Order Confirmation Report</div>
+    </div>
+    
+    <div class="report-info">
+      <div>Date: ${new Date().toLocaleDateString()}</div>
+      <div>Total Orders: ${orders.length}</div>
+    </div>
+    
+    <div class="columns-container">
+      <div class="column">
+        <div class="column-header">Column 1 (Orders 1-${leftColumnOrders.length})</div>
+        <table>
+          <thead>
             <tr>
-              <td>${order.villageCode}</td>
-              <td>${order.salesAgentName}</td>
-              <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
+              <th>Village Code</th>
+              <th>Customer Name</th>
+              <th>Total Amount</th>
             </tr>
-          `).join('')}
-          <tr class="total-row">
-            <td colspan="2">Total</td>
-            <td>₹${orders.reduce((sum, order) => sum + order.cartTotal, 0).toLocaleString('en-IN')}</td>
-          </tr>
-        </tbody>
-      </table>
-      
-      <div class="footer">
-        <p>This report contains all confirmed orders as of ${new Date().toLocaleDateString()}</p>
+          </thead>
+          <tbody>
+            ${generateTableRows(leftColumnOrders)}
+            <tr class="total-row">
+              <td colspan="2">Subtotal</td>
+              <td>₹${leftTotal.toLocaleString('en-IN')}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       
-      <script>
-        // Auto-print when the page loads
-        window.addEventListener('load', function() {
-          setTimeout(function() {
-            window.print();
-          }, 200);
-        });
-      </script>
-    </body>
-    </html>
-  `;
-  };
+      ${rightColumnOrders.length > 0 ? `
+      <div class="column">
+        <div class="column-header">Column 2 (Orders ${leftColumnOrders.length + 1}-${orders.length})</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Village Code</th>
+              <th>Customer Name</th>
+              <th>Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${generateTableRows(rightColumnOrders)}
+            <tr class="total-row">
+              <td colspan="2">Subtotal</td>
+              <td>₹${rightTotal.toLocaleString('en-IN')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
+    </div>
+    
+    <div class="grand-total">
+      Grand Total: ₹${grandTotal.toLocaleString('en-IN')}
+    </div>
+    
+    <div class="footer">
+      <p>This report contains all confirmed orders as of ${new Date().toLocaleDateString()}</p>
+      <p>Generated on ${new Date().toLocaleString()}</p>
+    </div>
+    
+    <script>
+      // Auto-print when the page loads
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          window.print();
+        }, 200);
+      });
+    </script>
+  </body>
+  </html>
+`;
+};
 
   const cancelSelectedOrders = async () => {
     if (selectedOrders.size === 0) {

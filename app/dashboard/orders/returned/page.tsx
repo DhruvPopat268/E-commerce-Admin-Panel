@@ -371,7 +371,7 @@ export default function returnOrdersPage() {
       {/* Header */}
       <div className="flex items-center gap-2">
         <Clock className="h-6 w-6 text-orange-500" />
-        <h1 className="text-2xl font-bold text-gray-900">returno Orders</h1>
+        <h1 className="text-2xl font-bold text-gray-900">return Orders</h1>
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
           {paginationInfo?.totalOrders || allOrders.length}
         </span>
