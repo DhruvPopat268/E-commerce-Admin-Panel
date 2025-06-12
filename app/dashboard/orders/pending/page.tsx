@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, FileText } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, FileText , ClipboardList, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 
 // Mock toast function - replace with your actual toast implementation
 const toast = {
@@ -37,6 +40,17 @@ interface Order {
   routeName?: string
 }
 
+interface PaginationInfo {
+  currentPage: number
+  totalPages: number
+  pendingOrders: number
+  limit: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+  startIndex: number
+  endIndex: number
+}
+
 export default function PendingOrdersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -51,10 +65,24 @@ export default function PendingOrdersPage() {
   const [generatingInvoice, setGeneratingInvoice] = useState(false)
   const [bulkPrinting, setBulkPrinting] = useState(false)
 
+  const recordsPerPageOptions = [5, 10, 25, 50, 100]
+
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 1,
+    totalOrders: 0,
+    limit: 10,
+    hasNextPage: false,
+    hasPreviousPage: false,
+    startIndex: 1,
+    endIndex: 10
+  })
+  const [recordsPerPage, setRecordsPerPage] = useState(10)
+
   useEffect(() => {
     setIsMounted(true)
     fetchPendingOrders()
-  }, [])
+  }, [pagination.currentPage, recordsPerPage])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
@@ -104,13 +132,14 @@ export default function PendingOrdersPage() {
     try {
       setLoading(true)
       // Replace with your actual API endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?page=${pagination.currentPage}&limit=${recordsPerPage}`)
       const data = await response.json()
 
       if (data.orders) {
         const pending = data.orders.filter((order: Order) => order.status.toLowerCase() === 'pending')
         setPendingOrders(pending)
         setSelectedOrders(new Set())
+        setPagination(data.pagination)
       }
     } catch (error) {
       console.error('Error fetching pending orders:', error)
@@ -487,7 +516,7 @@ export default function PendingOrdersPage() {
   };
 
   // Function to generate HTML for the report
-const generateReportHTML = (orders) => {
+  const generateReportHTML = (orders) => {
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -603,7 +632,7 @@ const generateReportHTML = (orders) => {
     </body>
     </html>
   `;
-};
+  };
 
   const cancelSelectedOrders = async () => {
     if (selectedOrders.size === 0) {
@@ -657,6 +686,53 @@ const generateReportHTML = (orders) => {
     setEndDate("")
   }
 
+
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, currentPage: newPage }))
+  }
+
+  const handleRecordsPerPageChange = (value: string) => {
+    const newLimit = parseInt(value)
+    setRecordsPerPage(newLimit)
+    setPagination(prev => ({ ...prev, currentPage: 1, limit: newLimit }))
+  }
+
+  const generatePageNumbers = () => {
+    const pages = []
+    const { currentPage, totalPages } = pagination
+    const maxVisiblePages = 5
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1)
+        pages.push('...')
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i)
+        }
+      } else {
+        pages.push(1)
+        pages.push('...')
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
   const handleSearch = () => {
     console.log('Searching for:', searchTerm)
   }
@@ -699,9 +775,10 @@ const generateReportHTML = (orders) => {
       <div className="flex items-center gap-2">
         <Clock className="h-6 w-6 text-orange-500" />
         <h1 className="text-2xl font-bold text-gray-900">Pending Orders</h1>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-          {pendingOrders.length}
-        </span>
+        <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+          {pagination.pendingOrders} Total
+        </Badge>
+
       </div>
 
       {/* Date Range Selector */}
@@ -771,7 +848,24 @@ const generateReportHTML = (orders) => {
             Search
           </button>
         </div>
+
         <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="recordsPerPage" className="whitespace-nowrap">Show:</Label>
+            <Select value={recordsPerPage.toString()} onValueChange={handleRecordsPerPageChange}>
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {recordsPerPageOptions.map(option => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-gray-600">entries</span>
+          </div>
           <button
             onClick={printBulkInvoices}
             disabled={selectedOrders.size === 0 || bulkPrinting}
@@ -881,84 +975,138 @@ const generateReportHTML = (orders) => {
               <div className="text-gray-500">Loading pending orders...</div>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b">
-                  <th className="text-left p-4 font-semibold w-12">
-                    <span className="sr-only">Select</span>
-                  </th>
-                  <th className="text-left p-4 font-semibold">SL</th>
-                  <th className="text-left p-4 font-semibold">Order ID</th>
-                  <th className="text-left p-4 font-semibold">Order Date</th>
-                  <th className="text-left p-4 font-semibold">Customer</th>
-                  <th className="text-left p-4 font-semibold">Total Amount</th>
-                  <th className="text-left p-4 font-semibold">Order Status</th>
-                  <th className="text-left p-4 font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-500">
-                      No pending orders found
-                    </td>
+            <>
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    <th className="text-left p-4 font-semibold w-12">
+                      <span className="sr-only">Select</span>
+                    </th>
+                    <th className="text-left p-4 font-semibold">SL</th>
+                    <th className="text-left p-4 font-semibold">Order ID</th>
+                    <th className="text-left p-4 font-semibold">Order Date</th>
+                    <th className="text-left p-4 font-semibold">Customer</th>
+                    <th className="text-left p-4 font-semibold">Total Amount</th>
+                    <th className="text-left p-4 font-semibold">Order Status</th>
+                    <th className="text-left p-4 font-semibold">Action</th>
                   </tr>
-                ) : (
-                  pendingOrders.map((order, index) => (
-                    <tr key={order._id} className="hover:bg-gray-50 border-b">
-                      <td className="p-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedOrders.has(order._id)}
-                          onChange={(e) =>
-                            handleSelectOrder(order._id, e.target.checked)
-                          }
-                          className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                        />
-                      </td>
-                      <td className="p-4">{index + 1}</td>
-                      <td className="p-4 font-medium text-blue-600">
-                        {order._id.slice(-6).toUpperCase()}
-                      </td>
-                      <td className="p-4">{formatDate(order.orderDate)}</td>
-                      <td className="p-4">
-                        <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
-                        <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium">
-                          ₹{(order.cartTotal || calculateCartTotal(order.orders)).toLocaleString()}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Pending
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewOrder(order._id)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <button
-                            className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-                          >
-                            <Printer className="h-4 w-4" />
-                          </button>
-                        </div>
+                </thead>
+                <tbody>
+                  {pendingOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-gray-500">
+                        No pending orders found
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    pendingOrders.map((order, index) => (
+                      <tr key={order._id} className="hover:bg-gray-50 border-b">
+                        <td>{pagination.startIndex + index}</td>
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedOrders.has(order._id)}
+                            onChange={(e) =>
+                              handleSelectOrder(order._id, e.target.checked)
+                            }
+                            className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                          />
+                        </td>
+                        <td className="p-4">{index + 1}</td>
+                        <td className="p-4 font-medium text-blue-600">
+                          {order._id.slice(-6).toUpperCase()}
+                        </td>
+                        <td className="p-4">{formatDate(order.orderDate)}</td>
+                        <td className="p-4">
+                          <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
+                          <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
+                          <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
+                          <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium">
+                            ₹{(order.cartTotal || calculateCartTotal(order.orders)).toLocaleString()}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewOrder(order._id)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <button
+                              className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              {pagination.totalPages > 1 && (
+                              <div className="p-4 border-t">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                  <div className="text-sm text-gray-600">
+                                    Showing {pagination.startIndex} to {pagination.endIndex} of {pagination.totalOrders} entries
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handlePageChange(pagination.currentPage - 1)}
+                                      disabled={!pagination.hasPreviousPage}
+                                      className="h-8 px-2"
+                                    >
+                                      <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    
+                                    <div className="flex gap-1">
+                                      {generatePageNumbers().map((page, index) => (
+                                        <Button
+                                          key={index}
+                                          variant={page === pagination.currentPage ? "default" : "outline"}
+                                          size="sm"
+                                          onClick={() => typeof page === 'number' && handlePageChange(page)}
+                                          disabled={page === '...'}
+                                          className="h-8 min-w-8 px-2"
+                                        >
+                                          {page}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                    
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handlePageChange(pagination.currentPage + 1)}
+                                      disabled={!pagination.hasNextPage}
+                                      className="h-8 px-2"
+                                    >
+                                      <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          
+            </>
+
+
+
+
           )}
         </div>
       </div>

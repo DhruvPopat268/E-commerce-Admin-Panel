@@ -45,23 +45,27 @@ router.put('/:id/status', async (req, res) => {
           { $set: { routeStatus: newStatus } }
         );
 
-        // Send notification to each agent who has a OneSignal player ID
-        const agents = await SalesAgent.find({ _id: { $in: agentIds } });
+        // Send notification only when status is true (route is enabled)
+        if (newStatus === true) {
+          const agents = await SalesAgent.find({ _id: { $in: agentIds } });
 
-        const title = 'Order Fast';
-        const message = 'Hello Customers, today is your day — order fast!';
+          const title = 'Order Fast';
+          const message = 'Hello Customers, today is your day — order fast!';
 
-        for (const agent of agents) {
-          if (agent.oneSignalPlayerId) {
-            await sendNotificationToPlayer(agent.oneSignalPlayerId, title, message, {
-              routeId: route._id.toString(),
-              routeStatus: newStatus.toString(),
-              agentId: agent._id.toString(),
-            });
+          for (const agent of agents) {
+            if (agent.oneSignalPlayerId) {
+              await sendNotificationToPlayer(agent.oneSignalPlayerId, title, message, {
+                routeId: route._id.toString(),
+                routeStatus: newStatus.toString(),
+                agentId: agent._id.toString(),
+              });
+            }
           }
-        }
 
-        console.log(`Updated and notified ${updateResult.modifiedCount} sales agents`);
+          console.log(`Updated and notified ${updateResult.modifiedCount} sales agents`);
+        } else {
+          console.log(`Route disabled - no notifications sent to ${updateResult.modifiedCount} sales agents`);
+        }
       } else {
         console.log(`No route setup or agents for route ID: ${id}`);
       }
@@ -303,7 +307,5 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Add this import if missing
-
-
 
 module.exports = router;

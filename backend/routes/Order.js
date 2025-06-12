@@ -56,67 +56,66 @@ router.post('/', verifyToken, async (req, res) => {
 
 router.get('/all', async (req, res) => {
   try {
-    // Fetch all orders
-    const rawOrders = await Order.find().sort({ createdAt: -1 });
+    // Get pagination parameters from query
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination info
+    const totalOrders = await Order.countDocuments();
+
+    // Fetch orders with pagination
+    const rawOrders = await Order.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     // Get unique user IDs from orders
     const userIds = [...new Set(rawOrders.map(order => order.userId?.toString()))];
-
-
+    
     // Fetch sales agents for these user IDs
     const agents = await SalesAgent.find({ _id: { $in: userIds } }).lean();
-
-
+    
     // Create agent map for quick lookup
     const agentMap = new Map(agents.map(agent => [agent._id.toString(), agent]));
-
+    
     // Extract valid village IDs from agents
     const validVillageIds = agents
       .map(agent => agent.village?.toString())
       .filter(id => id && mongoose.Types.ObjectId.isValid(id));
-
-
-
+    
     // Fetch village details
     const villages = await Village.find({ _id: { $in: validVillageIds } }).lean();
     const villageMap = new Map(villages.map(v => [v._id.toString(), v.name]));
-
-
+    
     // Fetch route setups that contain any of our village IDs
     const routeSetups = await RouteSetup.find({
       'villages.villageId': {
         $in: validVillageIds.map(id => new mongoose.Types.ObjectId(id))
       }
     }).lean();
-
-
-
+    
     // Create village to route mapping
     const villageToRouteMap = new Map();
     for (const setup of routeSetups) {
-      const routeId = setup.routeId?.toString(); // Fixed: should be routeId, not routed
-
-
+      const routeId = setup.routeId?.toString();
       if (routeId && setup.villages && Array.isArray(setup.villages)) {
         for (const village of setup.villages) {
           const villageId = village.villageId?.toString();
           if (villageId) {
             villageToRouteMap.set(villageId, routeId);
-
           }
         }
       }
     }
-
+    
     // Get unique route IDs
     const routeIds = [...new Set([...villageToRouteMap.values()].filter(Boolean))];
-
-
+    
     // Fetch route details
     const routes = await Route.find({ _id: { $in: routeIds } }).lean();
     const routeMap = new Map(routes.map(route => [route._id.toString(), route.name]));
-
-
+    
     // Process orders with all details
     const ordersWithDetails = rawOrders.map(order => {
       // Calculate cart total
@@ -124,16 +123,16 @@ router.get('/all', async (req, res) => {
         (sum, item) => sum + (item.attributes?.total || 0),
         0
       );
-
+      
       // Get agent details
       const agent = agentMap.get(order.userId?.toString());
       const villageId = agent?.village?.toString();
       const villageName = villageMap.get(villageId) || 'Unknown';
-
+      
       // Get route details
       const routeId = villageToRouteMap.get(villageId);
       const routeName = routeMap.get(routeId) || 'Unknown';
-
+      
       // Debug logging for troubleshooting
       if (routeName === 'Unknown') {
         console.warn(`⚠️ Route lookup failed:`, {
@@ -146,7 +145,7 @@ router.get('/all', async (req, res) => {
           routeFound: routeId ? routeMap.has(routeId) : false
         });
       }
-
+      
       return {
         ...order._doc,
         cartTotal,
@@ -157,11 +156,25 @@ router.get('/all', async (req, res) => {
       };
     });
 
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalOrders / limit);
+    const hasNextPage = page < totalPages;
+    const hasPreviousPage = page > 1;
+
     res.status(200).json({
       message: 'All orders fetched successfully',
       orders: ordersWithDetails,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalOrders,
+        limit,
+        hasNextPage,
+        hasPreviousPage,
+        startIndex: skip + 1,
+        endIndex: Math.min(skip + limit, totalOrders)
+      }
     });
-
   } catch (error) {
     console.error('❌ Error in /all route:', error);
     res.status(500).json({ message: 'Error fetching all orders' });

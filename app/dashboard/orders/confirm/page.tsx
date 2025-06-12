@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import React from "react"
 import { useRouter } from "next/navigation" 
-import { Calendar, Eye, Printer, Download, CheckCircle, Package, Truck } from "lucide-react"
+import { Calendar, Eye, Printer, Download, CheckCircle, Package, Truck, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+
 // Mock toast function - replace with your actual toast implementation
 const toast = {
   success: (message: string) => console.log('Success:', message),
@@ -37,41 +38,69 @@ interface Order {
   routeName?: string
 }
 
+interface PaginationInfo {
+  currentPage: number
+  totalPages: number
+  totalOrders: number
+  limit: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+  startIndex: number
+  endIndex: number
+}
+
 export default function ConfirmedOrdersPage() {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [confirmedOrders, setConfirmedOrders] = useState<Order[]>([])
+  const [allConfirmedOrders, setAllConfirmedOrders] = useState<Order[]>([])
+  const [displayedOrders, setDisplayedOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const [processingOrders, setProcessingOrders] = useState(false)
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [totalConfirmedOrders, setTotalConfirmedOrders] = useState(0)
+
   const router = useRouter()
 
   useEffect(() => {
     setIsMounted(true)
-    fetchConfirmedOrders()
+    fetchAllConfirmedOrders()
   }, [])
+
+  // Handle pagination when data or settings change
+  useEffect(() => {
+    paginateOrders()
+  }, [allConfirmedOrders, currentPage, itemsPerPage])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
-    if (confirmedOrders.length > 0) {
-      setSelectAll(selectedOrders.size === confirmedOrders.length)
+    if (displayedOrders.length > 0) {
+      setSelectAll(selectedOrders.size === displayedOrders.length && displayedOrders.every(order => selectedOrders.has(order._id)))
+    } else {
+      setSelectAll(false)
     }
-  }, [selectedOrders, confirmedOrders])
+  }, [selectedOrders, displayedOrders])
 
-  const fetchConfirmedOrders = async () => {
+  const fetchAllConfirmedOrders = async () => {
     try {
       setLoading(true)
-      // Replace with your actual API endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all`)
+      
+      // Fetch all orders with a large limit to get all confirmed orders
+      // We'll handle pagination on the frontend for confirmed orders specifically
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?limit=1000`)
       const data = await response.json()
 
       if (data.orders) {
         // Filter only confirmed orders
         const confirmed = data.orders.filter((order: Order) => order.status.toLowerCase() === 'confirmed')
-        setConfirmedOrders(confirmed)
+        setAllConfirmedOrders(confirmed)
+        setTotalConfirmedOrders(confirmed.length)
         setSelectedOrders(new Set()) // Clear selections when data refreshes
       }
     } catch (error) {
@@ -82,6 +111,13 @@ export default function ConfirmedOrdersPage() {
     }
   }
 
+  const paginateOrders = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const paginatedOrders = allConfirmedOrders.slice(startIndex, endIndex)
+    setDisplayedOrders(paginatedOrders)
+  }
+
   const handleViewOrder = (orderId: string) => {
     router.push(`/dashboard/order-details/${orderId}`)
   }
@@ -89,7 +125,7 @@ export default function ConfirmedOrdersPage() {
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
     if (checked) {
-      setSelectedOrders(new Set(confirmedOrders.map(order => order._id)))
+      setSelectedOrders(new Set(displayedOrders.map(order => order._id)))
     } else {
       setSelectedOrders(new Set())
     }
@@ -125,8 +161,8 @@ export default function ConfirmedOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove out for delivery orders from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => !selectedOrders.has(order._id)))
+        // Refresh the data to reflect changes
+        await fetchAllConfirmedOrders()
         setSelectedOrders(new Set())
         setSelectAll(false)
         toast.success(`${selectedOrders.size} order(s) marked as out for delivery successfully!`)
@@ -154,8 +190,8 @@ export default function ConfirmedOrdersPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Remove the order from confirmed orders list
-        setConfirmedOrders(prev => prev.filter(order => order._id !== orderId))
+        // Refresh the data to reflect changes
+        await fetchAllConfirmedOrders()
         toast.success('Order marked as out for delivery successfully!')
       } else {
         toast.error(data.message || 'Failed to mark order as out for delivery')
@@ -186,16 +222,20 @@ export default function ConfirmedOrdersPage() {
   const handleSearch = () => {
     // Implement search functionality here
     console.log('Searching for:', searchTerm)
+    // Reset to first page when searching
+    setCurrentPage(1)
   }
 
   const handleShowData = () => {
     // Implement date range filtering here
     console.log('Filtering from:', startDate, 'to:', endDate)
+    // Reset to first page when filtering
+    setCurrentPage(1)
   }
 
   const exportToCSV = () => {
-    // Implement CSV export functionality
-    const csvContent = confirmedOrders.map((order, index) => {
+    // Export all confirmed orders, not just current page
+    const csvContent = allConfirmedOrders.map((order, index) => {
       return [
         index + 1,
         order._id.slice(-6).toUpperCase(),
@@ -213,9 +253,53 @@ export default function ConfirmedOrdersPage() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'confirmed-orders.csv'
+    a.download = 'confirmed-orders-all.csv'
     a.click()
     window.URL.revokeObjectURL(url)
+  }
+
+  // Pagination calculations
+  const totalPages = Math.ceil(totalConfirmedOrders / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage + 1
+  const endIndex = Math.min(currentPage * itemsPerPage, totalConfirmedOrders)
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage)
+      setSelectedOrders(new Set()) // Clear selections when changing pages
+      setSelectAll(false)
+    }
+  }
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setItemsPerPage(newLimit)
+    setCurrentPage(1) // Reset to first page when changing items per page
+    setSelectedOrders(new Set())
+    setSelectAll(false)
+  }
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = []
+
+    if (totalPages <= 7) {
+      // Show all pages if total is 7 or less
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Show smart pagination
+      if (currentPage <= 4) {
+        pages.push(1, 2, 3, 4, 5, '...', totalPages)
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages)
+      }
+    }
+
+    return pages
   }
 
   if (!isMounted) {
@@ -229,7 +313,7 @@ export default function ConfirmedOrdersPage() {
         <CheckCircle className="h-6 w-6 text-green-500" />
         <h1 className="text-2xl font-bold text-gray-900">Confirmed Orders</h1>
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-          {confirmedOrders.length}
+          {totalConfirmedOrders}
         </span>
       </div>
 
@@ -300,17 +384,44 @@ export default function ConfirmedOrdersPage() {
             Search
           </button>
         </div>
-        <button
-          onClick={exportToCSV}
-          className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-        >
-          <Download className="h-4 w-4 mr-2 inline" />
-          Export
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportToCSV}
+            className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          >
+            <Download className="h-4 w-4 mr-2 inline" />
+            Export
+          </button>
+        </div>
+      </div>
+
+      {/* Items per page selector */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-700">Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+            className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span className="text-sm text-gray-700">entries</span>
+        </div>
+        
+        {totalConfirmedOrders > 0 && (
+          <div className="text-sm text-gray-700">
+            Showing {startIndex} to {endIndex} of {totalConfirmedOrders} entries
+          </div>
+        )}
       </div>
 
       {/* Bulk Actions */}
-      {confirmedOrders.length > 0 && (
+      {displayedOrders.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4">
             <div className="flex items-center justify-between">
@@ -324,7 +435,7 @@ export default function ConfirmedOrdersPage() {
                     className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                   />
                   <label htmlFor="select-all" className="text-sm font-medium">
-                    Select All ({confirmedOrders.length} orders)
+                    Select All ({displayedOrders.length} orders on this page)
                   </label>
                 </div>
                 {selectedOrders.size > 0 && (
@@ -382,72 +493,142 @@ export default function ConfirmedOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {confirmedOrders.length === 0 ? (
+                {displayedOrders.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center py-8 text-gray-500">
                       No confirmed orders found
                     </td>
                   </tr>
                 ) : (
-                  confirmedOrders.map((order, index) => (
-                    <tr key={order._id} className="hover:bg-gray-50 border-b">
-                      <td className="p-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedOrders.has(order._id)}
-                          onChange={(e) =>
-                            handleSelectOrder(order._id, e.target.checked)
-                          }
-                          className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                        />
-                      </td>
-                      <td className="p-4">{index + 1}</td>
-                      <td className="p-4 font-medium text-blue-600">
-                        {order._id.slice(-6).toUpperCase()}
-                      </td>
-                      <td className="p-4">{formatDate(order.orderDate)}</td>
-                      <td className="p-4">
-                        <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
-                        <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
-                        <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium">
-                          ₹{(order.cartTotal || calculateCartTotal(order.orders)).toLocaleString()}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Confirmed
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewOrder(order._id)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <button 
-                            className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-                          >
-                            <Printer className="h-4 w-4" />
-                          </button>
-                       
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  displayedOrders.map((order, index) => {
+                    const globalIndex = (currentPage - 1) * itemsPerPage + index + 1
+                    return (
+                      <tr key={order._id} className="hover:bg-gray-50 border-b">
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedOrders.has(order._id)}
+                            onChange={(e) =>
+                              handleSelectOrder(order._id, e.target.checked)
+                            }
+                            className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                          />
+                        </td>
+                        <td className="p-4">{globalIndex}</td>
+                        <td className="p-4 font-medium text-blue-600">
+                          {order._id.slice(-6).toUpperCase()}
+                        </td>
+                        <td className="p-4">{formatDate(order.orderDate)}</td>
+                        <td className="p-4">
+                          <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
+                          <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
+                          <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
+                          <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium">
+                            ₹{(order.cartTotal || calculateCartTotal(order.orders)).toLocaleString()}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Confirmed
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewOrder(order._id)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <button 
+                              className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
           )}
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {startIndex} to {endIndex} of {totalConfirmedOrders} entries
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {/* Previous button */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                    currentPage === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </button>
+
+                {/* Page numbers */}
+                <div className="flex space-x-1">
+                  {getPageNumbers().map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof page === 'number' ? handlePageChange(page) : undefined}
+                      disabled={typeof page !== 'number'}
+                      className={`px-3 py-2 rounded-md text-sm font-medium ${
+                        page === currentPage
+                          ? 'bg-teal-600 text-white'
+                          : typeof page === 'number'
+                          ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          : 'bg-white text-gray-400 cursor-default'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Page info */}
+                <span className="text-sm text-gray-700 mx-4">
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                {/* Next button */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                    currentPage === totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
