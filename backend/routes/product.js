@@ -9,6 +9,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const jwt = require("jsonwebtoken")
 const subCategory = require('../models/SubCategory')
 const category = require('../models/category')
+const XLSX = require('xlsx');
 
 
 cloudinary.config({
@@ -17,37 +18,103 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const storage = new CloudinaryStorage({
+const imageStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'products', // Folder name in Cloudinary
+    folder: 'products',
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
     transformation: [
-      { width: 500, height: 500, crop: 'limit' }, // Optional: resize images
-      { quality: 'auto' } // Optional: optimize quality
+      { width: 500, height: 500, crop: 'limit' },
+      { quality: 'auto' }
     ]
   }
 });
 
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
+// Excel file storage configuration (temporary storage)
+const excelStorage = multer.memoryStorage();
+
+// Upload configurations
+const uploadImage = multer({
+  storage: imageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
+const uploadExcel = multer({
+  storage: excelStorage,
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv' // .csv
+    ];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel (.xlsx, .xls) and CSV files are allowed'), false);
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit for Excel files
+});
 
-router.post('/', upload.single('image'), async (req, res) => {
+// Helper function to process Excel data
+const processExcelData = (buffer, filename) => {
+  try {
+    let workbook;
+    
+    // Handle different file types
+    if (filename.endsWith('.csv')) {
+      const csvData = buffer.toString('utf8');
+      workbook = XLSX.read(csvData, { type: 'string' });
+    } else {
+      workbook = XLSX.read(buffer, { type: 'buffer' });
+    }
+    
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    
+    return jsonData;
+  } catch (error) {
+    throw new Error(`Failed to process Excel file: ${error.message}`);
+  }
+};
+
+// Helper function to validate and transform product data
+const validateAndTransformProduct = async (row, index) => {
+  const errors = [];
+
+  if (!row.name || row.name.trim() === '') {
+    errors.push(`Row ${index + 2}: Product name is required`);
+  }
+
+  const product = {
+    name: row.name.trim(),
+    description: '',
+    category: null,
+    subCategory: null,
+    visibility: true,
+    status: true,
+    image: '',
+    tags: [],
+    featured: false,
+    showInDailyNeeds: false,
+    attributes: [] // No price-related attributes now
+  };
+
+  return { product, errors };
+};
+
+
+router.post('/', uploadImage.single('image'), async (req, res) => {
   try {
     // Parse JSON strings back to objects
     if (req.body.tags && typeof req.body.tags === 'string') {
       req.body.tags = JSON.parse(req.body.tags);
     }
-
     if (req.body.attributes && typeof req.body.attributes === 'string') {
       req.body.attributes = JSON.parse(req.body.attributes);
     }
-
+    
     // Convert string values to appropriate types for attributes
     if (req.body.attributes && Array.isArray(req.body.attributes)) {
       req.body.attributes = req.body.attributes.map(attr => ({
@@ -56,24 +123,119 @@ router.post('/', upload.single('image'), async (req, res) => {
         discountedPrice: Number(attr.discountedPrice)
       }));
     }
-
+    
     // Convert visibility string to boolean
     if (typeof req.body.visibility === 'string') {
       req.body.visibility = req.body.visibility === 'true';
     }
-
+    
     const product = new Product(req.body);
-
+    
     // Handle image upload with Cloudinary
     if (req.file) {
-      product.image = req.file.path; // Store full Cloudinary URL
+      product.image = req.file.path;
     }
-
+    
     await product.save();
     res.status(201).json(product);
   } catch (error) {
     console.error('Error creating product:', error);
     res.status(400).json({ message: error.message });
+  }
+});
+
+// Bulk import route (new)
+router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No Excel file uploaded' 
+      });
+    }
+    
+    // Process Excel file
+    const excelData = processExcelData(req.file.buffer, req.file.originalname);
+    
+    if (!excelData || excelData.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Excel file is empty or invalid' 
+      });
+    }
+    
+    const results = {
+      total: excelData.length,
+      successful: 0,
+      failed: 0,
+      errors: []
+    };
+    
+    const successfulProducts = [];
+    
+    // Process each row
+    for (let i = 0; i < excelData.length; i++) {
+      const row = excelData[i];
+      
+      try {
+        const { product, errors } = await validateAndTransformProduct(row, i);
+
+        if (errors.length > 0) {
+          results.errors.push(...errors);
+          results.failed++;
+          continue;
+        }
+        
+        // Create product in database
+        const newProduct = new Product(product);
+        await newProduct.save();
+        
+        successfulProducts.push(newProduct);
+        results.successful++;
+        
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`Row ${i + 2}: ${error.message}`);
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `Bulk import completed. ${results.successful} products created, ${results.failed} failed.`,
+      results,
+      products: successfulProducts
+    });
+    
+  } catch (error) {
+    console.error('Error in bulk import:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to process bulk import', 
+      error: error.message 
+    });
+  }
+});
+router.get('/download-template', (req, res) => {
+  try {
+    const sampleData = [
+      { name: 'Tea-tree facewash' },
+      { name: 'Body wash' }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Disposition', 'attachment; filename=product-import-template.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error generating template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate template'
+    });
   }
 });
 
@@ -248,7 +410,7 @@ router.post("/productDetail", async (req, res) => {
   }
 });
 
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', uploadImage.single('image'), async (req, res) => {
   try {
     // Parse JSON strings back to objects
     if (req.body.tags && typeof req.body.tags === 'string') {

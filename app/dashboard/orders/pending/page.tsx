@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, FileText , ClipboardList, ChevronLeft, ChevronRight } from "lucide-react"
+import { Calendar, Eye, Printer, Download, Clock, Check, Loader2, X, FileText, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -124,6 +124,7 @@ export default function PendingOrdersPage() {
         }
       ]
       setPendingOrders(mockOrders)
+      console.log(pendingOrders)
       setLoading(false)
     }
   }, [isMounted])
@@ -135,8 +136,11 @@ export default function PendingOrdersPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?page=${pagination.currentPage}&limit=${recordsPerPage}`)
       const data = await response.json()
 
+      console.log(data)
+
       if (data.orders) {
-        const pending = data.orders.filter((order: Order) => order.status.toLowerCase() === 'pending')
+        const pending = data.orders.filter((order: Order) => order.status.toLowerCase().includes('pending'))
+        console.log(pending)
         setPendingOrders(pending)
         setSelectedOrders(new Set())
         setPagination(data.pagination)
@@ -488,7 +492,7 @@ export default function PendingOrdersPage() {
   }
 
   // PDF Generation function
-const generateOrderReport = async (orderIds) => {
+  const generateOrderReport = async (orderIds) => {
   try {
     // Fetch the selected orders data (you might already have this in state)
     const selectedOrdersData = pendingOrders.filter(order => orderIds.includes(order._id));
@@ -521,7 +525,7 @@ const generateReportHTML = (orders) => {
   const midPoint = Math.ceil(orders.length / 2);
   const leftColumnOrders = orders.slice(0, midPoint);
   const rightColumnOrders = orders.slice(midPoint);
-  
+
   // Calculate totals
   const leftTotal = leftColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
   const rightTotal = rightColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
@@ -529,205 +533,186 @@ const generateReportHTML = (orders) => {
 
   const generateTableRows = (orderList) => {
     return orderList.map(order => `
-      <tr>
-        <td>${order.villageCode}</td>
-        <td>${order.salesAgentName}</td>
-        <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
-      </tr>
-    `).join('');
+    <tr>
+      <td>${order.villageCode}</td>
+      <td>${order.salesAgentName}</td>
+      <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
+    </tr>
+  `).join('');
   };
 
   return `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmation Report</title>
-    <style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Confirmation Report</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      font-size: 12px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 10px;
+    }
+    .company-name {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .report-title {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .report-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    .columns-container {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .column {
+      flex: 1;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
+      font-size: 11px;
+    }
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    .total-row {
+      font-weight: bold;
+      background-color: #f9f9f9;
+    }
+    .grand-total {
+      margin-top: 20px;
+      text-align: center;
+      padding: 10px;
+      background-color: #e6f3ff;
+      border: 2px solid #0066cc;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-style: italic;
+      color: #666;
+      font-size: 10px;
+    }
+    @media print {
       body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-        font-size: 12px;
-      }
-      .header {
-        text-align: center;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #333;
-        padding-bottom: 10px;
-      }
-      .company-name {
-        font-size: 24px;
-        font-weight: bold;
-        margin-bottom: 5px;
-      }
-      .report-title {
-        font-size: 18px;
-        margin-bottom: 10px;
-      }
-      .report-info {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 20px;
-        font-weight: bold;
-      }
-      .columns-container {
-        display: flex;
-        gap: 20px;
-        margin-bottom: 20px;
-      }
-      .column {
-        flex: 1;
-      }
-      .column-header {
-        text-align: center;
-        font-weight: bold;
-        margin-bottom: 10px;
-        padding: 5px;
-        background-color: #f0f0f0;
-        border: 1px solid #ddd;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 10px;
-      }
-      th, td {
-        border: 1px solid #ddd;
-        padding: 6px;
-        text-align: left;
-        font-size: 11px;
-      }
-      th {
-        background-color: #f2f2f2;
-        font-weight: bold;
-      }
-      .total-row {
-        font-weight: bold;
-        background-color: #f9f9f9;
-      }
-      .grand-total {
-        margin-top: 20px;
-        text-align: center;
+        margin: 0;
         padding: 10px;
-        background-color: #e6f3ff;
-        border: 2px solid #0066cc;
-        font-weight: bold;
-        font-size: 14px;
-      }
-      .footer {
-        margin-top: 30px;
-        text-align: center;
-        font-style: italic;
-        color: #666;
         font-size: 10px;
       }
-      @media print {
-        body {
-          margin: 0;
-          padding: 10px;
-          font-size: 10px;
-        }
-        .header {
-          margin-bottom: 15px;
-        }
-        .company-name {
-          font-size: 20px;
-        }
-        .report-title {
-          font-size: 16px;
-        }
-        .columns-container {
-          gap: 15px;
-        }
-        th, td {
-          padding: 4px;
-          font-size: 9px;
-        }
-        .grand-total {
-          font-size: 12px;
-          margin-top: 15px;
-        }
-        button {
-          display: none;
-        }
+      .header {
+        margin-bottom: 15px;
       }
-    </style>
-  </head>
-  <body>
-    <div class="header">
-      <div class="company-name">Your Company Name</div>
-      <div class="report-title">Order Confirmation Report</div>
+      .company-name {
+        font-size: 20px;
+      }
+      .report-title {
+        font-size: 16px;
+      }
+      .columns-container {
+        gap: 15px;
+      }
+      th, td {
+        padding: 4px;
+        font-size: 9px;
+      }
+      .grand-total {
+        font-size: 12px;
+        margin-top: 15px;
+      }
+      button {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="company-name">Your Company Name</div>
+    <div class="report-title">Order Confirmation Report</div>
+  </div>
+  
+  <div class="report-info">
+    <div>Date: ${new Date().toLocaleDateString()}</div>
+    <div>Total Orders: ${orders.length}</div>
+  </div>
+  
+  <div class="columns-container">
+    <div class="column">
+      <table>
+        <thead>
+          <tr>
+            <th>Village Code</th>
+            <th>Customer Name</th>
+            <th>Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${generateTableRows(leftColumnOrders)}
+          <tr class="total-row">
+            <td colspan="2">Subtotal</td>
+            <td>₹${leftTotal.toLocaleString('en-IN')}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     
-    <div class="report-info">
-      <div>Date: ${new Date().toLocaleDateString()}</div>
-      <div>Total Orders: ${orders.length}</div>
+    ${rightColumnOrders.length > 0 ? `
+    <div class="column">
+      <table>
+        <thead>
+          <tr>
+            <th>Village Code</th>
+            <th>Customer Name</th>
+            <th>Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${generateTableRows(rightColumnOrders)}
+          <tr class="total-row">
+            <td colspan="2">Subtotal</td>
+            <td>₹${rightTotal.toLocaleString('en-IN')}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    
-    <div class="columns-container">
-      <div class="column">
-        <div class="column-header">Column 1 (Orders 1-${leftColumnOrders.length})</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Village Code</th>
-              <th>Customer Name</th>
-              <th>Total Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${generateTableRows(leftColumnOrders)}
-            <tr class="total-row">
-              <td colspan="2">Subtotal</td>
-              <td>₹${leftTotal.toLocaleString('en-IN')}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      
-      ${rightColumnOrders.length > 0 ? `
-      <div class="column">
-        <div class="column-header">Column 2 (Orders ${leftColumnOrders.length + 1}-${orders.length})</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Village Code</th>
-              <th>Customer Name</th>
-              <th>Total Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${generateTableRows(rightColumnOrders)}
-            <tr class="total-row">
-              <td colspan="2">Subtotal</td>
-              <td>₹${rightTotal.toLocaleString('en-IN')}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      ` : ''}
-    </div>
-    
-    <div class="grand-total">
-      Grand Total: ₹${grandTotal.toLocaleString('en-IN')}
-    </div>
-    
-    <div class="footer">
-      <p>This report contains all confirmed orders as of ${new Date().toLocaleDateString()}</p>
-      <p>Generated on ${new Date().toLocaleString()}</p>
-    </div>
-    
-    <script>
-      // Auto-print when the page loads
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          window.print();
-        }, 200);
-      });
-    </script>
-  </body>
-  </html>
+    ` : ''}
+  </div>
+  
+  <div class="grand-total">
+    Grand Total: ₹${grandTotal.toLocaleString('en-IN')}
+  </div>
+  
+  <div class="footer">
+    <p>This report contains all confirmed orders as of ${new Date().toLocaleDateString()}</p>
+    <p>Generated on ${new Date().toLocaleString()}</p>
+  </div>
+</body>
+</html>
 `;
 };
 
@@ -1076,18 +1061,19 @@ const generateReportHTML = (orders) => {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b">
-                    <th className="text-left p-4 font-semibold w-12">
+                    <th className="text-left p-4 w-12">
                       <span className="sr-only">Select</span>
                     </th>
-                    <th className="text-left p-4 font-semibold">SL</th>
-                    <th className="text-left p-4 font-semibold">Order ID</th>
-                    <th className="text-left p-4 font-semibold">Order Date</th>
-                    <th className="text-left p-4 font-semibold">Customer</th>
-                    <th className="text-left p-4 font-semibold">Total Amount</th>
-                    <th className="text-left p-4 font-semibold">Order Status</th>
-                    <th className="text-left p-4 font-semibold">Action</th>
+                    <th className="text-left p-4">SL</th>
+                    <th className="text-left p-4">Order ID</th>
+                    <th className="text-left p-4">Order Date</th>
+                    <th className="text-left p-4">Customer</th>
+                    <th className="text-left p-4">Total Amount</th>
+                    <th className="text-left p-4">Order Status</th>
+                    <th className="text-left p-4">Action</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {pendingOrders.length === 0 ? (
                     <tr>
@@ -1098,18 +1084,15 @@ const generateReportHTML = (orders) => {
                   ) : (
                     pendingOrders.map((order, index) => (
                       <tr key={order._id} className="hover:bg-gray-50 border-b">
-                        <td>{pagination.startIndex + index}</td>
                         <td className="p-4">
                           <input
                             type="checkbox"
                             checked={selectedOrders.has(order._id)}
-                            onChange={(e) =>
-                              handleSelectOrder(order._id, e.target.checked)
-                            }
+                            onChange={(e) => handleSelectOrder(order._id, e.target.checked)}
                             className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                           />
                         </td>
-                        <td className="p-4">{index + 1}</td>
+                        <td className="p-4">{pagination.startIndex + index}</td>
                         <td className="p-4 font-medium text-blue-600">
                           {order._id.slice(-6).toUpperCase()}
                         </td>
@@ -1151,54 +1134,55 @@ const generateReportHTML = (orders) => {
                     ))
                   )}
                 </tbody>
+
               </table>
               {pagination.totalPages > 1 && (
-                              <div className="p-4 border-t">
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                  <div className="text-sm text-gray-600">
-                                    Showing {pagination.startIndex} to {pagination.endIndex} of {pagination.totalOrders} entries
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                                      disabled={!pagination.hasPreviousPage}
-                                      className="h-8 px-2"
-                                    >
-                                      <ChevronLeft className="h-4 w-4" />
-                                    </Button>
-                                    
-                                    <div className="flex gap-1">
-                                      {generatePageNumbers().map((page, index) => (
-                                        <Button
-                                          key={index}
-                                          variant={page === pagination.currentPage ? "default" : "outline"}
-                                          size="sm"
-                                          onClick={() => typeof page === 'number' && handlePageChange(page)}
-                                          disabled={page === '...'}
-                                          className="h-8 min-w-8 px-2"
-                                        >
-                                          {page}
-                                        </Button>
-                                      ))}
-                                    </div>
-                                    
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                                      disabled={!pagination.hasNextPage}
-                                      className="h-8 px-2"
-                                    >
-                                      <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          
+                <div className="p-4 border-t">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-sm text-gray-600">
+                      Showing {pagination.startIndex} to {pagination.endIndex} of {pagination.totalOrders} entries
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        disabled={!pagination.hasPreviousPage}
+                        className="h-8 px-2"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex gap-1">
+                        {generatePageNumbers().map((page, index) => (
+                          <Button
+                            key={index}
+                            variant={page === pagination.currentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => typeof page === 'number' && handlePageChange(page)}
+                            disabled={page === '...'}
+                            className="h-8 min-w-8 px-2"
+                          >
+                            {page}
+                          </Button>
+                        ))}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={!pagination.hasNextPage}
+                        className="h-8 px-2"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </>
 
 

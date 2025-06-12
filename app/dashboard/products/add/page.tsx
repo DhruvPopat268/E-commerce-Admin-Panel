@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, type KeyboardEvent } from "react"
+import { useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import axios from "axios"
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tag } from "lucide-react";
 import { Settings } from "lucide-react";
+import { Search, ChevronDown, Check } from 'lucide-react';
 
 interface Category {
   _id: string;
@@ -39,6 +40,124 @@ interface AttributeItem extends AttributeOption {
   price: string;
   discountedPrice: string;
 }
+
+// Searchable Select Component
+const SearchableSelect = ({ 
+  options, 
+  value, 
+  onChange, 
+  placeholder = "---Select---", 
+  disabled = false,
+  searchPlaceholder = "Search...",
+  className = "",
+  required = false
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filter options based on search term
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm) return options;
+    return options.filter(option => 
+      option.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [options, searchTerm]);
+
+  // Get selected option display text
+  const selectedOption = options.find(option => option._id === value);
+
+  const handleSelect = (optionValue) => {
+    onChange(optionValue);
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  const handleToggle = () => {
+    if (!disabled) {
+      setIsOpen(!isOpen);
+      if (!isOpen) {
+        setSearchTerm('');
+      }
+    }
+  };
+
+  return (
+    <div className={`relative ${className}`}>
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={handleToggle}
+        disabled={disabled}
+        className={`
+          w-full flex items-center justify-between px-3 py-2 text-left bg-white border border-gray-300 rounded-md shadow-sm text-sm
+          ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:border-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}
+          ${isOpen ? 'border-blue-500 ring-1 ring-blue-500' : ''}
+        `}
+      >
+        <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedOption ? selectedOption.name : placeholder}
+        </span>
+        <ChevronDown 
+          className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        />
+      </button>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+          {/* Search Input */}
+          <div className="p-2 border-b border-gray-200">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-60 overflow-y-auto">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option._id}
+                  type="button"
+                  onClick={() => handleSelect(option._id)}
+                  className={`
+                    w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50
+                    ${value === option._id ? 'bg-blue-50 text-blue-600' : 'text-gray-900'}
+                  `}
+                >
+                  <span>{option.name}</span>
+                  {value === option._id && (
+                    <Check className="h-4 w-4 text-blue-600" />
+                  )}
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                No results found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Overlay to close dropdown when clicking outside */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </div>
+  );
+};
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -76,9 +195,15 @@ export default function AddProductPage() {
 
   const [filterSubCate, setFilterSubCate] = useState([])
 
+  // Filtered subcategories based on selected category
+  const filteredSubcategories = useMemo(() => {
+    if (!selectedCategory) return [];
+    return fetchedSubcategories.filter((subcat) => subcat.category?._id === selectedCategory);
+  }, [fetchedSubcategories, selectedCategory]);
+
   // Update your useEffect for data fetching
   useEffect(() => {
-    console.log("bsdiu", selectedCategory)
+   
     const fetchInitialData = async () => {
       setIsLoading(true);
       setError(null);
@@ -91,8 +216,8 @@ export default function AddProductPage() {
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ]);
 
-        console.log("categories", categoriesRes)
-        console.log("subcategories", subcategoriesRes)
+        setFetchedCategories(categoriesRes.data?.data)
+        setFetchedSubcategories(subcategoriesRes.data[0].data)
 
         // FIX: Handle the nested response structure for subcategories
         let subcategoriesData = [];
@@ -109,11 +234,7 @@ export default function AddProductPage() {
 
         // Add safety checks and ensure arrays
         setAttributeOptions(Array.isArray(attrRes.data) ? attrRes.data : []);
-        setFetchedCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
-        setFetchedSubcategories(subcategoriesData);
-
-        console.log("Processed subcategories:", subcategoriesData);
-
+        
         // If we're in edit mode, fetch the product data
         if (productId) {
           const productRes = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`);
@@ -184,11 +305,6 @@ export default function AddProductPage() {
     setProduct({ ...product, category: value, subCategory: "" });
     setSelectedCategory(value);
     setSelectedSubCategory(null);
-
-    // const filterSubCategory = fetchedSubcategories[0]?.data.filter((subcat) => subcat.category?._id === value);
-
-    // setFilterSubCate(filterSubCategory)
-
   };
 
   const handleSubCategoryChange = (value: string) => {
@@ -408,70 +524,28 @@ export default function AddProductPage() {
                   <Label htmlFor="category">
                     Category <span className="text-red-500">*</span>
                   </Label>
-                  <Select
+                  <SearchableSelect
+                    options={fetchedCategories}
                     value={product.category}
-                    onValueChange={handleCategoryChange}
+                    onChange={handleCategoryChange}
+                    placeholder="---Select---"
+                    searchPlaceholder="Search categories..."
+                    className="border-gray-300"
                     required
-                  >
-                    <SelectTrigger id="category" className="border-gray-300">
-                      <SelectValue placeholder="---Select---" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fetchedCategories.map((category) => (
-                        <SelectItem key={category._id} value={category._id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="subcategory">Sub Category</Label>
-                  <Select
+                  <SearchableSelect
+                    options={filteredSubcategories}
                     value={product.subCategory}
-                    onValueChange={handleSubCategoryChange}
+                    onChange={handleSubCategoryChange}
                     disabled={!selectedCategory}
-                  >
-                    <SelectTrigger id="subcategory" className="border-gray-300">
-                      <SelectValue placeholder="---Select---" />
-                    </SelectTrigger>
-                    {/* <SelectContent>
-                      {selectedCategory ? (
-                        fetchedSubcategories.length > 0 ? (
-                          fetchedSubcategories
-                            // .filter((subcat) => {
-                            //   console.log("Subcat category:", subcat.category?._id);
-                            //   console.log("Selected category:", selectedCategory);
-                            //   return subcat.category?._id === selectedCategory;
-                            // })
-                            .map((subcat) => (
-                              <SelectItem key={subcat.category._id} value={subcat.category._id}>
-                                {subcat.name}
-                              </SelectItem>
-                            ))
-                        ) : (
-                          <div className="px-2 py-1.5 text-sm text-gray-500">
-                            No subcategories available
-                          </div>
-                        )
-                      ) : (
-                        <div className="px-2 py-1.5 text-sm text-gray-500">
-                          Please select a category first
-                        </div>
-                      )}
-                    </SelectContent> */}
-                    <SelectContent>
-                      {fetchedSubcategories[0]?.data
-                        ?.filter((subcat) => subcat.category?._id === selectedCategory)
-                        .map((subcat) => (
-                          <SelectItem key={subcat._id} value={subcat._id}>
-                            {subcat.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-
-                  </Select>
+                    placeholder="---Select---"
+                    searchPlaceholder="Search subcategories..."
+                    className="border-gray-300"
+                  />
                 </div>
               </div>
               <div className="">

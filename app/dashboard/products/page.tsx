@@ -1,14 +1,17 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Pencil, Trash2, Download, Package, ChevronLeft, ChevronRight } from "lucide-react"
+import { Pencil, Trash2, Download, Package, ChevronLeft, ChevronRight, Upload, FileSpreadsheet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
 
@@ -29,6 +32,14 @@ export default function ProductsPage() {
   const [pageSize, setPageSize] = useState(10)
   const [hasNext, setHasNext] = useState(false)
   const [hasPrev, setHasPrev] = useState(false)
+
+  // Bulk import states
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
+  const [importResults, setImportResults] = useState(null)
+  const fileInputRef = useRef(null)
 
   const router = useRouter()
 
@@ -195,6 +206,109 @@ export default function ProductsPage() {
     setSelectedStatus("")
   }
 
+  // Bulk Import Functions
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      const allowedTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'text/csv'
+      ]
+      
+      if (allowedTypes.includes(file.type)) {
+        setSelectedFile(file)
+        setImportResults(null)
+      } else {
+        alert('Please select a valid Excel (.xlsx, .xls) or CSV file')
+        event.target.value = ''
+      }
+    }
+  }
+
+  const handleBulkImport = async () => {
+    if (!selectedFile) {
+      alert('Please select a file first')
+      return
+    }
+
+    setIsImporting(true)
+    setImportProgress(0)
+    
+    try {
+      const formData = new FormData()
+      formData.append('excelFile', selectedFile)
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setImportProgress(prev => Math.min(prev + 10, 90))
+      }, 200)
+
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/products/bulk-import`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      clearInterval(progressInterval)
+      setImportProgress(100)
+
+      if (response.data.success) {
+        setImportResults(response.data.results)
+        // Refresh the products list
+        fetchProducts(currentPage, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)
+      } else {
+        throw new Error(response.data.message || 'Import failed')
+      }
+    } catch (error) {
+      console.error('Import error:', error)
+      setImportResults({
+        total: 0,
+        successful: 0,
+        failed: 1,
+        errors: [error.response?.data?.message || error.message || 'Import failed']
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const downloadTemplate = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/products/download-template`,
+        {
+          responseType: 'blob',
+        }
+      )
+
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'product-import-template.xlsx')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading template:', error)
+      alert('Failed to download template')
+    }
+  }
+
+  const resetImportDialog = () => {
+    setSelectedFile(null)
+    setImportResults(null)
+    setImportProgress(0)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = []
@@ -310,6 +424,101 @@ export default function ProductsPage() {
           <Button variant="outline" className="border-teal-500 text-teal-500">
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
+          
+          {/* Bulk Import Dialog */}
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="border-blue-500 text-blue-500"
+                onClick={resetImportDialog}
+              >
+                <Upload className="mr-2 h-4 w-4" /> Bulk Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Bulk Import Products</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600">
+                  Upload an Excel file (.xlsx, .xls) or CSV file to import multiple products at once.
+                </div>
+                
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={downloadTemplate}
+                    className="w-full"
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Download Sample Template
+                  </Button>
+                  
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileSelect}
+                    className="cursor-pointer"
+                  />
+                  
+                  {selectedFile && (
+                    <div className="text-sm text-green-600">
+                      Selected: {selectedFile.name}
+                    </div>
+                  )}
+                </div>
+
+                {isImporting && (
+                  <div className="space-y-2">
+                    <div className="text-sm">Importing products...</div>
+                    <Progress value={importProgress} className="w-full" />
+                  </div>
+                )}
+
+                {importResults && (
+                  <Alert>
+                    <AlertDescription>
+                      <div className="space-y-2">
+                        <div>Import completed!</div>
+                        <div>Total: {importResults.total}</div>
+                        <div className="text-green-600">Successful: {importResults.successful}</div>
+                        <div className="text-red-600">Failed: {importResults.failed}</div>
+                        {importResults.errors.length > 0 && (
+                          <div className="mt-2">
+                            <div className="font-medium">Errors:</div>
+                            <div className="max-h-32 overflow-y-auto text-xs space-y-1">
+                              {importResults.errors.map((error, index) => (
+                                <div key={index} className="text-red-600">{error}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleBulkImport}
+                    disabled={!selectedFile || isImporting}
+                    className="flex-1"
+                  >
+                    {isImporting ? 'Importing...' : 'Import Products'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsImportDialogOpen(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Button className="bg-teal-500 hover:bg-teal-600 text-white">Limited Stocks</Button>
           <Button asChild className="bg-teal-700 hover:bg-teal-800 text-white">
             <Link href="/dashboard/products/add">+ Add new product</Link>
