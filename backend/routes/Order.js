@@ -63,7 +63,8 @@ router.post('/', verifyToken, async (req, res) => {
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-    res.status(201).json({
+    res.status(200).json({
+      status : 'true',
       message: 'Order placed successfully',
       order: newOrder
     });
