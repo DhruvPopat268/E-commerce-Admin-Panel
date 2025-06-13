@@ -19,7 +19,6 @@ router.post('/add', verifyToken, async (req, res) => {
     const attribute = product.attributes.find(attr => attr._id.toString() === attributeId);
     if (!attribute) return res.status(404).json({ error: 'Attribute not found in product' });
 
-    // Check if item already in cart
     const existing = await Cart.findOne({
       userId,
       productId,
@@ -29,13 +28,10 @@ router.post('/add', verifyToken, async (req, res) => {
     let result;
 
     if (existing) {
-      // Update quantity and total
       existing.attributes.quantity += qty;
       existing.attributes.total = existing.attributes.discountedPrice * existing.attributes.quantity;
-
       result = await existing.save();
     } else {
-      // Add new cart item
       result = await Cart.create({
         userId,
         productId,
@@ -54,10 +50,15 @@ router.post('/add', verifyToken, async (req, res) => {
     // ✅ Count total cart items for the user
     const productsCount = await Cart.countDocuments({ userId });
 
+    // ✅ Calculate total cart value
+    const cartItems = await Cart.find({ userId });
+    const totalCartValue = cartItems.reduce((sum, item) => sum + (item.attributes.total || 0), 0);
+
     return res.status(200).json({
       message: 'Cart updated successfully',
       cartItem: result,
-      productsCount
+      productsCount,
+      totalCartValue
     });
 
   } catch (err) {
@@ -65,6 +66,7 @@ router.post('/add', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // 🛒 Get cart items
 router.post('/my-cart', verifyToken, async (req, res) => {
