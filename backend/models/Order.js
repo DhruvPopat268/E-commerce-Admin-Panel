@@ -20,10 +20,15 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     default: 'pending', // ✔️ initial status
-    enum: ['pending','confirmed', 'out for delivery', 'delivered', 'cancelled' , 'returned'], // optional but useful
+    enum: ['pending', 'confirmed', 'out for delivery', 'delivered', 'cancelled', 'returned'], // optional but useful
   },
-  villageCode:{
+  villageCode: {
     type: String,
+  },
+  orderType: {
+    type: String,
+    enum: ['take-away', 'delivery'], // optional but useful
+
   }
 });
 

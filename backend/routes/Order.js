@@ -13,6 +13,13 @@ const jwt = require('jsonwebtoken')
 router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
+    const { orderType } = req.body;
+
+    // Validate orderType
+    const validOrderTypes = ['take-away', 'delivery'];
+    if (orderType && !validOrderTypes.includes(orderType)) {
+      return res.status(400).json({ message: 'Invalid order type' });
+    }
 
     // Find the sales agent to get village code
     const salesAgent = await SalesAgent.findById(userId);
@@ -38,7 +45,8 @@ router.post('/', verifyToken, async (req, res) => {
       userId,
       orders: orderItems,
       status: 'pending',
-      villageCode: salesAgent.villageCode, // Add village code from sales agent
+      villageCode: salesAgent.villageCode,
+      orderType: orderType || 'delivery', // default to 'delivery' if not provided
     });
 
     await newOrder.save();
@@ -53,6 +61,7 @@ router.post('/', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Error placing order' });
   }
 });
+
 
 router.get('/all', async (req, res) => {
   try {

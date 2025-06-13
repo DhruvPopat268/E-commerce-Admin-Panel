@@ -11,7 +11,6 @@ const subCategory = require('../models/SubCategory')
 const category = require('../models/category')
 const XLSX = require('xlsx');
 
-
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -80,29 +79,43 @@ const processExcelData = (buffer, filename) => {
 };
 
 // Helper function to validate and transform product data
-const validateAndTransformProduct = async (row, index) => {
+const validateAndTransformProduct = async (row, index, categories, subcategories) => {
   const errors = [];
 
-  if (!row.name || row.name.trim() === '') {
-    errors.push(`Row ${index + 2}: Product name is required`);
-  }
+  const name = row.name?.trim();
+  const categoryName = row.Category?.trim();
+  const subcategoryName = row.Subcategory?.trim();
+
+  if (!name) errors.push(`Row ${index + 2}: Product name is required`);
+  if (!categoryName) errors.push(`Row ${index + 2}: Category is required`);
+  if (!subcategoryName) errors.push(`Row ${index + 2}: Subcategory is required`);
+
+  const matchedCategory = categories.find(c => c.name.trim().toLowerCase() === categoryName.toLowerCase());
+  const matchedSubcategory = subcategories.find(
+    s => s.name.trim().toLowerCase() === subcategoryName.toLowerCase() &&
+         matchedCategory && s.categoryId === matchedCategory._id
+  );
+
+  if (!matchedCategory) errors.push(`Row ${index + 2}: Category '${categoryName}' not found`);
+  if (!matchedSubcategory) errors.push(`Row ${index + 2}: Subcategory '${subcategoryName}' not found for category '${categoryName}'`);
 
   const product = {
-    name: row.name.trim(),
+    name,
     description: '',
-    category: null,
-    subCategory: null,
+    category: matchedCategory?._id || null,
+    subCategory: matchedSubcategory?._id || null,
     visibility: true,
     status: true,
     image: '',
     tags: [],
     featured: false,
     showInDailyNeeds: false,
-    attributes: [] // No price-related attributes now
+    attributes: []
   };
 
   return { product, errors };
 };
+
 
 
 router.post('/', uploadImage.single('image'), async (req, res) => {
@@ -148,78 +161,70 @@ router.post('/', uploadImage.single('image'), async (req, res) => {
 router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No Excel file uploaded' 
-      });
+      return res.status(400).json({ success: false, message: 'No Excel file uploaded' });
     }
-    
-    // Process Excel file
+
     const excelData = processExcelData(req.file.buffer, req.file.originalname);
-    
+
     if (!excelData || excelData.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Excel file is empty or invalid' 
-      });
+      return res.status(400).json({ success: false, message: 'Excel file is empty or invalid' });
     }
-    
+
+    // Use your in-memory or fetched state here
+    const categories = await category.find({}); // replace this with actual state if dynamic
+    const subcategories = await subCategory.find({});
+
     const results = {
       total: excelData.length,
       successful: 0,
       failed: 0,
       errors: []
     };
-    
+
     const successfulProducts = [];
-    
-    // Process each row
+
     for (let i = 0; i < excelData.length; i++) {
       const row = excelData[i];
-      
+
       try {
-        const { product, errors } = await validateAndTransformProduct(row, i);
+        const { product, errors } = await validateAndTransformProduct(row, i, categories, subcategories);
 
         if (errors.length > 0) {
           results.errors.push(...errors);
           results.failed++;
           continue;
         }
-        
-        // Create product in database
+
         const newProduct = new Product(product);
         await newProduct.save();
-        
+
         successfulProducts.push(newProduct);
         results.successful++;
-        
       } catch (error) {
         results.failed++;
         results.errors.push(`Row ${i + 2}: ${error.message}`);
       }
     }
-    
+
     res.status(200).json({
       success: true,
       message: `Bulk import completed. ${results.successful} products created, ${results.failed} failed.`,
       results,
       products: successfulProducts
     });
-    
+
   } catch (error) {
     console.error('Error in bulk import:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to process bulk import', 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Failed to process bulk import', error: error.message });
   }
 });
+
 router.get('/download-template', (req, res) => {
   try {
     const sampleData = [
-      { name: 'Tea-tree facewash' },
-      { name: 'Body wash' }
+      { name: 'Tea-Tree Facewash', Category: 'Body Care', Subcategory: 'Facewash' },
+      { name: 'Tea-Tree Bodywash', Category: 'Body Care', Subcategory: 'Bodywash' },
+      { name: 'Motorolla edge 60 pro', Category: 'Electronics', Subcategory: 'mobiles' }
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -232,12 +237,10 @@ router.get('/download-template', (req, res) => {
     res.send(buffer);
   } catch (error) {
     console.error('Error generating template:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to generate template'
-    });
+    res.status(500).json({ success: false, message: 'Failed to generate template' });
   }
 });
+
 
 router.get("/:id", async (req, res) => {
   try {

@@ -67,6 +67,7 @@ export default function ProductsPage() {
       }
     }
     fetchStaticData()
+    
   }, [])
 
   // Fetch products with pagination and filters
