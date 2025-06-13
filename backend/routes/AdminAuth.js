@@ -9,17 +9,17 @@ const JWT_SECRET = process.env.JWT_SECRET// You can use .env
 // SIGNUP
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { mobileNumber, password } = req.body;
 
     // Check if admin already exists
-    const existingAdmin = await Admin.findOne({ email });
+    const existingAdmin = await Admin.findOne({ mobileNumber });
     if (existingAdmin) return res.status(400).json({ message: 'Admin already exists' });
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new admin
-    const admin = await Admin.create({ email, password: hashedPassword });
+    const admin = await Admin.create({ mobileNumber, password: hashedPassword });
 
     res.status(200).json({
       message: "Admin SignUp Successfully"
@@ -33,15 +33,15 @@ router.post('/signup', async (req, res) => {
 // LOGIN
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { mobileNumber, password } = req.body;
 
     // Find admin
-    const admin = await Admin.findOne({ email });
-    if (!admin) return res.status(400).json({ message: 'Invalid email or password' });
+    const admin = await Admin.findOne({ mobileNumber });
+    if (!admin) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
 
     // Compare password
     const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid email or password' });
+    if (!isMatch) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
 
     // Generate token
     const token = jwt.sign({ adminId: admin._id }, JWT_SECRET, { expiresIn: '7d' });
@@ -59,7 +59,7 @@ router.post('/login', async (req, res) => {
       token,
       admin: {
         _id: admin._id,
-        email: admin.email,
+        mobileNumber: admin.mobileNumber,
         // add other fields if needed
       },
     });
