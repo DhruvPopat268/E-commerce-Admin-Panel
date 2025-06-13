@@ -21,17 +21,24 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Invalid order type' });
     }
 
-    // Find the sales agent to get village code
+    // Find the sales agent to get village code and route status
     const salesAgent = await SalesAgent.findById(userId);
     if (!salesAgent) {
       return res.status(404).json({ message: 'Sales agent not found' });
     }
 
+    // Check if today's route is active
+    if (!salesAgent.routeStatus) {
+      return res.status(200).json({ message: "You can't order today" });
+    }
+
+    // Get cart items
     const cartItems = await Cart.find({ userId });
     if (!cartItems.length) {
       return res.status(400).json({ message: 'No items in cart to place order' });
     }
 
+    // Prepare order items
     const orderItems = cartItems.map(item => ({
       productId: item.productId?.toString(),
       productName: item.productName,
@@ -41,6 +48,7 @@ router.post('/', verifyToken, async (req, res) => {
       attributes: item.attributes,
     }));
 
+    // Create and save the new order
     const newOrder = new Order({
       userId,
       orders: orderItems,
