@@ -38,7 +38,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Get cart items
     const cartItems = await Cart.find({ userId });
     if (!cartItems.length) {
-      return res.status(400).json({ message: 'No items in cart to place order' });
+      return res.status(200).json({ message: 'No items in cart to place order' });
     }
 
     // Prepare order items
