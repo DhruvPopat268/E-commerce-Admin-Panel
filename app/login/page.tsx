@@ -16,7 +16,7 @@ export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
-    email: "",
+    mobileNumber: "",
     password: "",
   })
 
@@ -50,14 +50,14 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="mobileNumber">Mobile Number</Label>
               <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="john@example.com"
+                id="mobileNumber"
+                name="mobileNumber"
+                type="mobileNumber"
+                placeholder="enter your mobile number"
                 required
-                value={formData.email}
+                value={formData.mobileNumber}
                 onChange={handleChange}
               />
             </div>
