@@ -29,7 +29,10 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Check if today's route is active
     if (!salesAgent.routeStatus) {
-      return res.status(200).json({ message: "You can't order today" });
+      return res.status(200).json({ 
+        status : 'false',
+        message: "આજે તમારો વારો નથી. તેથી તમે ઓર્ડર આપી શકતા નથી!" 
+      });
     }
 
     // Get cart items

@@ -10,7 +10,8 @@ const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token,JWT_SECRET);
-    req.admin = decoded.adminId; // THIS must match how you signed the token
+    req.admin = decoded.adminId;
+    console.log(token) // THIS must match how you signed the token
     next();
   } catch (err) {
     console.log(err)
