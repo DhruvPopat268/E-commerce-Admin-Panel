@@ -59,8 +59,6 @@ const uploadExcel = multer({
 const processExcelData = (buffer, filename) => {
   try {
     let workbook;
-    
-    // Handle different file types
     if (filename.endsWith('.csv')) {
       const csvData = buffer.toString('utf8');
       workbook = XLSX.read(csvData, { type: 'string' });
@@ -70,40 +68,258 @@ const processExcelData = (buffer, filename) => {
     
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
     
-    return jsonData;
+    // Convert to JSON with header detection
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+      header: 1,
+      defval: '',
+      blankrows: false
+    });
+    
+    if (!jsonData || jsonData.length < 2) {
+      throw new Error('Excel file must contain at least a header row and one data row');
+    }
+    
+    console.log('Raw Excel data:', jsonData);
+    
+    // Get headers and normalize them
+    const headers = jsonData[0].map(h => String(h || '').trim());
+    console.log('Headers found:', headers);
+    
+    // Process data rows
+    const processedData = [];
+    for (let i = 1; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      const rowData = { rowNumber: i + 1 }; // Excel row number
+      
+      headers.forEach((header, index) => {
+        const cellValue = row[index];
+        const normalizedValue = cellValue ? String(cellValue).trim() : '';
+        
+        // Map headers to expected field names
+        const lowerHeader = header.toLowerCase();
+        if (lowerHeader === 'name' || lowerHeader === 'product name' || lowerHeader === 'product') {
+          rowData.name = normalizedValue;
+        } else if (lowerHeader === 'category') {
+          rowData.category = normalizedValue;
+        } else if (lowerHeader === 'subcategory' || lowerHeader === 'sub category') {
+          rowData.subcategory = normalizedValue;
+        } else if (lowerHeader === 'description') {
+          rowData.description = normalizedValue;
+        } else if (lowerHeader === 'price') {
+          rowData.price = parseFloat(normalizedValue) || 0;
+        } else if (lowerHeader === 'stock' || lowerHeader === 'quantity') {
+          rowData.stock = parseInt(normalizedValue) || 0;
+        }
+      });
+      
+      // Only add rows that have at least a name
+      if (rowData.name && rowData.name.length > 0) {
+        processedData.push(rowData);
+      }
+    }
+    
+    console.log('Processed data:', processedData);
+    return processedData;
+    
   } catch (error) {
+    console.error('Excel processing error:', error);
     throw new Error(`Failed to process Excel file: ${error.message}`);
   }
 };
 
+// Helper function to find or create category
+const findOrCreateCategory = async (categoryName) => {
+  try {
+    console.log(`🔍 Finding or creating category: ${categoryName}`);
+    
+    // First try to find existing category
+    let matchedCategory = await category.findOne({
+      name: { $regex: new RegExp(`^${categoryName.trim()}$`, 'i') }
+    }).lean();
+    
+    if (matchedCategory) {
+      console.log('✅ Existing category found:', matchedCategory.name, 'ID:', matchedCategory._id);
+      return matchedCategory;
+    }
+    
+    // Create new category if not found
+    console.log('🆕 Creating new category:', categoryName);
+    const newCategory = new category({
+      name: categoryName.trim(),
+      status: true,
+      visibility: true
+    });
+    
+    const savedCategory = await newCategory.save();
+    console.log('✅ New category created:', savedCategory.name, 'ID:', savedCategory._id);
+    
+    return savedCategory.toObject();
+    
+  } catch (error) {
+    console.error('Error in findOrCreateCategory:', error);
+    throw new Error(`Failed to find or create category '${categoryName}': ${error.message}`);
+  }
+};
+
+// Helper function to find or create subcategory
+const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName) => {
+  try {
+    console.log(`🔍 Finding or creating subcategory: ${subcategoryName} for category: ${categoryName}`);
+    
+    // First try to find existing subcategory
+    let matchedSubcategory = await subCategory.findOne({
+      name: { $regex: new RegExp(`^${subcategoryName.trim()}$`, 'i') }
+    }).lean();
+    
+    if (matchedSubcategory) {
+      console.log('✅ Existing subcategory found:', matchedSubcategory.name, 'ID:', matchedSubcategory._id);
+      
+      // Check if subcategory belongs to the correct category
+      let subcategoryCategoryId = matchedSubcategory.category || matchedSubcategory.categoryId;
+      
+      if (subcategoryCategoryId && subcategoryCategoryId.toString() === categoryId.toString()) {
+        console.log('✅ Subcategory belongs to correct category');
+        return matchedSubcategory;
+      } else {
+        console.log('⚠️ Subcategory exists but belongs to different category');
+        // You can either:
+        // 1. Create a new subcategory with same name but different category
+        // 2. Update existing subcategory to new category
+        // 3. Throw error
+        // Here we'll create a new one with a slightly different approach
+        console.log('🆕 Creating new subcategory with same name for different category');
+      }
+    }
+    
+    // Create new subcategory
+    console.log('🆕 Creating new subcategory:', subcategoryName);
+    const newSubcategory = new subCategory({
+      name: subcategoryName.trim(),
+      category: categoryId, // Use category field
+      categoryId: categoryId, // Also set categoryId field for compatibility
+      status: true,
+      visibility: true
+    });
+    
+    const savedSubcategory = await newSubcategory.save();
+    console.log('✅ New subcategory created:', savedSubcategory.name, 'ID:', savedSubcategory._id);
+    
+    return savedSubcategory.toObject();
+    
+  } catch (error) {
+    console.error('Error in findOrCreateSubcategory:', error);
+    throw new Error(`Failed to find or create subcategory '${subcategoryName}': ${error.message}`);
+  }
+};
+
 // Helper function to validate and transform product data
-const validateAndTransformProduct = async (row, index, categories, subcategories) => {
+const validateAndTransformProduct = async (row) => {
+  console.log(`\n=== Validating Row ${row.rowNumber} ===`);
+  console.log('Row data:', row);
+  
   const errors = [];
-
-  const name = row.name?.trim();
-  const categoryName = row.Category?.trim();
-  const subcategoryName = row.Subcategory?.trim();
-
-  if (!name) errors.push(`Row ${index + 2}: Product name is required`);
-  if (!categoryName) errors.push(`Row ${index + 2}: Category is required`);
-  if (!subcategoryName) errors.push(`Row ${index + 2}: Subcategory is required`);
-
-  const matchedCategory = categories.find(c => c.name.trim().toLowerCase() === categoryName.toLowerCase());
-  const matchedSubcategory = subcategories.find(
-    s => s.name.trim().toLowerCase() === subcategoryName.toLowerCase() &&
-         matchedCategory && s.categoryId === matchedCategory._id
-  );
-
-  if (!matchedCategory) errors.push(`Row ${index + 2}: Category '${categoryName}' not found`);
-  if (!matchedSubcategory) errors.push(`Row ${index + 2}: Subcategory '${subcategoryName}' not found for category '${categoryName}'`);
-
+  const { name, category: categoryName, subcategory: subcategoryName, description = '', price = 0, stock = 0, rowNumber } = row;
+  
+  // Log what we're validating
+  console.log('Validating:', { name, categoryName, subcategoryName });
+  
+  // Required field validation with detailed logging
+  if (!name || name.trim().length === 0) {
+    console.log('❌ Name validation failed:', name);
+    errors.push(`Row ${rowNumber}: Product name is required`);
+  } else {
+    console.log('✅ Name validation passed:', name);
+  }
+  
+  if (!categoryName || categoryName.trim().length === 0) {
+    console.log('❌ Category validation failed:', categoryName);
+    errors.push(`Row ${rowNumber}: Category is required`);
+  } else {
+    console.log('✅ Category validation passed:', categoryName);
+  }
+  
+  if (!subcategoryName || subcategoryName.trim().length === 0) {
+    console.log('❌ Subcategory validation failed:', subcategoryName);
+    errors.push(`Row ${rowNumber}: Subcategory is required`);
+  } else {
+    console.log('✅ Subcategory validation passed:', subcategoryName);
+  }
+  
+  // Early return if required fields are missing
+  if (errors.length > 0) {
+    console.log('❌ Basic validation failed, errors:', errors);
+    return { product: null, errors };
+  }
+  
+  // Step 1: Find or create category
+  console.log('🔍 Step 1: Finding or creating category...');
+  let matchedCategory;
+  try {
+    matchedCategory = await findOrCreateCategory(categoryName);
+  } catch (error) {
+    console.error('Error finding/creating category:', error);
+    errors.push(`Row ${rowNumber}: ${error.message}`);
+    return { product: null, errors };
+  }
+  
+  // Step 2: Find or create subcategory
+  console.log('🔍 Step 2: Finding or creating subcategory...');
+  let matchedSubcategory;
+  try {
+    matchedSubcategory = await findOrCreateSubcategory(subcategoryName, matchedCategory._id, categoryName);
+  } catch (error) {
+    console.error('Error finding/creating subcategory:', error);
+    errors.push(`Row ${rowNumber}: ${error.message}`);
+    return { product: null, errors };
+  }
+  
+  // Step 3: Check for duplicate product name
+  console.log('🔍 Step 3: Checking for duplicate products...');
+  try {
+    const existingProduct = await Product.findOne({ 
+      name: { $regex: new RegExp(`^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } 
+    });
+    
+    if (existingProduct) {
+      console.log('❌ Duplicate product found:', existingProduct.name);
+      errors.push(`Row ${rowNumber}: Product '${name}' already exists`);
+      return { product: null, errors };
+    } else {
+      console.log('✅ No duplicate product found');
+    }
+  } catch (dbError) {
+    console.error('Database error during duplicate check:', dbError);
+    errors.push(`Row ${rowNumber}: Database error during duplicate check: ${dbError.message}`);
+    return { product: null, errors };
+  }
+  
+  // Step 4: Validate price and stock
+  console.log('🔍 Step 4: Validating price and stock...');
+  const finalPrice = isNaN(price) ? 0 : Math.max(0, parseFloat(price));
+  const finalStock = isNaN(stock) ? 0 : Math.max(0, parseInt(stock));
+  
+  if (price < 0) {
+    errors.push(`Row ${rowNumber}: Price cannot be negative`);
+  }
+  
+  if (stock < 0) {
+    errors.push(`Row ${rowNumber}: Stock cannot be negative`);
+  }
+  
+  if (errors.length > 0) {
+    return { product: null, errors };
+  }
+  
+  // Step 5: Create product object
+  console.log('🔍 Step 5: Creating product object...');
   const product = {
-    name,
-    description: '',
-    category: matchedCategory?._id || null,
-    subCategory: matchedSubcategory?._id || null,
+    name: name.trim(),
+    description: description.trim() || '',
+    category: matchedCategory._id,
+    subCategory: matchedSubcategory._id,
+    price: finalPrice,
+    stock: finalStock,
     visibility: true,
     status: true,
     image: '',
@@ -112,11 +328,17 @@ const validateAndTransformProduct = async (row, index, categories, subcategories
     showInDailyNeeds: false,
     attributes: []
   };
-
+  
+  console.log('✅ Product object created successfully:', {
+    name: product.name,
+    categoryId: product.category,
+    subCategoryId: product.subCategory,
+    price: product.price,
+    stock: product.stock
+  });
+  
   return { product, errors };
 };
-
-
 
 router.post('/', uploadImage.single('image'), async (req, res) => {
   try {
@@ -159,88 +381,282 @@ router.post('/', uploadImage.single('image'), async (req, res) => {
 
 // Bulk import route (new)
 router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) => {
+  console.log('\n🚀 Starting bulk import process...');
+  
   try {
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No Excel file uploaded' });
+      console.log('❌ No file uploaded');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No Excel file uploaded' 
+      });
     }
-
-    const excelData = processExcelData(req.file.buffer, req.file.originalname);
-
+    
+    console.log('📁 File received:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+    
+    // Process Excel data
+    let excelData;
+    try {
+      excelData = processExcelData(req.file.buffer, req.file.originalname);
+      console.log(`📊 Processed ${excelData.length} rows from Excel`);
+    } catch (error) {
+      console.log('❌ Excel processing failed:', error.message);
+      return res.status(400).json({ 
+        success: false, 
+        message: `Error processing Excel file: ${error.message}` 
+      });
+    }
+    
     if (!excelData || excelData.length === 0) {
-      return res.status(400).json({ success: false, message: 'Excel file is empty or invalid' });
+      console.log('❌ No valid data found in Excel');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Excel file contains no valid data rows' 
+      });
     }
-
-    // Use your in-memory or fetched state here
-    const categories = await category.find({}); // replace this with actual state if dynamic
-    const subcategories = await subCategory.find({});
-
+    
+    // Initialize results tracking
     const results = {
       total: excelData.length,
       successful: 0,
       failed: 0,
-      errors: []
+      errors: [],
+      categoriesCreated: 0,
+      subcategoriesCreated: 0
     };
-
+    
     const successfulProducts = [];
-
+    const createdCategories = [];
+    const createdSubcategories = [];
+    
+    // Process each row
+    console.log('🔄 Processing rows...');
     for (let i = 0; i < excelData.length; i++) {
       const row = excelData[i];
-
+      console.log(`\n--- Processing row ${i + 1}/${excelData.length} ---`);
+      
       try {
-        const { product, errors } = await validateAndTransformProduct(row, i, categories, subcategories);
-
+        const { product, errors } = await validateAndTransformProduct(row);
+        
         if (errors.length > 0) {
+          console.log(`❌ Validation failed for row ${row.rowNumber}:`, errors);
           results.errors.push(...errors);
           results.failed++;
           continue;
         }
-
+        
+        if (!product) {
+          console.log(`❌ No product object created for row ${row.rowNumber}`);
+          results.failed++;
+          results.errors.push(`Row ${row.rowNumber}: Failed to create product object`);
+          continue;
+        }
+        
+        // Create and save the product
+        console.log(`💾 Saving product: ${product.name}`);
         const newProduct = new Product(product);
-        await newProduct.save();
-
-        successfulProducts.push(newProduct);
+        const savedProduct = await newProduct.save();
+        
+        successfulProducts.push({
+          id: savedProduct._id,
+          name: savedProduct.name,
+          category: savedProduct.category,
+          subCategory: savedProduct.subCategory,
+          price: savedProduct.price,
+          stock: savedProduct.stock
+        });
+        
         results.successful++;
+        console.log(`✅ Successfully saved: ${savedProduct.name} (ID: ${savedProduct._id})`);
+        
       } catch (error) {
+        console.log(`❌ Database error for row ${row.rowNumber}:`, error.message);
+        console.error('Error details:', error);
         results.failed++;
-        results.errors.push(`Row ${i + 2}: ${error.message}`);
+        results.errors.push(`Row ${row.rowNumber}: Database error - ${error.message}`);
       }
     }
-
-    res.status(200).json({
-      success: true,
-      message: `Bulk import completed. ${results.successful} products created, ${results.failed} failed.`,
-      results,
-      products: successfulProducts
+    
+    // Prepare response
+    console.log('\n📊 Import Summary:', {
+      total: results.total,
+      successful: results.successful,
+      failed: results.failed,
+      errorCount: results.errors.length,
+      categoriesCreated: results.categoriesCreated,
+      subcategoriesCreated: results.subcategoriesCreated
     });
-
+    
+    let message = `Bulk import completed. ${results.successful} products created, ${results.failed} failed.`;
+    if (results.categoriesCreated > 0 || results.subcategoriesCreated > 0) {
+      message += ` ${results.categoriesCreated} categories and ${results.subcategoriesCreated} subcategories were automatically created.`;
+    }
+    
+    const response = {
+      success: results.successful > 0, // Consider success if at least one product was created
+      message: message,
+      results: {
+        total: results.total,
+        successful: results.successful,
+        failed: results.failed,
+        categoriesCreated: results.categoriesCreated,
+        subcategoriesCreated: results.subcategoriesCreated,
+        errors: results.errors.slice(0, 50) // Limit errors to first 50 to avoid large responses
+      }
+    };
+    
+    if (successfulProducts.length > 0) {
+      response.products = successfulProducts;
+    }
+    
+    if (createdCategories.length > 0) {
+      response.createdCategories = createdCategories;
+    }
+    
+    if (createdSubcategories.length > 0) {
+      response.createdSubcategories = createdSubcategories;
+    }
+    
+    // Log final response
+    console.log('📋 Final response prepared');
+    res.status(200).json(response);
+    
   } catch (error) {
-    console.error('Error in bulk import:', error);
-    res.status(500).json({ success: false, message: 'Failed to process bulk import', error: error.message });
+    console.error('💥 Fatal error in bulk import:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to process bulk import', 
+      error: error.message 
+    });
   }
 });
 
-router.get('/download-template', (req, res) => {
+router.get('/download-template', async (req, res) => {
   try {
-    const sampleData = [
-      { name: 'Tea-Tree Facewash', Category: 'Body Care', Subcategory: 'Facewash' },
-      { name: 'Tea-Tree Bodywash', Category: 'Body Care', Subcategory: 'Bodywash' },
-      { name: 'Motorolla edge 60 pro', Category: 'Electronics', Subcategory: 'mobiles' }
-    ];
+    // Optional: Fetch actual categories and subcategories for more realistic examples
+    const categories = await category.find({}).lean();
+    const subcategories = await subCategory.find({}).lean();
+    
+    // Create sample data with real categories if available, otherwise use hardcoded examples
+    let sampleData;
+    
+    if (categories.length > 0 && subcategories.length > 0) {
+      // Use real data from database
+      const bodyCategory = categories.find(c => c.name.toLowerCase().includes('body'));
+      const electronicsCategory = categories.find(c => c.name.toLowerCase().includes('electronic'));
+      
+      sampleData = [
+        { 
+          name: 'Tea-Tree Facewash', 
+          Category: bodyCategory?.name || 'Body Care', 
+          Subcategory: 'Facewash',
+          description: 'Natural tea tree face wash for all skin types',
+          price: 299,
+          stock: 50
+        },
+        { 
+          name: 'Tea-Tree Bodywash', 
+          Category: bodyCategory?.name || 'Body Care', 
+          Subcategory: 'Bodywash',
+          description: 'Refreshing tea tree body wash',
+          price: 399,
+          stock: 30
+        },
+        { 
+          name: 'Motorola Edge 60 Pro', 
+          Category: electronicsCategory?.name || 'Electronics', 
+          Subcategory: 'mobiles',
+          description: 'Latest smartphone with advanced features',
+          price: 25999,
+          stock: 10
+        }
+      ];
+    } else {
+      // Fallback to hardcoded examples
+      sampleData = [
+        { 
+          name: 'Tea-Tree Facewash', 
+          Category: 'Body Care', 
+          Subcategory: 'Facewash',
+          description: 'Natural tea tree face wash for all skin types',
+          price: 299,
+          stock: 50
+        },
+        { 
+          name: 'Tea-Tree Bodywash', 
+          Category: 'Body Care', 
+          Subcategory: 'Bodywash',
+          description: 'Refreshing tea tree body wash',
+          price: 399,
+          stock: 30
+        },
+        { 
+          name: 'Motorola Edge 60 Pro', 
+          Category: 'Electronics', 
+          Subcategory: 'mobiles',
+          description: 'Latest smartphone with advanced features',
+          price: 25999,
+          stock: 10
+        }
+      ];
+    }
 
+    // Create workbook and worksheet
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 25 }, // name
+      { wch: 15 }, // Category
+      { wch: 15 }, // Subcategory
+      { wch: 40 }, // description
+      { wch: 10 }, // price
+      { wch: 8 }   // stock
+    ];
+    worksheet['!cols'] = columnWidths;
+    
+    // Add some styling to headers (optional - makes template look more professional)
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "366092" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+    
+    // Apply header styling (A1 to F1)
+    const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1'];
+    headerCells.forEach(cell => {
+      if (worksheet[cell]) {
+        worksheet[cell].s = headerStyle;
+      }
+    });
+    
+    // Add worksheet to workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
+    
+    // Generate buffer
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
+    // Set headers for download
     res.setHeader('Content-Disposition', 'attachment; filename=product-import-template.xlsx');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Length', buffer.length);
+    
     res.send(buffer);
+    
   } catch (error) {
     console.error('Error generating template:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate template' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to generate template',
+      error: error.message 
+    });
   }
 });
-
 
 router.get("/:id", async (req, res) => {
   try {

@@ -42,11 +42,11 @@ interface AttributeItem extends AttributeOption {
 }
 
 // Searchable Select Component
-const SearchableSelect = ({ 
-  options, 
-  value, 
-  onChange, 
-  placeholder = "---Select---", 
+const SearchableSelect = ({
+  options,
+  value,
+  onChange,
+  placeholder = "---Select---",
   disabled = false,
   searchPlaceholder = "Search...",
   className = "",
@@ -58,7 +58,7 @@ const SearchableSelect = ({
   // Filter options based on search term
   const filteredOptions = useMemo(() => {
     if (!searchTerm) return options;
-    return options.filter(option => 
+    return options.filter(option =>
       option.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [options, searchTerm]);
@@ -97,8 +97,8 @@ const SearchableSelect = ({
         <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
           {selectedOption ? selectedOption.name : placeholder}
         </span>
-        <ChevronDown 
-          className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        <ChevronDown
+          className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -150,8 +150,8 @@ const SearchableSelect = ({
 
       {/* Overlay to close dropdown when clicking outside */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -196,29 +196,30 @@ export default function AddProductPage() {
   const [filterSubCate, setFilterSubCate] = useState([])
 
   // Filtered subcategories based on selected category
-  const filteredSubcategories = useMemo(() => {
-    if (!selectedCategory) return [];
-    return fetchedSubcategories.filter((subcat) => subcat.category?._id === selectedCategory);
-  }, [fetchedSubcategories, selectedCategory]);
+const filteredSubcategories = useMemo(() => {
+  if (!selectedCategory) return [];
+  return fetchedSubcategories.filter((subcat) => subcat.category?._id === selectedCategory);
+}, [fetchedSubcategories, selectedCategory]);
 
   // Update your useEffect for data fetching
   useEffect(() => {
-   
+
     const fetchInitialData = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
         // Fetch all necessary data in parallel
+        // Update your API call to fetch all subcategories
         const [attrRes, categoriesRes, subcategoriesRes] = await Promise.all([
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/attributes`),
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`),
-          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
+          // Add query parameter to get all records (adjust based on your API)
+          axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories?limit=1000`) // or ?all=true
         ]);
 
         setFetchedCategories(categoriesRes.data?.data)
         setFetchedSubcategories(subcategoriesRes.data[0].data)
-
         // FIX: Handle the nested response structure for subcategories
         let subcategoriesData = [];
         if (Array.isArray(subcategoriesRes.data)) {
@@ -234,7 +235,7 @@ export default function AddProductPage() {
 
         // Add safety checks and ensure arrays
         setAttributeOptions(Array.isArray(attrRes.data) ? attrRes.data : []);
-        
+
         // If we're in edit mode, fetch the product data
         if (productId) {
           const productRes = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`);
@@ -299,18 +300,18 @@ export default function AddProductPage() {
     }
   };
 
-  const handleCategoryChange = async (value: string) => {
-    console.log("Selected category:", value); // Debug log
-    console.log("fetched subcategories:", fetchedSubcategories); // Debug log
-    setProduct({ ...product, category: value, subCategory: "" });
-    setSelectedCategory(value);
-    setSelectedSubCategory(null);
-  };
+const handleCategoryChange = async (value: string) => {
+  console.log("Selected category:", value);
+  console.log("fetched subcategories:", fetchedSubcategories);
+  setProduct({ ...product, category: value, subCategory: "" });
+  setSelectedCategory(value);
+  setSelectedSubCategory(null);
+};
 
-  const handleSubCategoryChange = (value: string) => {
-    setProduct({ ...product, subCategory: value });
-    setSelectedSubCategory(value);
-  };
+const handleSubCategoryChange = (value: string) => {
+  setProduct({ ...product, subCategory: value });
+  setSelectedSubCategory(value);
+};
 
   const handleTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && tagInput.trim()) {

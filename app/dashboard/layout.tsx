@@ -52,14 +52,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       href: "/dashboard/routes/setup",
       active: pathname === "/dashboard/routes/setup",
     },
-     {
+    {
       label: "Customers",
       icon: UserCheck,
       href: "/dashboard/sales-agents",
       active: pathname === "/dashboard/sales-agents",
     },
-    
-     {
+
+    {
       label: "Banner",
       icon: ImageIcon,
       href: "/dashboard/banner",
@@ -135,35 +135,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           href: "/dashboard/orders/all",
           active: pathname === "/dashboard/orders/all",
           icon: ChevronRight,
-        
+
         },
         {
           label: "Pending",
           href: "/dashboard/orders/pending",
           active: pathname === "/dashboard/orders/pending",
           icon: ChevronRight,
-        
+
         },
         {
           label: "Confirm",
           href: "/dashboard/orders/confirm",
           active: pathname === "/dashboard/orders/confirm",
           icon: ChevronRight,
-      
+
         },
         {
           label: "Cancel",
           href: "/dashboard/orders/cancel",
           active: pathname === "/dashboard/orders/cancel",
           icon: ChevronRight,
-      
+
         },
         {
           label: "Out for Delivery",
           href: "/dashboard/orders/out-for-delivery",
           active: pathname === "/dashboard/orders/out-for-delivery",
           icon: ChevronRight,
-      
+
         },
         {
           label: "Delivered",
@@ -171,7 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           active: pathname === "/dashboard/orders/delivered",
           icon: ChevronRight,
         },
-         {
+        {
           label: "Returned",
           href: "/dashboard/orders/returned",
           active: pathname === "/dashboard/orders/returned",
@@ -180,24 +180,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ],
       expanded: pathname.includes("/dashboard/orders"),
     },
-  
-   
+
+
     {
       label: "Village",
       icon: MapPin,
       href: "/dashboard/villages",
       active: pathname === "/dashboard/villages",
     },
-   
+
   ])
 
   const toggleExpand = (index: number) => {
     setNavItems((prev) => prev.map((item, i) => (i === index ? { ...item, expanded: !item.expanded } : item)))
   }
 
-  const handleLogout = async() => {
-    const res = await axios.post(`https://e-commerce-admin-backend.onrender.com/auth/admin/logout`)
-  }
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/logout`,
+        {}, // empty body
+        {
+          withCredentials: true, // this goes in the config object
+        }
+      );
+
+      // Optionally redirect to login page or update UI state
+      // router.push('/login'); // if using Next.js router
+      console.log('Logged out successfully');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const renderNavItems = (items: NavItem[], isMobile = false) => {
     return items.map((item, index) => {
@@ -273,11 +286,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex-1 flex flex-col px-6 py-4 space-y-1">{renderNavItems(navItems)}</div>
           <div className="p-6">
-            <Link href="/">
+            <Link href="/login">
               <Button
                 variant="outline"
                 className="w-full justify-start text-white bg-gray-800 hover:bg-gray-700 hover:text-white"
-                onClick={()=>handleLogout}
+                onClick={() => handleLogout()} // Added () to call the function
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
@@ -307,17 +320,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Button>
                 </div>
                 <div className="flex-1 flex flex-col px-6 py-4 space-y-1">{renderNavItems(navItems, true)}</div>
-                <div className="p-6">
-                  <Link href="/">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-white bg-gray-800 hover:bg-gray-700 hover:text-white"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                    </Button>
-                  </Link>
-                </div>
+
               </div>
             </SheetContent>
           </Sheet>

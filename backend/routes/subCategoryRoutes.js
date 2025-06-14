@@ -39,11 +39,11 @@ const upload = multer({
 // GET /api/subcategories?categoryId=123 - Get subcategories by category ID
 router.get("/", async (req, res) => {
   try {
-    const { categoryId, search, page = 1, limit = 10, status } = req.query;
+    const { categoryId, search, page = 1, limit = 1000, status } = req.query;
 
     // Parse pagination parameters
     const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.max(1, Math.min(100, parseInt(limit))); // Max 100 items per page
+    const limitNum = Math.max(1, Math.min(1000, parseInt(limit))); // Max 100 items per page
     const skip = (pageNum - 1) * limitNum;
 
     // Build query object for filtering
