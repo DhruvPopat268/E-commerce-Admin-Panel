@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { request } from 'http';
 
 export default function AuthWrapper({ children, requireAuth = false }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -13,6 +14,8 @@ export default function AuthWrapper({ children, requireAuth = false }) {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('adminToken');
+      
+
       
       if (requireAuth && !token) {
         // Redirect to login with return URL

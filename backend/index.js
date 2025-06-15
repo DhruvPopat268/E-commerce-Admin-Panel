@@ -28,9 +28,7 @@ app.set('trust proxy', 1); // Required on Render for secure cookies to work
 app.use(cors({
   origin: [
     "http://localhost:3000",
-    "https://e-commerce-admin-frontend.onrender.com",
-    "https://e-commerce-admin-panel-3lnccom1x-prayosha-techs-projects.vercel.app",
-    "https://e-commerce-admin-panel-eight-sigma.vercel.app"
+    "https://e-commerce-admin-panel-eight-sigma.vercel.app/"
   ],
   credentials: true
 }));
