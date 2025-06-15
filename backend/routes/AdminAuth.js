@@ -48,16 +48,13 @@ router.post('/login', async (req, res) => {
 
     console.log(token)
 
-    // Replace your current res.cookie() call with:
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Change from 'none' to 'lax'
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/'
+      secure: true,
+      sameSite:'none', // VERY IMPORTANT
+     // Adjust based on domain usage
     });
 
-    
     res.status(200).json({
       token,
       admin: {

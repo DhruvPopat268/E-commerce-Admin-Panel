@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    middlewarePrefetch: true,
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
