@@ -25,28 +25,58 @@ export default function LoginPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e) => {
   e.preventDefault()
+  
+  console.log('=== FRONTEND LOGIN ATTEMPT ===')
+  console.log('Current cookies before login:', document.cookie)
   
   try {
     const response = await axios.post(
       `${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/login`, 
       formData, 
       {
-        withCredentials: true, // This is crucial for cookies
+        withCredentials: true,
       }
     )
     
+    console.log('Login response:', response.data)
+    console.log('Response headers:', response.headers)
+    
     if (response.status === 200) {
-      // Check if there's a redirect parameter in the URL
+      console.log('Login successful')
+      
+      // Wait a moment then check cookies
+      setTimeout(() => {
+        console.log('Cookies after login:', document.cookie)
+        
+        // Manual cookie check
+        const allCookies = document.cookie.split(';').map(c => c.trim())
+        console.log('All cookies array:', allCookies)
+        
+        const tokenCookie = allCookies.find(c => c.startsWith('token='))
+        const adminTokenCookie = allCookies.find(c => c.startsWith('adminToken='))
+        
+        console.log('Token cookie found:', tokenCookie)
+        console.log('AdminToken cookie found:', adminTokenCookie)
+      }, 1000)
+      
+      // Also store in localStorage as backup
+      if (response.data.token) {
+        localStorage.setItem('adminToken', response.data.token);
+        console.log('Token stored in localStorage:', response.data.token)
+      }
+      
+      // Check redirect
       const urlParams = new URLSearchParams(window.location.search);
       const redirectPath = urlParams.get('redirect') || '/dashboard';
       
+      console.log('Redirecting to:', redirectPath)
       router.push(redirectPath);
     }
   } catch (error) {
     console.error('Login failed:', error);
-    // Handle error (show error message to user)
+    console.error('Error response:', error.response?.data);
   }
 }
 
