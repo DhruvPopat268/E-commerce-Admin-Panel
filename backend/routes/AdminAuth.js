@@ -46,44 +46,18 @@ router.post('/login', async (req, res) => {
     // Generate token
     const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
-    console.log('Generated token:', token);
+    console.log('Generated token for localStorage:', token);
     
-    // Get the origin from the request
-    const origin = req.headers.origin;
-    console.log('Request origin:', origin);
-    
-    // Determine if it's localhost or production
-    const isLocalhost = origin && (origin.includes('localhost') || origin.includes('127.0.0.1'));
-    const isProduction = process.env.NODE_ENV === 'production' && !isLocalhost;
-    
-    console.log('Is production:', isProduction);
-    console.log('Is localhost:', isLocalhost);
-    
-    // Set cookie with correct settings for both localhost and production
-    res.cookie('token', token, {
-      httpOnly: false, // Change to false temporarily for debugging
-      secure: isProduction, // Only secure in production
-      sameSite: isProduction ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/', // Available for all paths
-      domain: isProduction ? '.vercel.app' : undefined // Set domain for production
-    });
-    
-    console.log('Cookie set with settings:', {
-      httpOnly: false,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
-      domain: isProduction ? '.vercel.app' : undefined
-    });
-    
+    // Just return the token - no cookies needed
     res.status(200).json({
       message: 'Login successful',
-      token, // Also send token in response for debugging
+      token,
       admin: {
         id: admin._id,
         mobileNumber: admin.mobileNumber,
       },
     });
+    
   } catch (err) {
     console.log('Login error:', err);
     res.status(500).json({ message: 'Login failed', error: err.message });

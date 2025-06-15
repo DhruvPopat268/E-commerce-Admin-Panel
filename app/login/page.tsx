@@ -28,55 +28,27 @@ export default function LoginPage() {
 const handleSubmit = async (e) => {
   e.preventDefault()
   
-  console.log('=== FRONTEND LOGIN ATTEMPT ===')
-  console.log('Current cookies before login:', document.cookie)
-  
   try {
     const response = await axios.post(
       `${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/login`, 
-      formData, 
-      {
-        withCredentials: true,
-      }
+      formData
+      // No need for withCredentials since we're not using cookies
     )
     
-    console.log('Login response:', response.data)
-    console.log('Response headers:', response.headers)
-    
-    if (response.status === 200) {
-      console.log('Login successful')
+    if (response.status === 200 && response.data.token) {
+      // Store token in localStorage
+      localStorage.setItem('adminToken', response.data.token);
       
-      // Wait a moment then check cookies
-      setTimeout(() => {
-        console.log('Cookies after login:', document.cookie)
-        
-        // Manual cookie check
-        const allCookies = document.cookie.split(';').map(c => c.trim())
-        console.log('All cookies array:', allCookies)
-        
-        const tokenCookie = allCookies.find(c => c.startsWith('token='))
-        const adminTokenCookie = allCookies.find(c => c.startsWith('adminToken='))
-        
-        console.log('Token cookie found:', tokenCookie)
-        console.log('AdminToken cookie found:', adminTokenCookie)
-      }, 1000)
-      
-      // Also store in localStorage as backup
-      if (response.data.token) {
-        localStorage.setItem('adminToken', response.data.token);
-        console.log('Token stored in localStorage:', response.data.token)
-      }
-      
-      // Check redirect
+      // Get redirect URL from query params
       const urlParams = new URLSearchParams(window.location.search);
       const redirectPath = urlParams.get('redirect') || '/dashboard';
       
-      console.log('Redirecting to:', redirectPath)
+      console.log('Login successful, redirecting to:', redirectPath);
       router.push(redirectPath);
     }
   } catch (error) {
     console.error('Login failed:', error);
-    console.error('Error response:', error.response?.data);
+    // Handle error - show message to user
   }
 }
 
