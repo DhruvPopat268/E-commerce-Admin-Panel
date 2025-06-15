@@ -1,11 +1,15 @@
-// components/AuthWrapper.jsx
+// components/AuthWrapper.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { request } from 'http';
 
-export default function AuthWrapper({ children, requireAuth = false }) {
+interface AuthWrapperProps {
+  children: React.ReactNode;
+  requireAuth?: boolean;
+}
+
+export default function AuthWrapper({ children, requireAuth = false }: AuthWrapperProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
@@ -14,8 +18,6 @@ export default function AuthWrapper({ children, requireAuth = false }) {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('adminToken');
-      
-
       
       if (requireAuth && !token) {
         // Redirect to login with return URL
@@ -27,9 +29,7 @@ export default function AuthWrapper({ children, requireAuth = false }) {
       setIsLoading(false);
     };
 
-    // Add a small delay to ensure localStorage is available
-    const timer = setTimeout(checkAuth, 100);
-    return () => clearTimeout(timer);
+    checkAuth();
   }, [router, pathname, requireAuth]);
 
   if (requireAuth && isLoading) {

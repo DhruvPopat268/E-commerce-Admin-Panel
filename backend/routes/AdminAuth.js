@@ -34,32 +34,37 @@ router.post('/signup', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { mobileNumber, password } = req.body;
-    
+
     // Find admin
     const admin = await Admin.findOne({ mobileNumber });
     if (!admin) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
-    
+
     // Compare password
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
-    
+
     // Generate token
-    const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    
-    console.log('Generated token for localStorage:', token);
-    
-    // Just return the token - no cookies needed
+    const token = jwt.sign({ adminId: admin._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    console.log(token)
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite:'none', // VERY IMPORTANT
+     // Adjust based on domain usage
+    });
+
     res.status(200).json({
-      message: 'Login successful',
       token,
       admin: {
-        id: admin._id,
+        _id: admin._id,
         mobileNumber: admin.mobileNumber,
+        // add other fields if needed
       },
     });
-    
   } catch (err) {
-    console.log('Login error:', err);
+    console.log(err)
     res.status(500).json({ message: 'Login failed', error: err.message });
   }
 });

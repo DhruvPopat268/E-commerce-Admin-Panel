@@ -31,7 +31,9 @@ const handleSubmit = async (e) => {
   try {
     const response = await axios.post(
       `${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/login`, 
-      formData
+      formData , {
+        
+      }
       // No need for withCredentials since we're not using cookies
     )
     
