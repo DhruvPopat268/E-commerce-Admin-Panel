@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 export function middleware(request) {
   // Get the token from cookies (match your backend cookie name)
-  const token = request.cookies.get('token')
+  const token = request.cookies.get('token')?.value // Add .value!
   console.log(token)
   
   // Check if user is trying to access dashboard routes
