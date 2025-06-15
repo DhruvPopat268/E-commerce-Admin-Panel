@@ -1,4 +1,4 @@
-// middleware.js - Specific debugging for live server issues
+// middleware.js - Fixed for Vercel deployment
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
@@ -19,90 +19,60 @@ export async function middleware(req) {
   const { pathname } = req.nextUrl;
   const isDashboardRoute = pathname.startsWith('/dashboard');
   
-  // Skip non-dashboard routes
+  // Allow static files or non-dashboard pages
   if (!isDashboardRoute || PUBLIC_FILE.test(pathname)) {
     return NextResponse.next();
   }
 
-  // EXTENSIVE DEBUGGING FOR LIVE SERVER
-  console.log('🔍 === LIVE SERVER COOKIE DEBUG ===');
-  console.log('URL:', req.url);
-  console.log('Pathname:', pathname);
-  console.log('Method:', req.method);
+  console.log('🔍 Middleware running for:', pathname);
   
-  // Check all possible ways cookies might be sent
+  // VERCEL COOKIE DEBUG - Multiple ways to get cookies
   const cookieHeader = req.headers.get('cookie');
   const allCookies = req.cookies.getAll();
-  const tokenCookie = req.cookies.get('token');
+  const tokenFromCookies = req.cookies.get('token')?.value;
   
   console.log('Raw cookie header:', cookieHeader);
-  console.log('All cookies from req.cookies:', allCookies);
-  console.log('Token cookie object:', tokenCookie);
-  console.log('Token value:', tokenCookie?.value);
+  console.log('All cookies:', allCookies);
+  console.log('Token from req.cookies:', tokenFromCookies ? 'EXISTS' : 'UNDEFINED');
   
-  // Check if cookie exists in raw header but not in req.cookies
-  if (cookieHeader && cookieHeader.includes('token=')) {
-    const tokenMatch = cookieHeader.match(/token=([^;]+)/);
+  // VERCEL FIX: Manual token extraction from cookie header
+  let token = tokenFromCookies;
+  
+  if (!token && cookieHeader) {
+    console.log('🔧 Attempting manual token extraction...');
+    const tokenMatch = cookieHeader.match(/(?:^|;\s*)token=([^;]*)/);
     if (tokenMatch) {
-      console.log('🚨 Token found in raw header but not in req.cookies!');
-      console.log('Raw token from header:', tokenMatch[1]);
+      token = tokenMatch[1];
+      console.log('✅ Token found via manual extraction');
     }
   }
   
-  // Environment info
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('Host:', req.headers.get('host'));
-  console.log('User-Agent:', req.headers.get('user-agent'));
-  console.log('X-Forwarded-Proto:', req.headers.get('x-forwarded-proto'));
-  console.log('X-Forwarded-Host:', req.headers.get('x-forwarded-host'));
-  
-  const token = tokenCookie?.value;
+  console.log('Final token status:', token ? 'FOUND' : 'MISSING');
   
   if (!token) {
-    console.log('❌ No token found - redirecting to login');
-    console.log('Available cookies:', Object.keys(req.cookies));
-    
-    // Try to extract token manually from cookie header as fallback
-    if (cookieHeader) {
-      const manualTokenMatch = cookieHeader.match(/token=([^;]+)/);
-      if (manualTokenMatch) {
-        console.log('🔧 Found token in manual extraction:', manualTokenMatch[1].substring(0, 20) + '...');
-        // Use manually extracted token
-        const manualToken = manualTokenMatch[1];
-        const verified = await verifyJWT(manualToken);
-        if (verified) {
-          console.log('✅ Manual token verification successful');
-          return NextResponse.next();
-        }
-      }
-    }
-    
+    console.log('❌ No token found, redirecting to login');
     const loginUrl = new URL('/login', req.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  console.log('Token length:', token.length);
-  console.log('Token preview:', token.substring(0, 20) + '...');
-  
-  // JWT verification
+  // Environment checks
   if (!process.env.JWT_SECRET) {
-    console.error('❌ JWT_SECRET missing!');
+    console.error('❌ JWT_SECRET environment variable missing');
     const loginUrl = new URL('/login', req.url);
     return NextResponse.redirect(loginUrl);
   }
 
+  console.log('🔐 Verifying token...');
   const verified = await verifyJWT(token);
-  console.log('Token verification result:', !!verified);
+  console.log('Token verification:', verified ? 'SUCCESS' : 'FAILED');
   
   if (!verified) {
-    console.log('❌ Token verification failed - redirecting to login');
+    console.log('❌ Token verification failed, redirecting to login');
     const loginUrl = new URL('/login', req.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  console.log('✅ Token verified - allowing access to dashboard');
-  console.log('🔍 === END DEBUG ===');
-  
+  console.log('✅ Access granted to dashboard');
   return NextResponse.next();
 }
 
