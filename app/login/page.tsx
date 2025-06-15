@@ -25,20 +25,30 @@ export default function LoginPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    // In a real app, you would handle login with a backend service
-    const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/login`, formData, {
-      withCredentials: true,
-    })
-
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  
+  try {
+    const response = await axios.post(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/login`, 
+      formData, 
+      {
+        withCredentials: true, // This is crucial for cookies
+      }
+    )
+    
     if (response.status === 200) {
-      router.push("/dashboard")
+      // Check if there's a redirect parameter in the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectPath = urlParams.get('redirect') || '/dashboard';
+      
+      router.push(redirectPath);
     }
-
-    // For demo purposes, we'll just redirect to dashboard
-
+  } catch (error) {
+    console.error('Login failed:', error);
+    // Handle error (show error message to user)
   }
+}
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">

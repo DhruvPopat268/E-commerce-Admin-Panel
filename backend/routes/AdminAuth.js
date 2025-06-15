@@ -34,37 +34,41 @@ router.post('/signup', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { mobileNumber, password } = req.body;
-
+    
     // Find admin
     const admin = await Admin.findOne({ mobileNumber });
     if (!admin) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
-
+    
     // Compare password
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
-
+    
     // Generate token
-    const token = jwt.sign({ adminId: admin._id }, JWT_SECRET, { expiresIn: '7d' });
-
-    console.log(token)
-
+    const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    
+    console.log('Generated token:', token);
+    
+    // Set cookie with environment-specific settings
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     res.cookie('token', token, {
       httpOnly: true,
-      secure: true,
-      sameSite:'none', // VERY IMPORTANT
-     // Adjust based on domain usage
+      secure: isProduction, // true in production, false in development
+      sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin in production, 'lax' for localhost
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      path: '/' // Make cookie available for all routes
     });
-
+    
     res.status(200).json({
-      token,
+      message: 'Login successful',
       admin: {
-        _id: admin._id,
+        id: admin._id,
         mobileNumber: admin.mobileNumber,
         // add other fields if needed
       },
     });
   } catch (err) {
-    console.log(err)
+    console.log('Login error:', err);
     res.status(500).json({ message: 'Login failed', error: err.message });
   }
 });
