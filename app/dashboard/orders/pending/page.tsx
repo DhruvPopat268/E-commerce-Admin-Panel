@@ -79,10 +79,12 @@ export default function PendingOrdersPage() {
   })
   const [recordsPerPage, setRecordsPerPage] = useState(10)
 
-  useEffect(() => {
-    setIsMounted(true)
+ useEffect(() => {
+  setIsMounted(true)
+  if (isMounted) {
     fetchPendingOrders()
-  }, [pagination.currentPage, recordsPerPage])
+  }
+}, [pagination.currentPage, recordsPerPage, isMounted])
 
   // Update selectAll state when selectedOrders changes
   useEffect(() => {
@@ -91,27 +93,11 @@ export default function PendingOrdersPage() {
     }
   }, [selectedOrders, pendingOrders])
 
-  // Mock data for demonstration
-  useEffect(() => {
-    if (isMounted) {
-      const mockOrders: Order[] = [
-        // your mock data
-      ]
-      setPendingOrders(mockOrders)
-      setPagination(prev => ({
-        ...prev,
-        totalOrders: mockOrders.length, // Change from pendingOrders to totalOrders
-        totalPages: Math.ceil(mockOrders.length / prev.limit),
-        endIndex: Math.min(mockOrders.length, prev.limit)
-      }))
-      setLoading(false)
-    }
-  }, [isMounted])
+
 
 const fetchPendingOrders = async () => {
   try {
-    setLoading(true)
-    // Use status filter in the API call
+    setLoading(true) // Make sure this is at the beginning
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?status=pending&page=${pagination.currentPage}&limit=${recordsPerPage}`
     )
@@ -120,11 +106,9 @@ const fetchPendingOrders = async () => {
     console.log(data)
 
     if (data.orders) {
-      // No need to filter here anymore since API handles it
       setPendingOrders(data.orders)
       setSelectedOrders(new Set())
       
-      // Update pagination with the actual count from API
       setPagination({
         ...data.pagination,
         totalOrders: data.pagination.totalOrders
@@ -134,7 +118,7 @@ const fetchPendingOrders = async () => {
     console.error('Error fetching pending orders:', error)
     toast.error('Failed to fetch pending orders')
   } finally {
-    setLoading(false)
+    setLoading(false) // Only set loading to false here
   }
 }
 

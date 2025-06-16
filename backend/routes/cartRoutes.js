@@ -16,13 +16,13 @@ router.post('/add', verifyToken, async (req, res) => {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
-    const attribute = product.attributes.find(attr => attr.id.toString() === attributeId);
+    const attribute = product.attributes.find(attr => attr._id.toString() === attributeId);
     if (!attribute) return res.status(404).json({ error: 'Attribute not found in product' });
 
     const existing = await Cart.findOne({
       userId,
       productId,
-      'attributes._id': attributeId
+      'attributes.id': attributeId
     });
 
     let result;
@@ -38,7 +38,7 @@ router.post('/add', verifyToken, async (req, res) => {
         productName: product.name,
         image: product.image,
         attributes: {
-          _id: attribute._id,
+          _id: attributeId,
           name: attribute.name,
           discountedPrice: attribute.discountedPrice,
           quantity: qty,
