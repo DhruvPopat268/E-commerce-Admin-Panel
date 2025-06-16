@@ -10,6 +10,8 @@ const jwt = require("jsonwebtoken")
 const subCategory = require('../models/SubCategory')
 const category = require('../models/category')
 const XLSX = require('xlsx');
+const Attribute = require('../models/Attribute'); // ✅ use correct path to the model
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -753,20 +755,38 @@ router.post("/subcategory", async (req, res) => {
       });
     }
 
-    const modifiedProducts = products.map((product) => {
-      const productObj = product.toObject();
-      const firstAttr = productObj.attributes?.[0];
+   const modifiedProducts = await Promise.all(
+  products.map(async (product) => {
+    const productObj = product.toObject();
+    const firstAttr = productObj.attributes?.[0];
+    let attributeName = null;
+    let price = null;
+    let discountedPrice = null;
 
-      return {
-        ...productObj,
-        subCategoryName,
-        attributeName: firstAttr?.name || null,
-        price: firstAttr?.price || null,
-        discountedPrice: firstAttr?.discountedPrice || null,
-        subCategoryName, // ✅ Add this line
-        attributes: undefined,
-      };
-    });
+    if (firstAttr && firstAttr.id) {
+      try {
+        const attributeData = await Attribute.findById(firstAttr.id);
+        if (attributeData) {
+          attributeName = attributeData.name;
+          price = firstAttr.price;
+          discountedPrice = firstAttr.discountedPrice;
+        }
+      } catch (err) {
+        console.error("Attribute lookup error:", err);
+      }
+    }
+
+    return {
+      ...productObj,
+      subCategoryName,
+      attributeName,
+      price,
+      discountedPrice,
+      attributes: undefined,
+    };
+  })
+);
+
 
     return res.status(200).json({
       success: true,

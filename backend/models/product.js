@@ -1,11 +1,9 @@
 const mongoose = require("mongoose");
 
 const AttributeSchema = new mongoose.Schema({
-  id: { type: Number },
+  id: { type: mongoose.Schema.Types.ObjectId, ref: "Attribute" }, // <--- update this
   name: { type: String, required: true },
-  price: { type: Number, 
-    // required: true 
-  },
+  price: { type: Number },
   discountedPrice: { type: Number, default: 0 },
 });
 

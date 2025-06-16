@@ -591,10 +591,10 @@ export default function ProductsPage() {
                     {product.subCategory?.name || 'N/A'}
                   </TableCell>
                   <TableCell>
-                    {product.attributes?.[0]?.price ?? "0"}
+                    {product.attributes?.[0]?.price ?? "N/A"}
                   </TableCell>
                   <TableCell>
-                    {product.attributes?.[0]?.discountedPrice ?? "0"}
+                    {product.attributes?.[0]?.discountedPrice ?? "N/A"}
                   </TableCell>
                   <TableCell>
                     <Switch
