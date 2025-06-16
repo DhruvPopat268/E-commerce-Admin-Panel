@@ -74,19 +74,27 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-
 router.get('/all', async (req, res) => {
   try {
     // Get pagination parameters from query
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    
+    // Get status filter from query
+    const statusFilter = req.query.status;
 
-    // Get total count for pagination info
-    const totalOrders = await Order.countDocuments();
+    // Build query filter
+    let queryFilter = {};
+    if (statusFilter) {
+      queryFilter.status = { $regex: statusFilter, $options: 'i' }; // Case-insensitive search
+    }
 
-    // Fetch orders with pagination
-    const rawOrders = await Order.find()
+    // Get total count for pagination info (with filter applied)
+    const totalOrders = await Order.countDocuments(queryFilter);
+
+    // Fetch orders with pagination and filtering
+    const rawOrders = await Order.find(queryFilter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -183,7 +191,7 @@ router.get('/all', async (req, res) => {
     const hasPreviousPage = page > 1;
 
     res.status(200).json({
-      message: 'All orders fetched successfully',
+      message: statusFilter ? `${statusFilter} orders fetched successfully` : 'All orders fetched successfully',
       orders: ordersWithDetails,
       pagination: {
         currentPage: page,
@@ -198,7 +206,7 @@ router.get('/all', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error in /all route:', error);
-    res.status(500).json({ message: 'Error fetching all orders' });
+    res.status(500).json({ message: 'Error fetching orders' });
   }
 });
 

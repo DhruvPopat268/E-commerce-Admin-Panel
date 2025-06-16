@@ -43,7 +43,7 @@ interface Order {
 interface PaginationInfo {
   currentPage: number
   totalPages: number
-  pendingOrders: number
+  totalOrders: number  // Change from pendingOrders to totalOrders
   limit: number
   hasNextPage: boolean
   hasPreviousPage: boolean
@@ -70,7 +70,7 @@ export default function PendingOrdersPage() {
   const [pagination, setPagination] = useState<PaginationInfo>({
     currentPage: 1,
     totalPages: 1,
-    totalOrders: 0,
+    totalOrders: 0, // Change from pendingOrders to totalOrders
     limit: 10,
     hasNextPage: false,
     hasPreviousPage: false,
@@ -95,63 +95,48 @@ export default function PendingOrdersPage() {
   useEffect(() => {
     if (isMounted) {
       const mockOrders: Order[] = [
-        {
-          _id: "6841790b4cf136a49533da8",
-          userId: "user123456",
-          orders: [
-            {
-              productId: "prod1",
-              productName: "Tea-Tree Face wash",
-              image: "/api/placeholder/60/60",
-              attributes: {
-                _id: "attr1",
-                name: "Unit",
-                discountedPrice: 350,
-                quantity: 1,
-                total: 350
-              },
-              _id: "order1"
-            }
-          ],
-          status: "pending",
-          orderDate: "2025-06-05T09:35:00Z",
-          __v: 0,
-          cartTotal: 350,
-          salesAgentName: "Vimal Sarvaiya",
-          salesAgentMobile: "9067787232",
-          villageName: "surat (સુરત)",
-          routeName: "Route 2"
-        }
+        // your mock data
       ]
       setPendingOrders(mockOrders)
-      console.log(pendingOrders)
+      setPagination(prev => ({
+        ...prev,
+        totalOrders: mockOrders.length, // Change from pendingOrders to totalOrders
+        totalPages: Math.ceil(mockOrders.length / prev.limit),
+        endIndex: Math.min(mockOrders.length, prev.limit)
+      }))
       setLoading(false)
     }
   }, [isMounted])
 
-  const fetchPendingOrders = async () => {
-    try {
-      setLoading(true)
-      // Replace with your actual API endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?page=${pagination.currentPage}&limit=${recordsPerPage}`)
-      const data = await response.json()
+const fetchPendingOrders = async () => {
+  try {
+    setLoading(true)
+    // Use status filter in the API call
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?status=pending&page=${pagination.currentPage}&limit=${recordsPerPage}`
+    )
+    const data = await response.json()
 
-      console.log(data)
+    console.log(data)
 
-      if (data.orders) {
-        const pending = data.orders.filter((order: Order) => order.status.toLowerCase().includes('pending'))
-        console.log(pending)
-        setPendingOrders(pending)
-        setSelectedOrders(new Set())
-        setPagination(data.pagination)
-      }
-    } catch (error) {
-      console.error('Error fetching pending orders:', error)
-      toast.error('Failed to fetch pending orders')
-    } finally {
-      setLoading(false)
+    if (data.orders) {
+      // No need to filter here anymore since API handles it
+      setPendingOrders(data.orders)
+      setSelectedOrders(new Set())
+      
+      // Update pagination with the actual count from API
+      setPagination({
+        ...data.pagination,
+        totalOrders: data.pagination.totalOrders
+      })
     }
+  } catch (error) {
+    console.error('Error fetching pending orders:', error)
+    toast.error('Failed to fetch pending orders')
+  } finally {
+    setLoading(false)
   }
+}
 
   const generateInvoiceHTML = (order: Order) => {
     const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
@@ -493,55 +478,55 @@ export default function PendingOrdersPage() {
 
   // PDF Generation function
   const generateOrderReport = async (orderIds) => {
-  try {
-    // Fetch the selected orders data (you might already have this in state)
-    const selectedOrdersData = pendingOrders.filter(order => orderIds.includes(order._id));
+    try {
+      // Fetch the selected orders data (you might already have this in state)
+      const selectedOrdersData = pendingOrders.filter(order => orderIds.includes(order._id));
 
-    // Create a new window with the report template
-    const reportWindow = window.open('', '_blank');
+      // Create a new window with the report template
+      const reportWindow = window.open('', '_blank');
 
-    // Generate the HTML content
-    const htmlContent = generateReportHTML(selectedOrdersData);
+      // Generate the HTML content
+      const htmlContent = generateReportHTML(selectedOrdersData);
 
-    // Write the content to the new window
-    reportWindow.document.write(htmlContent);
-    reportWindow.document.close();
+      // Write the content to the new window
+      reportWindow.document.write(htmlContent);
+      reportWindow.document.close();
 
-    // Wait a bit for the content to load before printing
-    setTimeout(() => {
-      reportWindow.print();
-      // reportWindow.close(); // Uncomment this if you want to auto-close after printing
-    }, 500);
+      // Wait a bit for the content to load before printing
+      setTimeout(() => {
+        reportWindow.print();
+        // reportWindow.close(); // Uncomment this if you want to auto-close after printing
+      }, 500);
 
-  } catch (error) {
-    console.error('Error generating report:', error);
-    toast.error('Failed to generate report');
-  }
-};
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast.error('Failed to generate report');
+    }
+  };
 
-// Function to generate HTML for the report
-const generateReportHTML = (orders) => {
-  // Split orders into two columns
-  const midPoint = Math.ceil(orders.length / 2);
-  const leftColumnOrders = orders.slice(0, midPoint);
-  const rightColumnOrders = orders.slice(midPoint);
+  // Function to generate HTML for the report
+  const generateReportHTML = (orders) => {
+    // Split orders into two columns
+    const midPoint = Math.ceil(orders.length / 2);
+    const leftColumnOrders = orders.slice(0, midPoint);
+    const rightColumnOrders = orders.slice(midPoint);
 
-  // Calculate totals
-  const leftTotal = leftColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
-  const rightTotal = rightColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
-  const grandTotal = orders.reduce((sum, order) => sum + order.cartTotal, 0);
+    // Calculate totals
+    const leftTotal = leftColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
+    const rightTotal = rightColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
+    const grandTotal = orders.reduce((sum, order) => sum + order.cartTotal, 0);
 
-  const generateTableRows = (orderList) => {
-    return orderList.map(order => `
+    const generateTableRows = (orderList) => {
+      return orderList.map(order => `
     <tr>
       <td>${order.villageCode}</td>
       <td>${order.salesAgentName}</td>
       <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
     </tr>
   `).join('');
-  };
+    };
 
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -714,7 +699,7 @@ const generateReportHTML = (orders) => {
 </body>
 </html>
 `;
-};
+  };
 
   const cancelSelectedOrders = async () => {
     if (selectedOrders.size === 0) {
@@ -858,7 +843,7 @@ const generateReportHTML = (orders) => {
         <Clock className="h-6 w-6 text-orange-500" />
         <h1 className="text-2xl font-bold text-gray-900">Pending Orders</h1>
         <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-          {pagination.pendingOrders} Total
+          {pagination.totalOrders} Total
         </Badge>
 
       </div>

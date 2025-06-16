@@ -38,7 +38,7 @@ router.put('/:id/status', async (req, res) => {
 
       if (routeSetup?.salesAgents?.length > 0) {
         agentIds = routeSetup.salesAgents.map(agent => agent.agentId);
-        console.log(`Found ${agentIds.length} agents for route ${route.name}`);
+        
 
         const updateResult = await SalesAgent.updateMany(
           { _id: { $in: agentIds } },
