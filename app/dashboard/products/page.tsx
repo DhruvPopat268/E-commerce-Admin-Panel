@@ -52,8 +52,8 @@ export default function ProductsPage() {
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ])
 
-        console.log(categoriesRes)
-        console.log(subcategoriesRes)
+       
+
 
 
         if (categoriesRes.status === 200) {
@@ -63,6 +63,8 @@ export default function ProductsPage() {
         if (subcategoriesRes.status === 200) {
           const subcategoryData = subcategoriesRes.data.data || subcategoriesRes.data
           setSubcategories(Array.isArray(subcategoryData) ? subcategoryData : [])
+
+          
         }
       } catch (error) {
         console.error("Failed to fetch categories/subcategories:", error)
@@ -70,8 +72,9 @@ export default function ProductsPage() {
         setSubcategories([])
       }
     }
+
     fetchStaticData()
-    
+  
   }, [])
 
   // Fetch products with pagination and filters
@@ -588,10 +591,10 @@ export default function ProductsPage() {
                     {product.subCategory?.name || 'N/A'}
                   </TableCell>
                   <TableCell>
-                    {product.attributes?.[0]?.price ?? "N/A"}
+                    {product.attributes?.[0]?.price ?? "0"}
                   </TableCell>
                   <TableCell>
-                    {product.attributes?.[0]?.discountedPrice ?? "N/A"}
+                    {product.attributes?.[0]?.discountedPrice ?? "0"}
                   </TableCell>
                   <TableCell>
                     <Switch
