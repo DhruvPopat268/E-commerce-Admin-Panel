@@ -148,7 +148,8 @@ const findOrCreateCategory = async (categoryName) => {
     const newCategory = new category({
       name: categoryName.trim(),
       status: true,
-      visibility: true
+      visibility: true,
+      image:""
     });
     
     const savedCategory = await newCategory.save();
@@ -199,7 +200,8 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
       category: categoryId, // Use category field
       categoryId: categoryId, // Also set categoryId field for compatibility
       status: true,
-      visibility: true
+      visibility: true,
+      image:""
     });
     
     const savedSubcategory = await newSubcategory.save();
@@ -466,6 +468,7 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
           name: savedProduct.name,
           category: savedProduct.category,
           subCategory: savedProduct.subCategory,
+          image:"",
           price: savedProduct.price,
           stock: savedProduct.stock
         });
