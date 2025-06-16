@@ -10,8 +10,6 @@ const jwt = require("jsonwebtoken")
 const subCategory = require('../models/SubCategory')
 const category = require('../models/category')
 const XLSX = require('xlsx');
-const Attribute = require('../models/Attribute'); // ✅ use correct path to the model
-
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -150,8 +148,7 @@ const findOrCreateCategory = async (categoryName) => {
     const newCategory = new category({
       name: categoryName.trim(),
       status: true,
-      visibility: true,
-      image:""
+      visibility: true
     });
     
     const savedCategory = await newCategory.save();
@@ -202,8 +199,7 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
       category: categoryId, // Use category field
       categoryId: categoryId, // Also set categoryId field for compatibility
       status: true,
-      visibility: true,
-      image:""
+      visibility: true
     });
     
     const savedSubcategory = await newSubcategory.save();
@@ -470,7 +466,6 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
           name: savedProduct.name,
           category: savedProduct.category,
           subCategory: savedProduct.subCategory,
-          image:"",
           price: savedProduct.price,
           stock: savedProduct.stock
         });
@@ -755,38 +750,23 @@ router.post("/subcategory", async (req, res) => {
       });
     }
 
-   const modifiedProducts = await Promise.all(
-  products.map(async (product) => {
-    const productObj = product.toObject();
-    const firstAttr = productObj.attributes?.[0];
-    let attributeName = null;
-    let price = null;
-    let discountedPrice = null;
+    const modifiedProducts = products.map((product) => {
+      const productObj = product.toObject();
+      const firstAttr = productObj.attributes?.[0];
+      console.log(firstAttr);
 
-    if (firstAttr && firstAttr.id) {
-      try {
-        const attributeData = await Attribute.findById(firstAttr.id);
-        if (attributeData) {
-          attributeName = attributeData.name;
-          price = firstAttr.price;
-          discountedPrice = firstAttr.discountedPrice;
-        }
-      } catch (err) {
-        console.error("Attribute lookup error:", err);
-      }
-    }
-
-    return {
-      ...productObj,
-      subCategoryName,
-      attributeName,
-      price,
-      discountedPrice,
-      attributes: undefined,
-    };
-  })
-);
-
+      return {
+        ...productObj,
+        subCategoryName,
+        attributeName: firstAttr?.name ?? null,
+        // Fix: Use nullish coalescing (??) instead of logical OR (||)
+        // This will only return null if firstAttr.price is null or undefined
+        // 0 is a valid price value and should not be converted to null
+        price: firstAttr?.price ?? null,
+        discountedPrice: firstAttr?.discountedPrice ?? null,
+        attributes: undefined,
+      };
+    });
 
     return res.status(200).json({
       success: true,
@@ -968,7 +948,7 @@ router.delete('/:id', async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const { categoryId, subCategoryId, search, page = 1, limit = 1000, status } = req.query;
+    const { categoryId, subCategoryId, search, page = 1, limit = 10, status } = req.query;
    
     // Parse pagination parameters
     const pageNum = Math.max(1, parseInt(page));
