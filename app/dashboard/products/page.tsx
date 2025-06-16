@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Pencil, Trash2, Download, Package, ChevronLeft, ChevronRight, Upload, FileSpreadsheet } from "lucide-react"
+import { Pencil, Trash2, Download, Package, ChevronLeft, ChevronRight, Upload, FileSpreadsheet, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
 
@@ -24,7 +26,13 @@ export default function ProductsPage() {
   const [selectedSubcategory, setSelectedSubcategory] = useState("")
   const [selectedStatus, setSelectedStatus] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-  
+
+  // Search states for dropdowns
+  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [subcategoryOpen, setSubcategoryOpen] = useState(false)
+  const [categorySearchQuery, setCategorySearchQuery] = useState("")
+  const [subcategorySearchQuery, setSubcategorySearchQuery] = useState("")
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
@@ -52,19 +60,13 @@ export default function ProductsPage() {
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ])
 
-       
-
-
-
         if (categoriesRes.status === 200) {
           const categoryData = categoriesRes.data.data || categoriesRes.data
           setCategories(Array.isArray(categoryData) ? categoryData : [])
         }
         if (subcategoriesRes.status === 200) {
-          const subcategoryData = subcategoriesRes.data.data || subcategoriesRes.data
+          const subcategoryData = subcategoriesRes.data[0]?.data || subcategoriesRes.data
           setSubcategories(Array.isArray(subcategoryData) ? subcategoryData : [])
-
-          
         }
       } catch (error) {
         console.error("Failed to fetch categories/subcategories:", error)
@@ -74,8 +76,39 @@ export default function ProductsPage() {
     }
 
     fetchStaticData()
-  
   }, [])
+
+  // Filter categories based on search query
+  const filteredCategories = categories.filter(category =>
+    category.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
+  )
+
+  // Filter subcategories based on selected category and search query
+  const filteredSubcategories = subcategories.filter(subcategory => {
+    const matchesSearch = subcategory.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
+    
+    // If no category is selected, show all subcategories
+    if (!selectedCategory || selectedCategory === "") {
+      return matchesSearch
+    }
+    
+    // Show only subcategories that belong to the selected category
+    return matchesSearch && subcategory.category?._id === selectedCategory
+  })
+
+  // Get selected category name
+  const getSelectedCategoryName = () => {
+    if (!selectedCategory || selectedCategory === "") return "All Categories"
+    const category = categories.find(cat => cat._id === selectedCategory)
+    return category ? category.name : "All Categories"
+  }
+
+  // Get selected subcategory name
+  const getSelectedSubcategoryName = () => {
+    if (!selectedSubcategory || selectedSubcategory === "") return "All Subcategories"
+    const subcategory = subcategories.find(sub => sub._id === selectedSubcategory)
+    return subcategory ? subcategory.name : "All Subcategories"
+  }
 
   // Fetch products with pagination and filters
   const fetchProducts = async (page = 1, search = "", categoryId = "", subCategoryId = "", status = "") => {
@@ -93,8 +126,6 @@ export default function ProductsPage() {
 
       const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params}`)
 
-      console.log(response.data)
-      
       if (response.status === 200 && response.data.success) {
         const { data, pagination } = response.data
         setProducts(Array.isArray(data) ? data : [])
@@ -195,7 +226,7 @@ export default function ProductsPage() {
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return
-    
+
     try {
       await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${id}`)
       // Refresh current page after deletion
@@ -214,6 +245,27 @@ export default function ProductsPage() {
     setSelectedCategory("")
     setSelectedSubcategory("")
     setSelectedStatus("")
+    setCategorySearchQuery("")
+    setSubcategorySearchQuery("")
+  }
+
+  // Handle category selection
+  const handleCategorySelect = (categoryId) => {
+    setSelectedCategory(categoryId === "all" ? "" : categoryId)
+    
+    // Reset subcategory when category changes
+    setSelectedSubcategory("")
+    setSubcategorySearchQuery("")
+    
+    setCategoryOpen(false)
+    setCategorySearchQuery("")
+  }
+
+  // Handle subcategory selection
+  const handleSubcategorySelect = (subcategoryId) => {
+    setSelectedSubcategory(subcategoryId === "all" ? "" : subcategoryId)
+    setSubcategoryOpen(false)
+    setSubcategorySearchQuery("")
   }
 
   // Bulk Import Functions
@@ -225,7 +277,7 @@ export default function ProductsPage() {
         'application/vnd.ms-excel',
         'text/csv'
       ]
-      
+
       if (allowedTypes.includes(file.type)) {
         setSelectedFile(file)
         setImportResults(null)
@@ -244,7 +296,7 @@ export default function ProductsPage() {
 
     setIsImporting(true)
     setImportProgress(0)
-    
+
     try {
       const formData = new FormData()
       formData.append('excelFile', selectedFile)
@@ -363,34 +415,90 @@ export default function ProductsPage() {
             className="pl-3"
           />
         </div>
-        
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category._id} value={category._id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
-        <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Subcategory" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Subcategories</SelectItem>
-            {subcategories.map((subcategory) => (
-              <SelectItem key={subcategory._id} value={subcategory._id}>
-                {subcategory.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Searchable Category Dropdown */}
+        <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={categoryOpen}
+              className="justify-between"
+            >
+              {getSelectedCategoryName()}
+              <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px] p-0">
+            <Command>
+              <CommandInput 
+                placeholder="Search categories..." 
+                value={categorySearchQuery}
+                onValueChange={setCategorySearchQuery}
+              />
+              <CommandEmpty>No category found.</CommandEmpty>
+              <CommandGroup className="max-h-[200px] overflow-auto">
+                <CommandItem
+                  value="all"
+                  onSelect={() => handleCategorySelect("all")}
+                >
+                  All Categories
+                </CommandItem>
+                {filteredCategories.map((category) => (
+                  <CommandItem
+                    key={category._id}
+                    value={category.name}
+                    onSelect={() => handleCategorySelect(category._id)}
+                  >
+                    {category.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        {/* Searchable Subcategory Dropdown */}
+        <Popover open={subcategoryOpen} onOpenChange={setSubcategoryOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={subcategoryOpen}
+              className="justify-between"
+            >
+              {getSelectedSubcategoryName()}
+              <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px] p-0">
+            <Command>
+              <CommandInput 
+                placeholder="Search subcategories..." 
+                value={subcategorySearchQuery}
+                onValueChange={setSubcategorySearchQuery}
+              />
+              <CommandEmpty>No subcategory found.</CommandEmpty>
+              <CommandGroup className="max-h-[200px] overflow-auto">
+                <CommandItem
+                  value="all"
+                  onSelect={() => handleSubcategorySelect("all")}
+                >
+                  All Subcategories
+                </CommandItem>
+                {filteredSubcategories.map((subcategory) => (
+                  <CommandItem
+                    key={subcategory._id}
+                    value={subcategory.name}
+                    onSelect={() => handleSubcategorySelect(subcategory._id)}
+                  >
+                    {subcategory.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
         <Select value={selectedStatus} onValueChange={setSelectedStatus}>
           <SelectTrigger>
@@ -403,8 +511,8 @@ export default function ProductsPage() {
           </SelectContent>
         </Select>
 
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={clearFilters}
           className="border-gray-300"
         >
@@ -425,22 +533,21 @@ export default function ProductsPage() {
               <SelectItem value="20">25</SelectItem>
               <SelectItem value="50">50</SelectItem>
               <SelectItem value="100">100</SelectItem>
-
             </SelectContent>
           </Select>
           <span className="text-sm text-gray-600">per page</span>
         </div>
-        
+
         <div className="flex gap-2">
           <Button variant="outline" className="border-teal-500 text-teal-500">
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
-          
+
           {/* Bulk Import Dialog */}
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="border-blue-500 text-blue-500"
                 onClick={resetImportDialog}
               >
@@ -455,17 +562,17 @@ export default function ProductsPage() {
                 <div className="text-sm text-gray-600">
                   Upload an Excel file (.xlsx, .xls) or CSV file to import multiple products at once.
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={downloadTemplate}
                     className="w-full"
                   >
                     <FileSpreadsheet className="mr-2 h-4 w-4" />
                     Download Sample Template
                   </Button>
-                  
+
                   <Input
                     ref={fileInputRef}
                     type="file"
@@ -473,7 +580,7 @@ export default function ProductsPage() {
                     onChange={handleFileSelect}
                     className="cursor-pointer"
                   />
-                  
+
                   {selectedFile && (
                     <div className="text-sm text-green-600">
                       Selected: {selectedFile.name}
@@ -652,7 +759,7 @@ export default function ProductsPage() {
           <div className="text-sm text-gray-600">
             Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} results
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -663,7 +770,7 @@ export default function ProductsPage() {
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
-            
+
             {getPageNumbers().map((pageNum) => (
               <Button
                 key={pageNum}
@@ -675,7 +782,7 @@ export default function ProductsPage() {
                 {pageNum}
               </Button>
             ))}
-            
+
             <Button
               variant="outline"
               size="sm"
