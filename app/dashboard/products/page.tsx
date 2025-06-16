@@ -52,6 +52,10 @@ export default function ProductsPage() {
           axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/subcategories`)
         ])
 
+        console.log(categoriesRes)
+        console.log(subcategoriesRes)
+
+
         if (categoriesRes.status === 200) {
           const categoryData = categoriesRes.data.data || categoriesRes.data
           setCategories(Array.isArray(categoryData) ? categoryData : [])
@@ -85,6 +89,8 @@ export default function ProductsPage() {
       if (status !== "") params.append('status', status)
 
       const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params}`)
+
+      console.log(response.data)
       
       if (response.status === 200 && response.data.success) {
         const { data, pagination } = response.data
@@ -559,7 +565,7 @@ export default function ProductsPage() {
               </TableRow>
             ) : (
               products.map((product, index) => (
-                <TableRow key={product._id}>
+                <TableRow key={product.data?._id}>
                   <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">

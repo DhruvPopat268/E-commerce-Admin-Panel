@@ -945,7 +945,7 @@ router.delete('/:id', async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const { categoryId, subCategoryId, search, page = 1, limit = 10, status } = req.query;
+    const { categoryId, subCategoryId, search, page = 1, limit = 1000, status } = req.query;
    
     // Parse pagination parameters
     const pageNum = Math.max(1, parseInt(page));
