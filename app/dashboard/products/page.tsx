@@ -252,7 +252,6 @@ export default function ProductsPage() {
   // Handle category selection
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId === "all" ? "" : categoryId)
-    
     // Reset subcategory when category changes
     setSelectedSubcategory("")
     setSubcategorySearchQuery("")
@@ -447,7 +446,7 @@ export default function ProductsPage() {
                 {filteredCategories.map((category) => (
                   <CommandItem
                     key={category._id}
-                    value={category.name}
+                    value={category._id}
                     onSelect={() => handleCategorySelect(category._id)}
                   >
                     {category.name}

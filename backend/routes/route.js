@@ -226,7 +226,7 @@ router.post('/', async (req, res) => {
     // Create new route
     const newRoute = new Route({
       name: name.trim(),
-      status: true
+      status: false
     });
 
     const savedRoute = await newRoute.save();

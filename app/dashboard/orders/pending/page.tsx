@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { useRouter } from "next/navigation"
+
 
 // Mock toast function - replace with your actual toast implementation
 const toast = {
@@ -52,6 +54,8 @@ interface PaginationInfo {
 }
 
 export default function PendingOrdersPage() {
+    const router = useRouter()
+  
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState("")
@@ -408,8 +412,8 @@ const fetchPendingOrders = async () => {
   }
 
   const handleViewOrder = (orderId: string) => {
-    // router.push(`/dashboard/order-details/${orderId}`)
-    console.log('View order:', orderId)
+        router.push(`/dashboard/order-details/${orderId}`)
+
   }
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
@@ -1153,10 +1157,6 @@ const fetchPendingOrders = async () => {
               )}
 
             </>
-
-
-
-
           )}
         </div>
       </div>

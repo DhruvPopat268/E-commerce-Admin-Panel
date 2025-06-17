@@ -576,7 +576,7 @@ export default function returnOrdersPage() {
                 {returnOrders.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center py-8 text-gray-500">
-                      No returno orders found
+                      No return orders found
                     </td>
                   </tr>
                 ) : (
