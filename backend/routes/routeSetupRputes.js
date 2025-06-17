@@ -228,7 +228,7 @@ router.post('/:routeId/customers', async (req, res) => {
       });
     }
 
-    console.log('Searching for sales agents in villages:', villageNames);
+  
 
     // Get sales agents for the specified villages with improved matching
     const allSalesAgents = await SalesAgent.find({ status: true });
@@ -266,7 +266,7 @@ router.post('/:routeId/customers', async (req, res) => {
       phone: agent.mobileNumber || ''
     }));
 
-    console.log('Found customers for villages:', customers);
+  
 
     res.status(200).json({
       success: true,

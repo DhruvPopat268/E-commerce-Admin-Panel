@@ -241,7 +241,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
             .split('.')[0]; // Remove file extension
 
           await cloudinary.uploader.destroy(publicId);
-          console.log('Old image deleted from Cloudinary:', publicId);
+         
         } catch (deleteError) {
           console.error('Error deleting old image from Cloudinary:', deleteError);
           // Continue with update even if old image deletion fails
@@ -270,11 +270,11 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('Attempting to delete banner with ID:', id);
+  
 
     // Validate the ID format first
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      console.log('Invalid ObjectId format:', id);
+     
       return res.status(400).json({
         success: false,
         error: 'Invalid banner ID format'
@@ -284,14 +284,14 @@ router.delete('/:id', async (req, res) => {
     // Check if banner exists first
     const existingBanner = await Banner.findById(id);
     if (!existingBanner) {
-      console.log('Banner not found with ID:', id);
+   
       return res.status(404).json({
         success: false,
         error: 'Banner not found'
       });
     }
 
-    console.log('Found banner to delete:', existingBanner.title);
+   
 
     // Delete image from Cloudinary if it exists
     if (existingBanner.image) {
@@ -304,7 +304,7 @@ router.delete('/:id', async (req, res) => {
           .split('.')[0]; // Remove file extension
 
         await cloudinary.uploader.destroy(publicId);
-        console.log('Image deleted from Cloudinary:', publicId);
+    
       } catch (deleteError) {
         console.error('Error deleting image from Cloudinary:', deleteError);
         // Continue with banner deletion even if image deletion fails
@@ -315,14 +315,14 @@ router.delete('/:id', async (req, res) => {
     const deletedBanner = await Banner.findByIdAndDelete(id);
 
     if (!deletedBanner) {
-      console.log('Failed to delete banner with ID:', id);
+    
       return res.status(404).json({
         success: false,
         error: 'Banner not found or already deleted'
       });
     }
 
-    console.log('Successfully deleted banner:', deletedBanner.title);
+ 
 
     res.json({
       success: true,
@@ -413,70 +413,5 @@ router.post('/android', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 })
-// PUT: Edit banner
-
-// DELETE: Delete banner
-
-// Fixed delete route with better error handling
-// router.delete('/:id', async (req, res) => {
-//     try {
-//         const { id } = req.params;
-
-//         console.log('Attempting to delete banner with ID:', id);
-
-//         // Validate the ID format first
-//         if (!mongoose.Types.ObjectId.isValid(id)) {
-//             console.log('Invalid ObjectId format:', id);
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'Invalid banner ID format'
-//             });
-//         }
-
-//         // Check if banner exists first
-//         const existingBanner = await Banner.findById(id);
-//         if (!existingBanner) {
-//             console.log('Banner not found with ID:', id);
-//             return res.status(404).json({
-//                 success: false,
-//                 error: 'Banner not found'
-//             });
-//         }
-
-//         console.log('Found banner to delete:', existingBanner.title);
-
-//         // Delete the banner
-//         const deletedBanner = await Banner.findByIdAndDelete(id);
-
-//         if (!deletedBanner) {
-//             console.log('Failed to delete banner with ID:', id);
-//             return res.status(404).json({
-//                 success: false,
-//                 error: 'Banner not found or already deleted'
-//             });
-//         }
-
-//         console.log('Successfully deleted banner:', deletedBanner.title);
-
-//         res.json({
-//             success: true,
-//             message: 'Banner deleted successfully',
-//             data: deletedBanner
-//         });
-
-//     } catch (err) {
-//         console.error('Delete error details:', {
-//             message: err.message,
-//             stack: err.stack,
-//             name: err.name
-//         });
-
-//         res.status(500).json({
-//             success: false,
-//             error: 'Server error during deletion',
-//             details: process.env.NODE_ENV === 'development' ? err.message : undefined
-//         });
-//     }
-// });
 
 module.exports = router;

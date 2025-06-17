@@ -6,7 +6,7 @@ const SalesAgent = require('../models/salesAgent')
 
 // GET - Get all villages
 router.get('/', async (req, res) => {
-  console.log(req.cookies.token)
+
 
   try {
 

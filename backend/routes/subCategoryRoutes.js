@@ -101,26 +101,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// router.get('/admin/:id',async(req,res)=>{
-//   const id = req.params.id
-//   console.log(id)
 
-//   const filteredSubCategories = SubCategory.find(id)
-
-//   console.log(filteredSubCategories)
-
-//   res.status(200).json({
-//     id,
-    
-//   })
-// })
-
-// GET Route - Get subcategories by category ID (Alternative route with params)
-// GET /api/subcategories/category/:categoryId
-
-
-// GET Route - Get subcategories by category ID (Direct route with params)
-// GET /api/subcategories/:categoryId
 router.post("/categoryId", async (req, res) => {
   const authHeader = req.headers.authorization;
 
@@ -285,7 +266,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
             .split('.')[0];
 
           await cloudinary.uploader.destroy(publicId);
-          console.log('Old subcategory image deleted from Cloudinary:', publicId);
+        
         } catch (deleteError) {
           console.error('Error deleting old subcategory image from Cloudinary:', deleteError);
         }
@@ -374,7 +355,7 @@ router.delete('/:id', async (req, res) => {
           .split('.')[0];
 
         await cloudinary.uploader.destroy(publicId);
-        console.log('SubCategory image deleted from Cloudinary:', publicId);
+       
       } catch (deleteError) {
         console.error('Error deleting subcategory image from Cloudinary:', deleteError);
       }
