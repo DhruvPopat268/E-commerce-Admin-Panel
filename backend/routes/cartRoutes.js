@@ -13,25 +13,31 @@ router.post('/add', verifyToken, async (req, res) => {
     const userId = req.userId;
     const qty = parseInt(quantity) > 0 ? parseInt(quantity) : 1;
 
+    // Check if product exists
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
+    // Check if the specific attribute exists in the product
     const attribute = product.attributes.find(attr => attr._id.toString() === attributeId);
     if (!attribute) return res.status(404).json({ error: 'Attribute not found in product' });
 
-    const existing = await Cart.findOne({
+    // Check if the exact same product with the same attribute already exists in cart
+    const existingCartItem = await Cart.findOne({
       userId,
       productId,
-      'attributes.id': attributeId
+      'attributes._id': attributeId
     });
 
     let result;
 
-    if (existing) {
-      existing.attributes.quantity += qty;
-      existing.attributes.total = existing.attributes.discountedPrice * existing.attributes.quantity;
-      result = await existing.save();
+    if (existingCartItem) {
+      // Same product with same attribute exists - update quantity
+      existingCartItem.attributes.quantity += qty;
+      existingCartItem.attributes.total = existingCartItem.attributes.discountedPrice * existingCartItem.attributes.quantity;
+      result = await existingCartItem.save();
     } else {
+      // Either product doesn't exist in cart OR same product with different attribute
+      // Create new cart document
       result = await Cart.create({
         userId,
         productId,
