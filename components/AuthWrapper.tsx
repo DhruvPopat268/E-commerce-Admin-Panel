@@ -1,15 +1,10 @@
-// components/AuthWrapper.tsx
+// components/AuthWrapper.jsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
-interface AuthWrapperProps {
-  children: React.ReactNode;
-  requireAuth?: boolean;
-}
-
-export default function AuthWrapper({ children, requireAuth = false }: AuthWrapperProps) {
+export default function AuthWrapper({ children, requireAuth = false }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
@@ -29,7 +24,9 @@ export default function AuthWrapper({ children, requireAuth = false }: AuthWrapp
       setIsLoading(false);
     };
 
-    checkAuth();
+    // Add a small delay to ensure localStorage is available
+    const timer = setTimeout(checkAuth, 100);
+    return () => clearTimeout(timer);
   }, [router, pathname, requireAuth]);
 
   if (requireAuth && isLoading) {
