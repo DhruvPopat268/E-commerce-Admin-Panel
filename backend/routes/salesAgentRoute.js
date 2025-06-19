@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const Village = require('../models/village')
 const verifyToken = require('../middleware/authMiddleware');
 const mongoose = require('mongoose')
+const DeviceSession = require('../models/DeviceSession');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -215,13 +216,13 @@ router.post('/', upload.single('photo'), async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { mobileNumber, MobileNumber } = req.body;
+    const { mobileNumber, MobileNumber, deviceId } = req.body;
     const mobile = mobileNumber || MobileNumber;
 
-    if (!mobile) {
+    if (!mobile || !deviceId) {
       return res.status(400).json({
         success: false,
-        message: 'Mobile number is required'
+        message: 'Mobile number and device ID are required'
       });
     }
 
@@ -234,7 +235,34 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Fetch village name using village ID
+    // 🔐 Check if device is used by another user
+    const existingDeviceSession = await DeviceSession.findOne({ deviceId });
+const existingUserSession = await DeviceSession.findOne({ userId: salesAgent._id });
+
+
+
+// 2. User is already logged in on another device
+if (existingUserSession && existingUserSession.deviceId !== deviceId) {
+  return res.status(200).json({
+    success: false,
+    message: 'આ યુઝર પહેલેથી જ અન્ય ડિવાઈસ પર લોગિન છે.'
+  });
+}
+
+
+    // ✅ Save/update the device session
+    await DeviceSession.findOneAndUpdate(
+      { deviceId },
+      {
+        deviceId,
+        userId: salesAgent._id,
+        isActive: true,
+        lastLogin: new Date()
+      },
+      { upsert: true }
+    );
+
+    // 📍 Village name logic
     let villageName = '';
     if (salesAgent.village) {
       const villageData = await Village.findById(salesAgent.village);
@@ -250,9 +278,7 @@ router.post('/login', async (req, res) => {
         village: salesAgent.village
       },
       process.env.JWT_SECRET || 'your-secret-key',
-      {
-        expiresIn: '30d'
-      }
+      { expiresIn: '30d' }
     );
 
     res.status(200).json({
@@ -265,8 +291,8 @@ router.post('/login', async (req, res) => {
         name: salesAgent.name,
         businessName: salesAgent.businessName,
         mobileNumber: salesAgent.mobileNumber,
-        village: salesAgent.village, // Send village ID
-        villageName: villageName,     // ✅ Send village name
+        village: salesAgent.village,
+        villageName: villageName,
         status: salesAgent.status,
         address: salesAgent.address,
         photo: salesAgent.photo
