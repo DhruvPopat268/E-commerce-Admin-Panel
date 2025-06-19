@@ -629,16 +629,35 @@ export default function AddProductPage() {
         {/* Image and Tags Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column - Image */}
-          <div className="bg-white rounded-lg p-6 border border-gray-200">
-            <div className="flex items-center mb-4">
-              <Cloud className="mr-2 h-5 w-5" />
-              <h3 className="text-lg font-semibold">
-                Product Images <span className="text-red-500">*</span>{" "}
-                <span className="text-sm text-gray-500">( Ratio 1:1 )</span>
-              </h3>
-            </div>
+          <div className="space-y-4">
+              {/* Upload Button */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="product-image" className="text-sm font-medium">
+                  Upload Images (Max 10)
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('product-image')?.click()}
+                  className="flex items-center gap-2"
+                  disabled={previewImages.length >= 10}
+                >
+                  <Cloud className="h-4 w-4" />
+                  {previewImages.length > 0 ? 'Add More Images' : 'Choose Images'}
+                </Button>
+              </div>
 
-            <div className="space-y-4">
+              {/* Hidden File Input */}
+              <input
+                id="product-image"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                disabled={previewImages.length >= 10}
+              />
+
               {previewImages.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -650,7 +669,12 @@ export default function AddProductPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setPreviewImages([])}
+                        onClick={() => {
+                          setPreviewImages([]);
+                          setImageFiles([]);
+                          const fileInput = document.getElementById('product-image') as HTMLInputElement;
+                          if (fileInput) fileInput.value = '';
+                        }}
                         className="text-red-600 hover:text-red-700"
                       >
                         Clear All
@@ -752,10 +776,25 @@ export default function AddProductPage() {
                   </div>
                   <p className="text-sm text-gray-500">No images selected</p>
                   <p className="text-xs text-gray-400 mt-1">Upload up to 10 product images</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('product-image')?.click()}
+                    className="mt-4 flex items-center gap-2"
+                  >
+                    <Cloud className="h-4 w-4" />
+                    Choose Images
+                  </Button>
                 </div>
               )}
+
+              {/* Upload limit warning */}
+              {previewImages.length >= 10 && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                  Maximum 10 images allowed. Remove some images to upload more.
+                </p>
+              )}
             </div>
-          </div>
 
           {/* Right Column - Tags */}
           <div className="bg-white rounded-lg p-6 border border-gray-200">
