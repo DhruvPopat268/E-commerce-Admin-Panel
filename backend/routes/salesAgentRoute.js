@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const Village = require('../models/village')
 const verifyToken = require('../middleware/authMiddleware');
 const mongoose = require('mongoose')
-const DeviceSession = require('../models/DeviceSession');
+const Session = require('../models/Session'); // adjust path if needed
 
 // Configure Cloudinary
 cloudinary.config({
@@ -216,13 +216,13 @@ router.post('/', upload.single('photo'), async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { mobileNumber, MobileNumber, deviceId } = req.body;
+    const { mobileNumber, MobileNumber } = req.body;
     const mobile = mobileNumber || MobileNumber;
 
-    if (!mobile || !deviceId) {
+    if (!mobile) {
       return res.status(400).json({
         success: false,
-        message: 'Mobile number and device ID are required'
+        message: 'Mobile number is required'
       });
     }
 
@@ -235,32 +235,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // 🔐 Check if device is used by another user
-    const existingDeviceSession = await DeviceSession.findOne({ deviceId });
-    const existingUserSession = await DeviceSession.findOne({ userId: salesAgent._id });
-
-
-
-    // 2. User is already logged in on another device
-    if (existingUserSession && existingUserSession.deviceId !== deviceId) {
-      return res.status(200).json({
-        success: false,
-        message: 'આ યુઝર પહેલેથી જ અન્ય ડિવાઈસ પર લોગિન છે.'
-      });
-    }
-
-    // ✅ Save/update the device session
-    await DeviceSession.findOneAndUpdate(
-      { deviceId },
-      {
-        deviceId,
-        userId: salesAgent._id,
-        isActive: true,
-        lastLogin: new Date()
-      },
-      { upsert: true }
-    );
-
     // 📍 Village name logic
     let villageName = '';
     if (salesAgent.village) {
@@ -268,6 +242,7 @@ router.post('/login', async (req, res) => {
       villageName = villageData ? villageData.name : '';
     }
 
+    // 🔑 Generate new token
     const token = jwt.sign(
       {
         id: salesAgent._id,
@@ -280,6 +255,13 @@ router.post('/login', async (req, res) => {
       { expiresIn: '30d' }
     );
 
+    // ❌ Delete any previous session
+    await Session.findOneAndDelete({ mobileNumber: mobile });
+
+    // ✅ Save new session
+    await Session.create({ mobileNumber: mobile, token });
+
+    // ✅ Send response
     res.status(200).json({
       success: true,
       message: 'Login Successfully',
