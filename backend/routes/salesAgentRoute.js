@@ -23,10 +23,10 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: (req, file, cb) => { 
-      cb(null, true);
-    } 
-  });
+  fileFilter: (req, file, cb) => {
+    cb(null, true);
+  }
+});
 
 // Helper function to upload image to Cloudinary
 const uploadToCloudinary = (buffer, folder = 'sales-agents') => {
@@ -113,14 +113,14 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const salesAgent = await SalesAgent.findById(req.params.id);
-    
+
     if (!salesAgent) {
       return res.status(404).json({
         success: false,
         message: 'Sales agent not found'
       });
     }
-    
+
     res.status(200).json({
       success: true,
       data: salesAgent
@@ -138,7 +138,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', upload.single('photo'), async (req, res) => {
   try {
     const { name, businessName, mobileNumber, address, village } = req.body;
-    
+
     // Validate required fields
     if (!name || !businessName || !mobileNumber || !address || !village) {
       return res.status(400).json({
@@ -146,7 +146,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
         message: 'All fields (name, businessName, mobileNumber, address, village) are required'
       });
     }
-    
+
     // Check if mobile number already exists
     const existingAgent = await SalesAgent.findOne({ mobileNumber });
     if (existingAgent) {
@@ -155,9 +155,9 @@ router.post('/', upload.single('photo'), async (req, res) => {
         message: 'Sales agent with this mobile number already exists'
       });
     }
-    
+
     let photoData = {};
-    
+
     // Handle photo upload if provided
     if (req.file) {
       try {
@@ -237,18 +237,17 @@ router.post('/login', async (req, res) => {
 
     // 🔐 Check if device is used by another user
     const existingDeviceSession = await DeviceSession.findOne({ deviceId });
-const existingUserSession = await DeviceSession.findOne({ userId: salesAgent._id });
+    const existingUserSession = await DeviceSession.findOne({ userId: salesAgent._id });
 
 
 
-// 2. User is already logged in on another device
-if (existingUserSession && existingUserSession.deviceId !== deviceId) {
-  return res.status(200).json({
-    success: false,
-    message: 'આ યુઝર પહેલેથી જ અન્ય ડિવાઈસ પર લોગિન છે.'
-  });
-}
-
+    // 2. User is already logged in on another device
+    if (existingUserSession && existingUserSession.deviceId !== deviceId) {
+      return res.status(200).json({
+        success: false,
+        message: 'આ યુઝર પહેલેથી જ અન્ય ડિવાઈસ પર લોગિન છે.'
+      });
+    }
 
     // ✅ Save/update the device session
     await DeviceSession.findOneAndUpdate(
@@ -303,6 +302,40 @@ if (existingUserSession && existingUserSession.deviceId !== deviceId) {
     res.status(500).json({
       success: false,
       message: 'Error during login',
+      error: error.message
+    });
+  }
+});
+
+router.post('/logout', async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Device ID is required for logout'
+      });
+    }
+
+    const deleted = await DeviceSession.findOneAndDelete({ deviceId });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'No session found for this device'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful. Device session removed.'
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error during logout',
       error: error.message
     });
   }
@@ -537,7 +570,7 @@ router.put('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     const agentId = req.params.id;
-    
+
     // Validate status value
     if (typeof status !== 'boolean') {
       return res.status(400).json({
@@ -545,21 +578,21 @@ router.put('/:id/status', async (req, res) => {
         message: 'Status must be a boolean value (true or false)'
       });
     }
-    
+
     // Find and update the agent's status
     const updatedAgent = await SalesAgent.findByIdAndUpdate(
       agentId,
       { status },
       { new: true, runValidators: true }
     );
-    
+
     if (!updatedAgent) {
       return res.status(404).json({
         success: false,
         message: 'Sales agent not found'
       });
     }
-    
+
     res.status(200).json({
       success: true,
       message: `Sales agent status ${status ? 'activated' : 'deactivated'} successfully`,
@@ -622,7 +655,7 @@ router.put('/:id/route-status', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const agentId = req.params.id;
-    
+
     // Find the agent to get photo info before deletion
     const agent = await SalesAgent.findById(agentId);
     if (!agent) {
@@ -631,15 +664,15 @@ router.delete('/:id', async (req, res) => {
         message: 'Sales agent not found'
       });
     }
-    
+
     // Delete image from Cloudinary if exists
     if (agent.photo && agent.photo.public_id) {
       await deleteFromCloudinary(agent.photo.public_id);
     }
-    
+
     // Delete agent from database
     await SalesAgent.findByIdAndDelete(agentId);
-    
+
     res.status(200).json({
       success: true,
       message: 'Sales agent deleted successfully'
@@ -659,7 +692,7 @@ router.get('/stats/overview', async (req, res) => {
     const totalAgents = await SalesAgent.countDocuments();
     const activeAgents = await SalesAgent.countDocuments({ status: true });
     const inactiveAgents = await SalesAgent.countDocuments({ status: false });
-    
+
     res.status(200).json({
       success: true,
       data: {
