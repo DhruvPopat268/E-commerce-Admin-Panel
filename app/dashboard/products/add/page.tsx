@@ -173,7 +173,7 @@ export default function AddProductPage() {
     category: "",
     subCategory: "",
     visibility: true,
-    image: "",
+    images: "",
   });
 
   const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([]);
@@ -248,10 +248,10 @@ export default function AddProductPage() {
             category: productData.category?._id || productData.category || "",
             subCategory: productData.subCategory?._id || productData.subCategory || "",
             visibility: productData.visibility ?? true,
-            image: productData.image || "",
+            images: productData.images || "",
           });
 
-          setPreviewImage(productData.image || null);
+          setPreviewImages(productData.images || null);
           setTags(Array.isArray(productData.tags) ? productData.tags : []);
 
           // Now set the selected category and subcategory
@@ -293,7 +293,7 @@ export default function AddProductPage() {
     const files = e.target.files;
     if (files && files.length > 0) {
       const fileArray = Array.from(files);
-      setImageFiles(fileArray); // Save files for submission
+      setImageFiles(fileArray);
 
       // Create preview images
       const previews: string[] = [];
@@ -302,12 +302,14 @@ export default function AddProductPage() {
       fileArray.forEach((file, index) => {
         const reader = new FileReader();
         reader.onload = (event) => {
-          previews[index] = event.target?.result as string;
-          loadedCount++;
+          if (event.target?.result) {
+            previews[index] = event.target.result as string;
+            loadedCount++;
 
-          // Update state when all files are loaded
-          if (loadedCount === fileArray.length) {
-            setPreviewImages([...previews]);
+            // Update state when all files are loaded
+            if (loadedCount === fileArray.length) {
+              setPreviewImages([...previews]);
+            }
           }
         };
         reader.readAsDataURL(file);
@@ -315,7 +317,6 @@ export default function AddProductPage() {
     }
   };
 
-  // NEW function to remove a specific image
   const removeImage = (indexToRemove: number) => {
     const updatedFiles = imageFiles.filter((_, index) => index !== indexToRemove);
     const updatedPreviews = previewImages.filter((_, index) => index !== indexToRemove);
@@ -330,6 +331,22 @@ export default function AddProductPage() {
         fileInput.value = '';
       }
     }
+  };
+
+  const moveImage = (fromIndex: number, toIndex: number) => {
+    if (!Array.isArray(previewImages) || !Array.isArray(imageFiles)) return;
+
+    // Update preview images
+    const newPreviews = [...previewImages];
+    const [movedPreview] = newPreviews.splice(fromIndex, 1);
+    newPreviews.splice(toIndex, 0, movedPreview);
+    setPreviewImages(newPreviews);
+
+    // Update file array to match
+    const newFiles = [...imageFiles];
+    const [movedFile] = newFiles.splice(fromIndex, 1);
+    newFiles.splice(toIndex, 0, movedFile);
+    setImageFiles(newFiles);
   };
 
   const handleCategoryChange = async (value: string) => {
@@ -621,19 +638,38 @@ export default function AddProductPage() {
               </h3>
             </div>
 
-            <div className="border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center min-h-48">
-              {previewImages.length > 0 ? (
-                <div className="w-full">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                    {previewImages.map((preview, index) => (
-                      <div key={index} className="relative group">
+            <div className="space-y-4">
+              {previewImages.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700">
+                      Product Images ({previewImages.length}/10)
+                    </h3>
+                    {previewImages.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreviewImages([])}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Clear All
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {Array.isArray(previewImages) && previewImages.length > 0 && previewImages.map((preview, index) => (
+                      <div key={`${preview}-${index}`} className="relative group">
                         <div className="relative h-32 w-full">
                           <Image
                             src={preview}
                             alt={`Product preview ${index + 1}`}
                             fill
-                            className="object-cover rounded-lg border border-gray-300"
+                            className="object-cover rounded-lg border border-gray-300 transition-all duration-200 group-hover:border-gray-400"
                           />
+
+                          {/* Remove button */}
                           <Button
                             type="button"
                             variant="ghost"
@@ -641,46 +677,82 @@ export default function AddProductPage() {
                             className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => removeImage(index)}
                           >
-                            <span className="sr-only">Remove image</span>×
+                            <span className="sr-only">Remove image</span>
+                            ×
                           </Button>
-                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+
+                          {/* Primary image indicator */}
+                          {index === 0 && (
+                            <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium">
+                              Primary
+                            </div>
+                          )}
+
+                          {/* Image number */}
+                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
                             {index + 1}
+                          </div>
+
+                          {/* Move buttons for reordering */}
+                          <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {index > 0 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 bg-black bg-opacity-60 text-white hover:bg-opacity-80"
+                                onClick={() => moveImage(index, index - 1)}
+                                title="Move left"
+                              >
+                                ←
+                              </Button>
+                            )}
+                            {index < previewImages.length - 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 bg-black bg-opacity-60 text-white hover:bg-opacity-80"
+                                onClick={() => moveImage(index, index + 1)}
+                                title="Move right"
+                              >
+                                →
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Image info on hover */}
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-center">
+                            <p className="text-white text-xs bg-black bg-opacity-60 px-2 py-1 rounded">
+                              Click to reorder or remove
+                            </p>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600 mb-2">
-                      {previewImages.length} image{previewImages.length > 1 ? 's' : ''} selected
-                    </p>
-                    <Input
-                      id="product-image-additional"
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="max-w-xs border-gray-300"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Click to replace all images</p>
-                  </div>
+                  {/* Helper text */}
+                  <p className="text-xs text-gray-500 mt-2">
+                    The first image will be used as the primary product image.
+                    Use the arrow buttons to reorder images.
+                  </p>
                 </div>
-              ) : (
-                <>
-                  <Cloud className="h-10 w-10 text-gray-300 mb-2" />
-                  <p className="text-gray-500 mb-4">Upload Images</p>
-                  <Input
-                    id="product-image"
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="max-w-xs border-gray-300"
-                    required={!productId} // Only require images for new products
-                  />
-                  <p className="text-xs text-gray-500 mt-2">Select multiple images (Ctrl/Cmd + Click)</p>
-                </>
+              )}
+
+              {/* Empty state when no images */}
+              {previewImages.length === 0 && (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <div className="text-gray-400 mb-2">
+                    <svg className="mx-auto h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-500">No images selected</p>
+                  <p className="text-xs text-gray-400 mt-1">Upload up to 10 product images</p>
+                </div>
               )}
             </div>
           </div>
