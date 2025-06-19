@@ -16,8 +16,9 @@ const ProductSchema = new mongoose.Schema(
       ref: 'Category'
     },
     subCategory: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'SubCategory'
+      // type: mongoose.Schema.Types.ObjectId,
+      // ref: 'SubCategory'
+      type:String
     },
     visibility: { type: Boolean, default: true },
     status: { type: Boolean, default: true },

@@ -10,6 +10,7 @@ const jwt = require("jsonwebtoken")
 const subCategory = require('../models/SubCategory')
 const category = require('../models/category')
 const XLSX = require('xlsx');
+const verifyToken=require('../middleware/authMiddleware')
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -65,37 +66,37 @@ const processExcelData = (buffer, filename) => {
     } else {
       workbook = XLSX.read(buffer, { type: 'buffer' });
     }
-    
+
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    
+
     // Convert to JSON with header detection
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
       header: 1,
       defval: '',
       blankrows: false
     });
-    
+
     if (!jsonData || jsonData.length < 2) {
       throw new Error('Excel file must contain at least a header row and one data row');
     }
-    
+
     console.log('Raw Excel data:', jsonData);
-    
+
     // Get headers and normalize them
     const headers = jsonData[0].map(h => String(h || '').trim());
     console.log('Headers found:', headers);
-    
+
     // Process data rows
     const processedData = [];
     for (let i = 1; i < jsonData.length; i++) {
       const row = jsonData[i];
       const rowData = { rowNumber: i + 1 }; // Excel row number
-      
+
       headers.forEach((header, index) => {
         const cellValue = row[index];
         const normalizedValue = cellValue ? String(cellValue).trim() : '';
-        
+
         // Map headers to expected field names
         const lowerHeader = header.toLowerCase();
         if (lowerHeader === 'name' || lowerHeader === 'product name' || lowerHeader === 'product') {
@@ -112,16 +113,16 @@ const processExcelData = (buffer, filename) => {
           rowData.stock = parseInt(normalizedValue) || 0;
         }
       });
-      
+
       // Only add rows that have at least a name
       if (rowData.name && rowData.name.length > 0) {
         processedData.push(rowData);
       }
     }
-    
+
     console.log('Processed data:', processedData);
     return processedData;
-    
+
   } catch (error) {
     console.error('Excel processing error:', error);
     throw new Error(`Failed to process Excel file: ${error.message}`);
@@ -132,17 +133,17 @@ const processExcelData = (buffer, filename) => {
 const findOrCreateCategory = async (categoryName) => {
   try {
     console.log(`🔍 Finding or creating category: ${categoryName}`);
-    
+
     // First try to find existing category
     let matchedCategory = await category.findOne({
       name: { $regex: new RegExp(`^${categoryName.trim()}$`, 'i') }
     }).lean();
-    
+
     if (matchedCategory) {
       console.log('✅ Existing category found:', matchedCategory.name, 'ID:', matchedCategory._id);
       return matchedCategory;
     }
-    
+
     // Create new category if not found
     console.log('🆕 Creating new category:', categoryName);
     const newCategory = new category({
@@ -150,12 +151,12 @@ const findOrCreateCategory = async (categoryName) => {
       status: true,
       visibility: true
     });
-    
+
     const savedCategory = await newCategory.save();
     console.log('✅ New category created:', savedCategory.name, 'ID:', savedCategory._id);
-    
+
     return savedCategory.toObject();
-    
+
   } catch (error) {
     console.error('Error in findOrCreateCategory:', error);
     throw new Error(`Failed to find or create category '${categoryName}': ${error.message}`);
@@ -166,18 +167,18 @@ const findOrCreateCategory = async (categoryName) => {
 const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName) => {
   try {
     console.log(`🔍 Finding or creating subcategory: ${subcategoryName} for category: ${categoryName}`);
-    
+
     // First try to find existing subcategory
     let matchedSubcategory = await subCategory.findOne({
       name: { $regex: new RegExp(`^${subcategoryName.trim()}$`, 'i') }
     }).lean();
-    
+
     if (matchedSubcategory) {
       console.log('✅ Existing subcategory found:', matchedSubcategory.name, 'ID:', matchedSubcategory._id);
-      
+
       // Check if subcategory belongs to the correct category
       let subcategoryCategoryId = matchedSubcategory.category || matchedSubcategory.categoryId;
-      
+
       if (subcategoryCategoryId && subcategoryCategoryId.toString() === categoryId.toString()) {
         console.log('✅ Subcategory belongs to correct category');
         return matchedSubcategory;
@@ -191,7 +192,7 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
         console.log('🆕 Creating new subcategory with same name for different category');
       }
     }
-    
+
     // Create new subcategory
     console.log('🆕 Creating new subcategory:', subcategoryName);
     const newSubcategory = new subCategory({
@@ -201,12 +202,12 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
       status: true,
       visibility: true
     });
-    
+
     const savedSubcategory = await newSubcategory.save();
     console.log('✅ New subcategory created:', savedSubcategory.name, 'ID:', savedSubcategory._id);
-    
+
     return savedSubcategory.toObject();
-    
+
   } catch (error) {
     console.error('Error in findOrCreateSubcategory:', error);
     throw new Error(`Failed to find or create subcategory '${subcategoryName}': ${error.message}`);
@@ -217,13 +218,13 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
 const validateAndTransformProduct = async (row) => {
   console.log(`\n=== Validating Row ${row.rowNumber} ===`);
   console.log('Row data:', row);
-  
+
   const errors = [];
   const { name, category: categoryName, subcategory: subcategoryName, description = '', price = 0, stock = 0, rowNumber } = row;
-  
+
   // Log what we're validating
   console.log('Validating:', { name, categoryName, subcategoryName });
-  
+
   // Required field validation with detailed logging
   if (!name || name.trim().length === 0) {
     console.log('❌ Name validation failed:', name);
@@ -231,27 +232,27 @@ const validateAndTransformProduct = async (row) => {
   } else {
     console.log('✅ Name validation passed:', name);
   }
-  
+
   if (!categoryName || categoryName.trim().length === 0) {
     console.log('❌ Category validation failed:', categoryName);
     errors.push(`Row ${rowNumber}: Category is required`);
   } else {
     console.log('✅ Category validation passed:', categoryName);
   }
-  
+
   if (!subcategoryName || subcategoryName.trim().length === 0) {
     console.log('❌ Subcategory validation failed:', subcategoryName);
     errors.push(`Row ${rowNumber}: Subcategory is required`);
   } else {
     console.log('✅ Subcategory validation passed:', subcategoryName);
   }
-  
+
   // Early return if required fields are missing
   if (errors.length > 0) {
     console.log('❌ Basic validation failed, errors:', errors);
     return { product: null, errors };
   }
-  
+
   // Step 1: Find or create category
   console.log('🔍 Step 1: Finding or creating category...');
   let matchedCategory;
@@ -262,7 +263,7 @@ const validateAndTransformProduct = async (row) => {
     errors.push(`Row ${rowNumber}: ${error.message}`);
     return { product: null, errors };
   }
-  
+
   // Step 2: Find or create subcategory
   console.log('🔍 Step 2: Finding or creating subcategory...');
   let matchedSubcategory;
@@ -273,14 +274,14 @@ const validateAndTransformProduct = async (row) => {
     errors.push(`Row ${rowNumber}: ${error.message}`);
     return { product: null, errors };
   }
-  
+
   // Step 3: Check for duplicate product name
   console.log('🔍 Step 3: Checking for duplicate products...');
   try {
-    const existingProduct = await Product.findOne({ 
-      name: { $regex: new RegExp(`^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } 
+    const existingProduct = await Product.findOne({
+      name: { $regex: new RegExp(`^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
     });
-    
+
     if (existingProduct) {
       console.log('❌ Duplicate product found:', existingProduct.name);
       errors.push(`Row ${rowNumber}: Product '${name}' already exists`);
@@ -293,24 +294,24 @@ const validateAndTransformProduct = async (row) => {
     errors.push(`Row ${rowNumber}: Database error during duplicate check: ${dbError.message}`);
     return { product: null, errors };
   }
-  
+
   // Step 4: Validate price and stock
   console.log('🔍 Step 4: Validating price and stock...');
   const finalPrice = isNaN(price) ? 0 : Math.max(0, parseFloat(price));
   const finalStock = isNaN(stock) ? 0 : Math.max(0, parseInt(stock));
-  
+
   if (price < 0) {
     errors.push(`Row ${rowNumber}: Price cannot be negative`);
   }
-  
+
   if (stock < 0) {
     errors.push(`Row ${rowNumber}: Stock cannot be negative`);
   }
-  
+
   if (errors.length > 0) {
     return { product: null, errors };
   }
-  
+
   // Step 5: Create product object
   console.log('🔍 Step 5: Creating product object...');
   const product = {
@@ -328,7 +329,7 @@ const validateAndTransformProduct = async (row) => {
     showInDailyNeeds: false,
     attributes: []
   };
-  
+
   console.log('✅ Product object created successfully:', {
     name: product.name,
     categoryId: product.category,
@@ -336,7 +337,7 @@ const validateAndTransformProduct = async (row) => {
     price: product.price,
     stock: product.stock
   });
-  
+
   return { product, errors };
 };
 
@@ -381,19 +382,19 @@ router.get("/", async (req, res) => {
     const enhancedProducts = await Promise.all(products.map(async (product) => {
       let categoryName = 'N/A';
       let subcategoryName = 'N/A';
-      
+
       // Get category name if category exists
       if (product.category) {
         const cat = await category.findById(product.category).select('name').lean();
         categoryName = cat?.name || 'N/A';
       }
-      
+
       // Get subcategory name if subcategory exists
       if (product.subCategory) {
         const subcat = await subCategory.findById(product.subCategory).select('name').lean();
         subcategoryName = subcat?.name || 'N/A';
       }
-      
+
       return {
         ...product,
         categoryName,
@@ -428,7 +429,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post('/',uploadImage.array('images', 10), async (req, res) => {
+router.post('/', uploadImage.array('images', 10), async (req, res) => {
   try {
     // Parse JSON strings back to objects
     if (req.body.tags && typeof req.body.tags === 'string') {
@@ -437,7 +438,7 @@ router.post('/',uploadImage.array('images', 10), async (req, res) => {
     if (req.body.attributes && typeof req.body.attributes === 'string') {
       req.body.attributes = JSON.parse(req.body.attributes);
     }
-    
+
     // Convert string values to appropriate types for attributes
     if (req.body.attributes && Array.isArray(req.body.attributes)) {
       req.body.attributes = req.body.attributes.map(attr => ({
@@ -446,19 +447,19 @@ router.post('/',uploadImage.array('images', 10), async (req, res) => {
         discountedPrice: Number(attr.discountedPrice)
       }));
     }
-    
+
     // Convert visibility string to boolean
     if (typeof req.body.visibility === 'string') {
       req.body.visibility = req.body.visibility === 'true';
     }
-    
+
     const product = new Product(req.body);
-    
+
     // Handle multiple image uploads with Cloudinary
     if (req.files && req.files.length > 0) {
       product.images = req.files.map(file => file.path);
     }
-    
+
     await product.save();
     res.status(201).json(product);
   } catch (error) {
@@ -470,22 +471,22 @@ router.post('/',uploadImage.array('images', 10), async (req, res) => {
 // Bulk import route (new)
 router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) => {
   console.log('\n🚀 Starting bulk import process...');
-  
+
   try {
     if (!req.file) {
       console.log('❌ No file uploaded');
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No Excel file uploaded' 
+      return res.status(400).json({
+        success: false,
+        message: 'No Excel file uploaded'
       });
     }
-    
+
     console.log('📁 File received:', {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size
     });
-    
+
     // Process Excel data
     let excelData;
     try {
@@ -493,20 +494,20 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
       console.log(`📊 Processed ${excelData.length} rows from Excel`);
     } catch (error) {
       console.log('❌ Excel processing failed:', error.message);
-      return res.status(400).json({ 
-        success: false, 
-        message: `Error processing Excel file: ${error.message}` 
+      return res.status(400).json({
+        success: false,
+        message: `Error processing Excel file: ${error.message}`
       });
     }
-    
+
     if (!excelData || excelData.length === 0) {
       console.log('❌ No valid data found in Excel');
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Excel file contains no valid data rows' 
+      return res.status(400).json({
+        success: false,
+        message: 'Excel file contains no valid data rows'
       });
     }
-    
+
     // Initialize results tracking
     const results = {
       total: excelData.length,
@@ -516,39 +517,39 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
       categoriesCreated: 0,
       subcategoriesCreated: 0
     };
-    
+
     const successfulProducts = [];
     const createdCategories = [];
     const createdSubcategories = [];
-    
+
     // Process each row
     console.log('🔄 Processing rows...');
     for (let i = 0; i < excelData.length; i++) {
       const row = excelData[i];
       console.log(`\n--- Processing row ${i + 1}/${excelData.length} ---`);
-      
+
       try {
         const { product, errors } = await validateAndTransformProduct(row);
-        
+
         if (errors.length > 0) {
           console.log(`❌ Validation failed for row ${row.rowNumber}:`, errors);
           results.errors.push(...errors);
           results.failed++;
           continue;
         }
-        
+
         if (!product) {
           console.log(`❌ No product object created for row ${row.rowNumber}`);
           results.failed++;
           results.errors.push(`Row ${row.rowNumber}: Failed to create product object`);
           continue;
         }
-        
+
         // Create and save the product
         console.log(`💾 Saving product: ${product.name}`);
         const newProduct = new Product(product);
         const savedProduct = await newProduct.save();
-        
+
         successfulProducts.push({
           id: savedProduct._id,
           name: savedProduct.name,
@@ -557,10 +558,10 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
           price: savedProduct.price,
           stock: savedProduct.stock
         });
-        
+
         results.successful++;
         console.log(`✅ Successfully saved: ${savedProduct.name} (ID: ${savedProduct._id})`);
-        
+
       } catch (error) {
         console.log(`❌ Database error for row ${row.rowNumber}:`, error.message);
         console.error('Error details:', error);
@@ -568,7 +569,7 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
         results.errors.push(`Row ${row.rowNumber}: Database error - ${error.message}`);
       }
     }
-    
+
     // Prepare response
     console.log('\n📊 Import Summary:', {
       total: results.total,
@@ -578,12 +579,12 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
       categoriesCreated: results.categoriesCreated,
       subcategoriesCreated: results.subcategoriesCreated
     });
-    
+
     let message = `Bulk import completed. ${results.successful} products created, ${results.failed} failed.`;
     if (results.categoriesCreated > 0 || results.subcategoriesCreated > 0) {
       message += ` ${results.categoriesCreated} categories and ${results.subcategoriesCreated} subcategories were automatically created.`;
     }
-    
+
     const response = {
       success: results.successful > 0, // Consider success if at least one product was created
       message: message,
@@ -596,29 +597,29 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
         errors: results.errors.slice(0, 50) // Limit errors to first 50 to avoid large responses
       }
     };
-    
+
     if (successfulProducts.length > 0) {
       response.products = successfulProducts;
     }
-    
+
     if (createdCategories.length > 0) {
       response.createdCategories = createdCategories;
     }
-    
+
     if (createdSubcategories.length > 0) {
       response.createdSubcategories = createdSubcategories;
     }
-    
+
     // Log final response
     console.log('📋 Final response prepared');
     res.status(200).json(response);
-    
+
   } catch (error) {
     console.error('💥 Fatal error in bulk import:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to process bulk import', 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process bulk import',
+      error: error.message
     });
   }
 });
@@ -628,35 +629,35 @@ router.get('/download-template', async (req, res) => {
     // Optional: Fetch actual categories and subcategories for more realistic examples
     const categories = await category.find({}).lean();
     const subcategories = await subCategory.find({}).lean();
-    
+
     // Create sample data with real categories if available, otherwise use hardcoded examples
     let sampleData;
-    
+
     if (categories.length > 0 && subcategories.length > 0) {
       // Use real data from database
       const bodyCategory = categories.find(c => c.name.toLowerCase().includes('body'));
       const electronicsCategory = categories.find(c => c.name.toLowerCase().includes('electronic'));
-      
+
       sampleData = [
-        { 
-          name: 'Tea-Tree Facewash', 
-          Category: bodyCategory?.name || 'Body Care', 
+        {
+          name: 'Tea-Tree Facewash',
+          Category: bodyCategory?.name || 'Body Care',
           Subcategory: 'Facewash',
           description: 'Natural tea tree face wash for all skin types',
           price: 299,
           stock: 50
         },
-        { 
-          name: 'Tea-Tree Bodywash', 
-          Category: bodyCategory?.name || 'Body Care', 
+        {
+          name: 'Tea-Tree Bodywash',
+          Category: bodyCategory?.name || 'Body Care',
           Subcategory: 'Bodywash',
           description: 'Refreshing tea tree body wash',
           price: 399,
           stock: 30
         },
-        { 
-          name: 'Motorola Edge 60 Pro', 
-          Category: electronicsCategory?.name || 'Electronics', 
+        {
+          name: 'Motorola Edge 60 Pro',
+          Category: electronicsCategory?.name || 'Electronics',
           Subcategory: 'mobiles',
           description: 'Latest smartphone with advanced features',
           price: 25999,
@@ -666,25 +667,25 @@ router.get('/download-template', async (req, res) => {
     } else {
       // Fallback to hardcoded examples
       sampleData = [
-        { 
-          name: 'Tea-Tree Facewash', 
-          Category: 'Body Care', 
+        {
+          name: 'Tea-Tree Facewash',
+          Category: 'Body Care',
           Subcategory: 'Facewash',
           description: 'Natural tea tree face wash for all skin types',
           price: 299,
           stock: 50
         },
-        { 
-          name: 'Tea-Tree Bodywash', 
-          Category: 'Body Care', 
+        {
+          name: 'Tea-Tree Bodywash',
+          Category: 'Body Care',
           Subcategory: 'Bodywash',
           description: 'Refreshing tea tree body wash',
           price: 399,
           stock: 30
         },
-        { 
-          name: 'Motorola Edge 60 Pro', 
-          Category: 'Electronics', 
+        {
+          name: 'Motorola Edge 60 Pro',
+          Category: 'Electronics',
           Subcategory: 'mobiles',
           description: 'Latest smartphone with advanced features',
           price: 25999,
@@ -696,7 +697,7 @@ router.get('/download-template', async (req, res) => {
     // Create workbook and worksheet
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(sampleData);
-    
+
     // Set column widths for better readability
     const columnWidths = [
       { wch: 25 }, // name
@@ -707,14 +708,14 @@ router.get('/download-template', async (req, res) => {
       { wch: 8 }   // stock
     ];
     worksheet['!cols'] = columnWidths;
-    
+
     // Add some styling to headers (optional - makes template look more professional)
     const headerStyle = {
       font: { bold: true, color: { rgb: "FFFFFF" } },
       fill: { fgColor: { rgb: "366092" } },
       alignment: { horizontal: "center", vertical: "center" }
     };
-    
+
     // Apply header styling (A1 to F1)
     const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1'];
     headerCells.forEach(cell => {
@@ -722,10 +723,10 @@ router.get('/download-template', async (req, res) => {
         worksheet[cell].s = headerStyle;
       }
     });
-    
+
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
-    
+
     // Generate buffer
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
@@ -733,15 +734,15 @@ router.get('/download-template', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=product-import-template.xlsx');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Length', buffer.length);
-    
+
     res.send(buffer);
-    
+
   } catch (error) {
     console.error('Error generating template:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Failed to generate template',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -773,25 +774,25 @@ router.get("/:id", async (req, res) => {
 
     // Transform the product to ensure proper image handling
     const productObj = product.toObject();
-    
+
     // Ensure images array exists and provide backward compatibility
     const transformedProduct = {
       ...productObj,
       images: productObj.images || [], // Ensure images is always an array
-      image: productObj.images && productObj.images.length > 0 
-        ? productObj.images[0] 
+      image: productObj.images && productObj.images.length > 0
+        ? productObj.images[0]
         : productObj.image // Fallback for backward compatibility
     };
 
     res.status(200).json(transformedProduct);
   } catch (err) {
     console.log("Error: " + err);
-    
+
     // Handle specific MongoDB errors
     if (err.name === 'CastError') {
       return res.status(400).json({ message: "Invalid product ID format" });
     }
-    
+
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -805,7 +806,7 @@ router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
     if (req.body.attributes && typeof req.body.attributes === 'string') {
       req.body.attributes = JSON.parse(req.body.attributes);
     }
-    
+
     // Convert string values to appropriate types for attributes
     if (req.body.attributes && Array.isArray(req.body.attributes)) {
       req.body.attributes = req.body.attributes.map(attr => ({
@@ -814,17 +815,17 @@ router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
         discountedPrice: Number(attr.discountedPrice)
       }));
     }
-    
+
     // Convert visibility string to boolean
     if (typeof req.body.visibility === 'string') {
       req.body.visibility = req.body.visibility === 'true';
     }
-    
+
     // Handle multiple image updates with Cloudinary cleanup
     if (req.files && req.files.length > 0) {
       // Get the old product to delete old images from Cloudinary
       const oldProduct = await Product.findById(req.params.id);
-      
+
       // Delete old images from Cloudinary if they exist
       if (oldProduct && oldProduct.images && oldProduct.images.length > 0) {
         for (const imageUrl of oldProduct.images) {
@@ -843,21 +844,21 @@ router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
           }
         }
       }
-      
+
       // Add new image URLs to update data
       req.body.images = req.files.map(file => file.path);
     }
-    
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true }
     );
-    
+
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    
+
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -969,21 +970,12 @@ router.patch("/:id/daily-needs", async (req, res) => {
 
 // -----------------------------------------------------------> andoid 
 
-router.post("/subcategory", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied. No token provided.",
-    });
-  }
-
-  const token = authHeader.split(" ")[1];
+router.post("/subcategory",verifyToken, async (req, res) => {
 
   try {
-    jwt.verify(token, process.env.JWT_SECRET);
-
+    
     const subCategoryId = req.body.id;
+    console.log(subCategoryId)
 
     if (!mongoose.Types.ObjectId.isValid(subCategoryId)) {
       return res.status(400).json({
@@ -1002,7 +994,9 @@ router.post("/subcategory", async (req, res) => {
 
     const subCategoryName = subCategoryExists.name;
 
-    const products = await Product.find({ subCategory: subCategoryId });
+    const products = await Product.find({
+      subCategory: subCategoryId || new mongoose.Types.ObjectId(subCategoryId)
+    });
 
     if (!products || products.length === 0) {
       return res.status(200).json({
@@ -1022,12 +1016,11 @@ router.post("/subcategory", async (req, res) => {
         ...productObj,
         subCategoryName,
         attributeName: firstAttr?.name ?? null,
-        // Fix: Use nullish coalescing (??) instead of logical OR (||)
-        // This will only return null if firstAttr.price is null or undefined
-        // 0 is a valid price value and should not be converted to null
         price: firstAttr?.price ?? null,
         discountedPrice: firstAttr?.discountedPrice ?? null,
-        attributes: undefined,
+        images: productObj.images?.[0] ?? null, // ✅ only first image
+        attributes: undefined, // remove full attributes array
+        images: undefined      // remove full images array
       };
     });
 
@@ -1047,26 +1040,18 @@ router.post("/subcategory", async (req, res) => {
   }
 });
 
-router.post("/productDetail", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({ 
-      success: false,
-      message: "Access denied. No token provided." 
-    });
-  }
-
-  const token = authHeader.split(' ')[1];
+router.post("/productDetail",verifyToken, async (req, res) => {
+  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+   
 
     const productId = req.body.id;
-    const product = await Product.findById(productId);
+    const product = await Product.findOne({_id: new mongoose.Types.ObjectId(productId)});
 
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Product not found" 
+        message: "Product not found"
       });
     }
 
@@ -1083,28 +1068,24 @@ router.post("/productDetail", async (req, res) => {
     res.status(200).json({
       success: true,
       productId: productId,
-      
+
       data: productObj  // Now includes subCategoryName
     });
   } catch (error) {
     console.error("Error fetching product by ID:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Server error" 
+      message: "Server error"
     });
   }
 });
 
-router.post('/by-tags', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({ message: "Access denied. No token provided." });
-  }
-  const token = authHeader.split(' ')[1];
+router.post('/by-tags',verifyToken, async (req, res) => {
+  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
     const { tagName } = req.body;
-   
+
     // Validate input
     if (!tagName) {
       return res.status(400).json({
@@ -1112,17 +1093,17 @@ router.post('/by-tags', async (req, res) => {
         message: 'Tag name is required'
       });
     }
-    
+
     // Find products that contain the specified tag and have status: true
     const products = await Product.find({
       tags: { $in: [tagName] },
       status: true
     });
-    
+
     // Transform products to include only first attribute's specific fields
     const transformedProducts = products.map(product => {
       const productObj = product.toObject();
-      
+
       // Get first attribute and merge its fields directly into product object
       if (productObj.attributes && productObj.attributes.length > 0) {
         const firstAttribute = productObj.attributes[0];
@@ -1136,13 +1117,19 @@ router.post('/by-tags', async (req, res) => {
         productObj.discountedPrice = null;
         productObj.attributeId = null;
       }
-      
-      // Remove the original attributes array
+
+      // Keep only the first image or null if no images
+      productObj.image = productObj.images && productObj.images.length > 0 
+        ? productObj.images[0] 
+        : null;
+
+      // Remove the original attributes and images arrays
       delete productObj.attributes;
-      
+      delete productObj.images;
+
       return productObj;
     });
-    
+
     // Return response - always 200 status code
     res.status(200).json({
       success: true,
