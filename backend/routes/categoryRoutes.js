@@ -13,16 +13,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Setup multer storage
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, "./uploads");
-//   },
-//   filename: (req, file, cb) => {
-//     cb(null, Date.now() + path.extname(file.originalname));
-//   },
-// });
-
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -42,26 +32,6 @@ const upload = multer({
   }
 });
 
-// POST create category with image upload
-// router.post('/', upload.single('image'), async (req, res) => {
-//   try {
-//     const imageUrl = req.file.filename
-//     // const imageUrl = `http://localhost:7000/uploads/${imagename}`
-
-//     const category = new Category({
-//       ...req.body,
-//       image: imageUrl // Save image URL or path
-//     });
-
-//     await category.save()
-
-//     res.status(201).json(category);
-
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
 
 router.post('/', upload.single('image'), async (req, res) => {
   try {

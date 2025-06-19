@@ -7,7 +7,6 @@ const SalesAgent = require('../models/salesAgent')
 // GET - Get all villages
 router.get('/', async (req, res) => {
 
-
   try {
 
     const villages = await Village.find().sort({ createdAt: -1 });

@@ -8,8 +8,9 @@ const jwt = require('jsonwebtoken');
 const SalesAgent = require('../models/salesAgent')
 const RouteSetup = require('../models/routeSetup')
 const Cart = require('../models/Cart')
+const verifyToken = require('../middleware/authMiddleware')
 
-router.post('/', async (req, res) => {
+router.post('/',verifyToken, async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(403).json({ message: "Access denied. No token provided." });

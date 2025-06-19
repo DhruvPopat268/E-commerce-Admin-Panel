@@ -8,6 +8,8 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const jwt = require("jsonwebtoken")
 const mongoose = require('mongoose')
 const category = require('../models/category')
+const verifyToken=require('../middleware/authMiddleware')
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -102,20 +104,11 @@ router.get("/", async (req, res) => {
 });
 
 
-router.post("/categoryId", async (req, res) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(403).json({ 
-      success: false,
-      message: "Access denied. No token provided." 
-    });
-  }
-
-  const token = authHeader.split(" ")[1];
+router.post("/categoryId",verifyToken, async (req, res) => {
+  
 
   try {
-    jwt.verify(token, process.env.JWT_SECRET);
+    
 
     const { categoryId } = req.body;
 

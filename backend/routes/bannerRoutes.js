@@ -8,17 +8,9 @@ const SubCategory = require('../models/SubCategory')
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const jwt = require('jsonwebtoken')
+const verifyToken=require('../middleware/authMiddleware')
 
-// // For image uploads - store in 'uploads/' folder
-// const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//         cb(null, './uploads')
-//     },
-//     filename: function (req, file, cb) {
-//         cb(null, Date.now() + '-' + file.originalname)
-//     }
-// });
-// const upload = multer({ storage });
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -44,99 +36,6 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
-
-
-// router.post("/", upload.single("image"), async (req, res) => {
-//   try {
-
-//     const { title, type, categoryId, subcategoryId, status } = req.body;
-//     const imageFile = req.file;
-
-//     if (!title || !type || !imageFile) {
-//       return res.status(400).json({ success: false, message: "Missing required fields" });
-//     }
-
-//     // Clean up categoryId and subcategoryId - convert empty strings to null
-//     const cleanCategoryId = categoryId && categoryId.trim() !== "" ? categoryId : null;
-//     const cleanSubcategoryId = subcategoryId && subcategoryId.trim() !== "" ? subcategoryId : null;
-
-//     // Optionally validate ObjectId format:
-//     if (cleanCategoryId && !mongoose.Types.ObjectId.isValid(cleanCategoryId)) {
-//       return res.status(400).json({ success: false, message: "Invalid categoryId" });
-//     }
-//     if (cleanSubcategoryId && !mongoose.Types.ObjectId.isValid(cleanSubcategoryId)) {
-//       return res.status(400).json({ success: false, message: "Invalid subcategoryId" });
-//     }
-
-//     const bannerData = {
-//       title,
-//       type,
-//       categoryId: cleanCategoryId,
-//       subcategoryId: cleanSubcategoryId,
-//       status: status === "true",
-//       // Store the filename that will be served by the static middleware
-//       image: imageFile.filename, // Changed from originalname to filename
-//     };
-
-//     const newBanner = await Banner.create(bannerData);
-
-//     return res.status(201).json({ success: true, data: newBanner });
-//   } catch (error) {
-//     console.error("Error creating banner:", error.message);
-//     return res.status(500).json({ success: false, message: "Internal Server Error" });
-//   }
-// });
-
-// router.put('/:id', upload.single('image'), async (req, res) => {
-//   try {
-//     const id = req.params.id;
-//     if (!mongoose.Types.ObjectId.isValid(id)) {
-//       return res.status(400).json({ error: 'Invalid banner ID' });
-//     }
-
-//     // Extract fields from req.body
-//     const { title, type, categoryId, subcategoryId, status } = req.body;
-
-//     const updatedData = {
-//       title,
-//       type,
-//       status: status === 'true',
-//     };
-
-//     // Only include categoryId if it exists and is a valid ObjectId
-//     // Also check that it's not an empty string or just whitespace
-//     if (categoryId && categoryId.trim() !== '' && mongoose.Types.ObjectId.isValid(categoryId)) {
-//       updatedData.categoryId = categoryId;
-//     } else if (categoryId === '' || categoryId === null || categoryId === undefined) {
-//       // If categoryId is explicitly empty, set it to null to clear the field
-//       updatedData.categoryId = null;
-//     }
-
-//     // Only include subcategoryId if it exists and is a valid ObjectId
-//     // Also check that it's not an empty string or just whitespace
-//     if (subcategoryId && subcategoryId.trim() !== '' && mongoose.Types.ObjectId.isValid(subcategoryId)) {
-//       updatedData.subcategoryId = subcategoryId;
-//     } else if (subcategoryId === '' || subcategoryId === null || subcategoryId === undefined) {
-//       // If subcategoryId is explicitly empty, set it to null to clear the field
-//       updatedData.subcategoryId = null;
-//     }
-
-//     // Handle file upload
-//     if (req.file) {
-//       // Store only the filename, not the full path
-//       updatedData.image = req.file.filename;
-//     }
-
-//     const banner = await Banner.findByIdAndUpdate(id, updatedData, { new: true });
-
-//     if (!banner) return res.status(404).json({ error: 'Banner not found' });
-
-//     res.json(banner);
-//   } catch (err) {
-//     console.error('Update banner error:', err);
-//     res.status(500).json({ error: err.message });
-//   }
-// });
 
 // POST Route - Create Banner
 router.post("/", upload.single("image"), async (req, res) => {
@@ -383,18 +282,10 @@ router.put('/toggle/:id', async (req, res) => {
 
 // ------------------------>> application 
 
-router.post('/android', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied. No token provided."
-    });
-  }
-
-  const token = authHeader.split(' ')[1];
+router.post('/android',verifyToken, async (req, res) => {
+  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
 
     const banners = await Banner.find({ status: true }) // Only fetch banners with status true
       .sort({ createdAt: -1 })

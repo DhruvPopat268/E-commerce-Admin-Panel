@@ -8,6 +8,8 @@ const Village = require('../models/village')
 const verifyToken = require('../middleware/authMiddleware');
 const mongoose = require('mongoose')
 const Session = require('../models/Session'); // adjust path if needed
+const verifyToken=require('../middleware/authMiddleware')
+
 
 // Configure Cloudinary
 cloudinary.config({
@@ -289,29 +291,23 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/logout', async (req, res) => {
+router.post('/logout', verifyToken, async (req, res) => {
   try {
-    const { deviceId } = req.body;
+    const userId = req.userId;
 
-    if (!deviceId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Device ID is required for logout'
-      });
-    }
-
-    const deleted = await DeviceSession.findOneAndDelete({ deviceId });
+    // Remove the session using userId
+    const deleted = await Session.findOneAndDelete({ userId });
 
     if (!deleted) {
       return res.status(404).json({
         success: false,
-        message: 'No session found for this device'
+        message: 'No session found for this user'
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Logout successful. Device session removed.'
+      message: 'Logout successful. Session removed.'
     });
 
   } catch (error) {
@@ -322,6 +318,7 @@ router.post('/logout', async (req, res) => {
     });
   }
 });
+
 
 router.post('/getCustomerData', verifyToken, async (req, res) => {
   try {
