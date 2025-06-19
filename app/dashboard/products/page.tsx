@@ -86,12 +86,12 @@ export default function ProductsPage() {
   // Filter subcategories based on selected category and search query
   const filteredSubcategories = subcategories.filter(subcategory => {
     const matchesSearch = subcategory.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
-    
+
     // If no category is selected, show all subcategories
     if (!selectedCategory || selectedCategory === "") {
       return matchesSearch
     }
-    
+
     // Show only subcategories that belong to the selected category
     return matchesSearch && subcategory.category?._id === selectedCategory
   })
@@ -110,39 +110,48 @@ export default function ProductsPage() {
     return subcategory ? subcategory.name : "All Subcategories"
   }
 
-  // Fetch products with pagination and filters
-  const fetchProducts = async (page = 1, search = "", categoryId = "", subCategoryId = "", status = "") => {
-    try {
-      setIsLoading(true)
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: pageSize.toString(),
-      })
+const fetchProducts = async (page = 1, search = "", categoryId = "", subCategoryId = "", status = "") => {
+  try {
+    setIsLoading(true);
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: pageSize.toString(),
+    });
 
-      if (search.trim()) params.append('search', search.trim())
-      if (categoryId) params.append('categoryId', categoryId)
-      if (subCategoryId) params.append('subCategoryId', subCategoryId)
-      if (status !== "") params.append('status', status)
+    if (search.trim()) params.append('search', search.trim());
+    if (categoryId && categoryId !== "all") params.append('categoryId', categoryId);
+    if (subCategoryId && subCategoryId !== "all") params.append('subCategoryId', subCategoryId);
+    if (status && status !== "all") params.append('status', status);
 
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params}`)
-      const data = response?.data?.data;
-
-      if (response.status === 200 && response.data.success) {
-        const { data, pagination } = response.data
-        setProducts(Array.isArray(data) ? data : []);
-        setCurrentPage(pagination.current)
-        setTotalPages(pagination.total)
-        setTotalRecords(pagination.totalRecords)
-        setHasNext(pagination.hasNext)
-        setHasPrev(pagination.hasPrev)
-      }
-    } catch (error) {
-      console.error("Failed to fetch products:", error)
-      setProducts([])
-    } finally {
-      setIsLoading(false)
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params.toString()}`);
+    
+    if (response.data.success) {
+      const { data, pagination } = response.data;
+      setProducts(Array.isArray(data) ? data : []);
+      console.log(data)
+      setCurrentPage(pagination.current);
+      setTotalPages(pagination.total);
+      setTotalRecords(pagination.totalRecords);
+      setHasNext(pagination.hasNext);
+      setHasPrev(pagination.hasPrev);
     }
+  } catch (error) {
+    if (error.response?.status === 400) {
+      // Handle invalid ID errors
+      console.error("Invalid filter parameters:", error.response.data.message);
+    } else {
+      console.error("Failed to fetch products:", error);
+    }
+    setProducts([]);
+  } finally {
+    setIsLoading(false);
   }
+};
+
+// Helper function to validate ObjectId
+function isValidObjectId(id) {
+  return id && id !== "all" && mongoose.Types.ObjectId.isValid(id);
+}
 
   // Initial load and when filters change
   useEffect(() => {
@@ -241,14 +250,14 @@ export default function ProductsPage() {
     router.push(`/dashboard/products/add?productId=${productId}`)
   }
 
-  const clearFilters = () => {
-    setSearchQuery("")
-    setSelectedCategory("")
-    setSelectedSubcategory("")
-    setSelectedStatus("")
-    setCategorySearchQuery("")
-    setSubcategorySearchQuery("")
-  }
+const clearFilters = () => {
+  setSearchQuery("")
+  setSelectedCategory("")
+  setSelectedSubcategory("")
+  setSelectedStatus("")
+  setCategorySearchQuery("")
+  setSubcategorySearchQuery("")
+}
 
   // Handle category selection
   const handleCategorySelect = (categoryId) => {
@@ -256,7 +265,7 @@ export default function ProductsPage() {
     // Reset subcategory when category changes
     setSelectedSubcategory("")
     setSubcategorySearchQuery("")
-    
+
     setCategoryOpen(false)
     setCategorySearchQuery("")
   }
@@ -431,8 +440,8 @@ export default function ProductsPage() {
           </PopoverTrigger>
           <PopoverContent className="w-[200px] p-0">
             <Command>
-              <CommandInput 
-                placeholder="Search categories..." 
+              <CommandInput
+                placeholder="Search categories..."
                 value={categorySearchQuery}
                 onValueChange={setCategorySearchQuery}
               />
@@ -473,8 +482,8 @@ export default function ProductsPage() {
           </PopoverTrigger>
           <PopoverContent className="w-[200px] p-0">
             <Command>
-              <CommandInput 
-                placeholder="Search subcategories..." 
+              <CommandInput
+                placeholder="Search subcategories..."
                 value={subcategorySearchQuery}
                 onValueChange={setSubcategorySearchQuery}
               />
@@ -505,7 +514,7 @@ export default function ProductsPage() {
             <SelectValue placeholder="Select Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+          <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="true">Active</SelectItem>
             <SelectItem value="false">Inactive</SelectItem>
           </SelectContent>
@@ -676,7 +685,7 @@ export default function ProductsPage() {
               </TableRow>
             ) : (
               products.map((product, index) => (
-                <TableRow key={product.data?._id}>
+                <TableRow key={product._id}>
                   <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -692,10 +701,10 @@ export default function ProductsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {product.category?.name || 'N/A'}
+                    {product.categoryName || 'N/A'}
                   </TableCell>
                   <TableCell>
-                    {product.subCategory?.name || 'N/A'}
+                    {product.subcategoryName || 'N/A'}
                   </TableCell>
                   <TableCell>
                     {product.attributes?.[0]?.price ?? "N/A"}
