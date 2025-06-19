@@ -340,6 +340,94 @@ const validateAndTransformProduct = async (row) => {
   return { product, errors };
 };
 
+router.get("/", async (req, res) => {
+  try {
+    const { categoryId, subCategoryId, search, page = 1, limit = 10, status } = req.query;
+
+    // Parse and validate pagination parameters
+    const pageNum = Math.max(1, parseInt(page)) || 1;
+    const limitNum = Math.max(1, Math.min(1000, parseInt(limit))) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query object for filtering
+    let query = {};
+
+    // Apply search filter if provided
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { description: { $regex: searchTerm, $options: 'i' } },
+        { sku: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+
+    // Apply status filter if provided
+    if (status && status !== "all") {
+      query.status = status === "true";
+    }
+
+    // Execute query with Promise.all for better performance
+    const [products, totalCount] = await Promise.all([
+      Product.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Product.countDocuments(query)
+    ]);
+
+    // Enhance products with category and subcategory names
+    const enhancedProducts = await Promise.all(products.map(async (product) => {
+      let categoryName = 'N/A';
+      let subcategoryName = 'N/A';
+      
+      // Get category name if category exists
+      if (product.category) {
+        const cat = await category.findById(product.category).select('name').lean();
+        categoryName = cat?.name || 'N/A';
+      }
+      
+      // Get subcategory name if subcategory exists
+      if (product.subCategory) {
+        const subcat = await subCategory.findById(product.subCategory).select('name').lean();
+        subcategoryName = subcat?.name || 'N/A';
+      }
+      
+      return {
+        ...product,
+        categoryName,
+        subcategoryName
+      };
+    }));
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    // Return response with enhanced data
+    res.status(200).json({
+      success: true,
+      data: enhancedProducts,
+      pagination: {
+        current: pageNum,
+        total: totalPages,
+        count: enhancedProducts.length,
+        totalRecords: totalCount,
+        hasNext: pageNum < totalPages,
+        hasPrev: pageNum > 1
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching products',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 router.post('/',uploadImage.array('images', 10), async (req, res) => {
   try {
     // Parse JSON strings back to objects
@@ -708,6 +796,144 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
+  try {
+    // Parse JSON strings back to objects
+    if (req.body.tags && typeof req.body.tags === 'string') {
+      req.body.tags = JSON.parse(req.body.tags);
+    }
+    if (req.body.attributes && typeof req.body.attributes === 'string') {
+      req.body.attributes = JSON.parse(req.body.attributes);
+    }
+    
+    // Convert string values to appropriate types for attributes
+    if (req.body.attributes && Array.isArray(req.body.attributes)) {
+      req.body.attributes = req.body.attributes.map(attr => ({
+        ...attr,
+        price: Number(attr.price),
+        discountedPrice: Number(attr.discountedPrice)
+      }));
+    }
+    
+    // Convert visibility string to boolean
+    if (typeof req.body.visibility === 'string') {
+      req.body.visibility = req.body.visibility === 'true';
+    }
+    
+    // Handle multiple image updates with Cloudinary cleanup
+    if (req.files && req.files.length > 0) {
+      // Get the old product to delete old images from Cloudinary
+      const oldProduct = await Product.findById(req.params.id);
+      
+      // Delete old images from Cloudinary if they exist
+      if (oldProduct && oldProduct.images && oldProduct.images.length > 0) {
+        for (const imageUrl of oldProduct.images) {
+          try {
+            // Extract public_id from Cloudinary URL
+            const publicId = imageUrl
+              .split('/')
+              .slice(-2) // Get last two parts: folder/filename
+              .join('/')
+              .split('.')[0]; // Remove file extension
+            await cloudinary.uploader.destroy(publicId);
+            console.log('Old product image deleted from Cloudinary:', publicId);
+          } catch (deleteError) {
+            console.error('Error deleting old product image from Cloudinary:', deleteError);
+            // Continue with update even if old image deletion fails
+          }
+        }
+      }
+      
+      // Add new image URLs to update data
+      req.body.images = req.files.map(file => file.path);
+    }
+    
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    
+    res.json(product);
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.patch("/:id/status", async (req, res) => {
+  const productId = req.params.id;
+  const { status } = req.body; // expect status as boolean in the request body
+
+  if (typeof status !== "boolean") {
+    return res.status(400).json({ error: "Status must be a boolean." });
+  }
+
+  try {
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      { status: status },
+      { new: true } // return the updated document
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ error: "Product not found." });
+    }
+
+    res.json(updatedProduct);
+  } catch (error) {
+    res.status(500).json({ error: "Server error." });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    // Get the product first to access image URL
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Delete image from Cloudinary if it exists
+    if (product.image) {
+      try {
+        // Extract public_id from Cloudinary URL
+        const publicId = product.image
+          .split('/')
+          .slice(-2) // Get last two parts: folder/filename
+          .join('/')
+          .split('.')[0]; // Remove file extension
+
+        await cloudinary.uploader.destroy(publicId);
+        console.log('Product image deleted from Cloudinary:', publicId);
+      } catch (deleteError) {
+        console.error('Error deleting product image from Cloudinary:', deleteError);
+        // Continue with product deletion even if image deletion fails
+      }
+    }
+
+    // Delete the product from database
+    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+
+    res.json({
+      message: 'Product deleted successfully',
+      success: true,
+      data: deletedProduct
+    });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({
+      message: 'Server error',
+      success: false
+    });
+  }
+});
+
 router.get('/daily-needs', async (req, res) => {
   try {
     const dailyNeedsProducts = await Product.find({ showInDailyNeeds: true })
@@ -717,6 +943,31 @@ router.get('/daily-needs', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
+
+// PATCH /api/products/:id/daily-needs
+router.patch("/:id/daily-needs", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { showInDailyNeeds } = req.body;
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { showInDailyNeeds },
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json(updatedProduct);
+  } catch (err) {
+    console.error("Error updating showInDailyNeeds:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// -----------------------------------------------------------> andoid 
 
 router.post("/subcategory", async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -844,256 +1095,6 @@ router.post("/productDetail", async (req, res) => {
   }
 });
 
-router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
-  try {
-    // Parse JSON strings back to objects
-    if (req.body.tags && typeof req.body.tags === 'string') {
-      req.body.tags = JSON.parse(req.body.tags);
-    }
-    if (req.body.attributes && typeof req.body.attributes === 'string') {
-      req.body.attributes = JSON.parse(req.body.attributes);
-    }
-    
-    // Convert string values to appropriate types for attributes
-    if (req.body.attributes && Array.isArray(req.body.attributes)) {
-      req.body.attributes = req.body.attributes.map(attr => ({
-        ...attr,
-        price: Number(attr.price),
-        discountedPrice: Number(attr.discountedPrice)
-      }));
-    }
-    
-    // Convert visibility string to boolean
-    if (typeof req.body.visibility === 'string') {
-      req.body.visibility = req.body.visibility === 'true';
-    }
-    
-    // Handle multiple image updates with Cloudinary cleanup
-    if (req.files && req.files.length > 0) {
-      // Get the old product to delete old images from Cloudinary
-      const oldProduct = await Product.findById(req.params.id);
-      
-      // Delete old images from Cloudinary if they exist
-      if (oldProduct && oldProduct.images && oldProduct.images.length > 0) {
-        for (const imageUrl of oldProduct.images) {
-          try {
-            // Extract public_id from Cloudinary URL
-            const publicId = imageUrl
-              .split('/')
-              .slice(-2) // Get last two parts: folder/filename
-              .join('/')
-              .split('.')[0]; // Remove file extension
-            await cloudinary.uploader.destroy(publicId);
-            console.log('Old product image deleted from Cloudinary:', publicId);
-          } catch (deleteError) {
-            console.error('Error deleting old product image from Cloudinary:', deleteError);
-            // Continue with update even if old image deletion fails
-          }
-        }
-      }
-      
-      // Add new image URLs to update data
-      req.body.images = req.files.map(file => file.path);
-    }
-    
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-    
-    res.json(product);
-  } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// DELETE Route - Delete Product
-router.delete('/:id', async (req, res) => {
-  try {
-    // Get the product first to access image URL
-    const product = await Product.findById(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    // Delete image from Cloudinary if it exists
-    if (product.image) {
-      try {
-        // Extract public_id from Cloudinary URL
-        const publicId = product.image
-          .split('/')
-          .slice(-2) // Get last two parts: folder/filename
-          .join('/')
-          .split('.')[0]; // Remove file extension
-
-        await cloudinary.uploader.destroy(publicId);
-        console.log('Product image deleted from Cloudinary:', publicId);
-      } catch (deleteError) {
-        console.error('Error deleting product image from Cloudinary:', deleteError);
-        // Continue with product deletion even if image deletion fails
-      }
-    }
-
-    // Delete the product from database
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
-
-    res.json({
-      message: 'Product deleted successfully',
-      success: true,
-      data: deletedProduct
-    });
-  } catch (error) {
-    console.error('Delete product error:', error);
-    res.status(500).json({
-      message: 'Server error',
-      success: false
-    });
-  }
-});
-
-router.get("/", async (req, res) => {
-  try {
-    const { categoryId, subCategoryId, search, page = 1, limit = 10, status } = req.query;
-
-    // Parse and validate pagination parameters
-    const pageNum = Math.max(1, parseInt(page)) || 1;
-    const limitNum = Math.max(1, Math.min(1000, parseInt(limit))) || 10;
-    const skip = (pageNum - 1) * limitNum;
-
-    // Build query object for filtering
-    let query = {};
-
-    // Apply search filter if provided
-    if (search && search.trim()) {
-      const searchTerm = search.trim();
-      query.$or = [
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { description: { $regex: searchTerm, $options: 'i' } },
-        { sku: { $regex: searchTerm, $options: 'i' } }
-      ];
-    }
-
-    // Apply status filter if provided
-    if (status && status !== "all") {
-      query.status = status === "true";
-    }
-
-    // Execute query with Promise.all for better performance
-    const [products, totalCount] = await Promise.all([
-      Product.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      Product.countDocuments(query)
-    ]);
-
-    // Enhance products with category and subcategory names
-    const enhancedProducts = await Promise.all(products.map(async (product) => {
-      let categoryName = 'N/A';
-      let subcategoryName = 'N/A';
-      
-      // Get category name if category exists
-      if (product.category) {
-        const cat = await category.findById(product.category).select('name').lean();
-        categoryName = cat?.name || 'N/A';
-      }
-      
-      // Get subcategory name if subcategory exists
-      if (product.subCategory) {
-        const subcat = await subCategory.findById(product.subCategory).select('name').lean();
-        subcategoryName = subcat?.name || 'N/A';
-      }
-      
-      return {
-        ...product,
-        categoryName,
-        subcategoryName
-      };
-    }));
-
-    // Calculate pagination info
-    const totalPages = Math.ceil(totalCount / limitNum);
-
-    // Return response with enhanced data
-    res.status(200).json({
-      success: true,
-      data: enhancedProducts,
-      pagination: {
-        current: pageNum,
-        total: totalPages,
-        count: enhancedProducts.length,
-        totalRecords: totalCount,
-        hasNext: pageNum < totalPages,
-        hasPrev: pageNum > 1
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching products',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-router.patch("/:id/status", async (req, res) => {
-  const productId = req.params.id;
-  const { status } = req.body; // expect status as boolean in the request body
-
-  if (typeof status !== "boolean") {
-    return res.status(400).json({ error: "Status must be a boolean." });
-  }
-
-  try {
-    const updatedProduct = await Product.findByIdAndUpdate(
-      productId,
-      { status: status },
-      { new: true } // return the updated document
-    );
-
-    if (!updatedProduct) {
-      return res.status(404).json({ error: "Product not found." });
-    }
-
-    res.json(updatedProduct);
-  } catch (error) {
-    res.status(500).json({ error: "Server error." });
-  }
-});
-
-// PATCH /api/products/:id/daily-needs
-router.patch("/:id/daily-needs", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { showInDailyNeeds } = req.body;
-
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      { showInDailyNeeds },
-      { new: true }
-    );
-
-    if (!updatedProduct) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    res.json(updatedProduct);
-  } catch (err) {
-    console.error("Error updating showInDailyNeeds:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
 router.post('/by-tags', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -1156,7 +1157,5 @@ router.post('/by-tags', async (req, res) => {
     });
   }
 });
-
-
 
 module.exports = router;
