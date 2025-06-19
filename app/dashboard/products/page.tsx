@@ -125,10 +125,11 @@ export default function ProductsPage() {
       if (status !== "") params.append('status', status)
 
       const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params}`)
+      const data = response?.data?.data;
 
       if (response.status === 200 && response.data.success) {
         const { data, pagination } = response.data
-        setProducts(Array.isArray(data) ? data : [])
+        setProducts(Array.isArray(data) ? data : []);
         setCurrentPage(pagination.current)
         setTotalPages(pagination.total)
         setTotalRecords(pagination.totalRecords)
@@ -681,7 +682,7 @@ export default function ProductsPage() {
                     <div className="flex items-center gap-3">
                       <div className="relative h-12 w-12 border rounded-md overflow-hidden">
                         <Image
-                          src={product.image || "/placeholder.svg"}
+                          src={product.images?.[0] || "/placeholder.svg"}
                           alt={product.name}
                           fill
                           className="object-cover"

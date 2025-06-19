@@ -10,6 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET// You can use .env
 router.post('/signup', async (req, res) => {
   try {
     const { mobileNumber, password } = req.body;
+    console.log(req.body)
 
     // Check if admin already exists
     const existingAdmin = await Admin.findOne({ mobileNumber });

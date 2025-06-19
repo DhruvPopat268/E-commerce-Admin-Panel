@@ -340,7 +340,7 @@ const validateAndTransformProduct = async (row) => {
   return { product, errors };
 };
 
-router.post('/', uploadImage.single('image'), async (req, res) => {
+router.post('/', uploadImage.array('images', 10), async (req, res) => {
   try {
     // Parse JSON strings back to objects
     if (req.body.tags && typeof req.body.tags === 'string') {
@@ -366,9 +366,9 @@ router.post('/', uploadImage.single('image'), async (req, res) => {
     
     const product = new Product(req.body);
     
-    // Handle image upload with Cloudinary
-    if (req.file) {
-      product.image = req.file.path;
+    // Handle multiple image uploads with Cloudinary
+    if (req.files && req.files.length > 0) {
+      product.images = req.files.map(file => file.path);
     }
     
     await product.save();

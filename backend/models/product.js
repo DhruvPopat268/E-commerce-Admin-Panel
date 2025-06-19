@@ -17,7 +17,7 @@ const ProductSchema = new mongoose.Schema(
     subCategory: { type: String },
     visibility: { type: Boolean, default: true },
     status: { type: Boolean, default: true },
-    image: { type: String },
+    images: [String],
     tags: [{ type: String }],
     attributes: [AttributeSchema],
     featured: { type: Boolean, default: false },

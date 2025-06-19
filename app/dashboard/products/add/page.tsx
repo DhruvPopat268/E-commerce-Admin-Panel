@@ -179,7 +179,6 @@ export default function AddProductPage() {
   const [attributeOptions, setAttributeOptions] = useState<AttributeOption[]>([]);
   const [selectedAttributes, setSelectedAttributes] = useState<AttributeItem[]>([]);
   const [currentAttribute, setCurrentAttribute] = useState("");
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [fetchedCategories, setFetchedCategories] = useState<Category[]>([]);
   const [fetchedSubcategories, setFetchedSubcategories] = useState<Subcategory[]>([]);
 
@@ -191,15 +190,16 @@ export default function AddProductPage() {
 
   const tagInputRef = useRef<HTMLInputElement>(null);
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
 
   const [filterSubCate, setFilterSubCate] = useState([])
 
   // Filtered subcategories based on selected category
-const filteredSubcategories = useMemo(() => {
-  if (!selectedCategory) return [];
-  return fetchedSubcategories.filter((subcat) => subcat.category?._id === selectedCategory);
-}, [fetchedSubcategories, selectedCategory]);
+  const filteredSubcategories = useMemo(() => {
+    if (!selectedCategory) return [];
+    return fetchedSubcategories.filter((subcat) => subcat.category?._id === selectedCategory);
+  }, [fetchedSubcategories, selectedCategory]);
 
   // Update your useEffect for data fetching
   useEffect(() => {
@@ -288,30 +288,62 @@ const filteredSubcategories = useMemo(() => {
     fetchInitialData();
   }, [productId]);
 
+  // UPDATED handleImageChange function
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file); // Save the file for submission
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPreviewImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files);
+      setImageFiles(fileArray); // Save files for submission
+
+      // Create preview images
+      const previews: string[] = [];
+      let loadedCount = 0;
+
+      fileArray.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          previews[index] = event.target?.result as string;
+          loadedCount++;
+
+          // Update state when all files are loaded
+          if (loadedCount === fileArray.length) {
+            setPreviewImages([...previews]);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
-const handleCategoryChange = async (value: string) => {
-  console.log("Selected category:", value);
-  console.log("fetched subcategories:", fetchedSubcategories);
-  setProduct({ ...product, category: value, subCategory: "" });
-  setSelectedCategory(value);
-  setSelectedSubCategory(null);
-};
+  // NEW function to remove a specific image
+  const removeImage = (indexToRemove: number) => {
+    const updatedFiles = imageFiles.filter((_, index) => index !== indexToRemove);
+    const updatedPreviews = previewImages.filter((_, index) => index !== indexToRemove);
 
-const handleSubCategoryChange = (value: string) => {
-  setProduct({ ...product, subCategory: value });
-  setSelectedSubCategory(value);
-};
+    setImageFiles(updatedFiles);
+    setPreviewImages(updatedPreviews);
+
+    // Reset file input if no files remain
+    if (updatedFiles.length === 0) {
+      const fileInput = document.getElementById('product-image') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    }
+  };
+
+  const handleCategoryChange = async (value: string) => {
+    console.log("Selected category:", value);
+    console.log("fetched subcategories:", fetchedSubcategories);
+    setProduct({ ...product, category: value, subCategory: "" });
+    setSelectedCategory(value);
+    setSelectedSubCategory(null);
+  };
+
+  const handleSubCategoryChange = (value: string) => {
+    setProduct({ ...product, subCategory: value });
+    setSelectedSubCategory(value);
+  };
 
   const handleTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && tagInput.trim()) {
@@ -349,6 +381,7 @@ const handleSubCategoryChange = (value: string) => {
     );
   };
 
+  // UPDATED handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -357,15 +390,20 @@ const handleSubCategoryChange = (value: string) => {
     try {
       if (productId) {
         // UPDATE EXISTING PRODUCT
-        if (imageFile) {
-          // If new image is selected, use FormData for update
+        if (imageFiles.length > 0) {
+          // If new images are selected, use FormData for update
           const formData = new FormData();
           formData.append("name", product.name);
           formData.append("description", product.description);
           formData.append("category", product.category);
-          formData.append("subCategory", product.subCategory); // Fixed field name
+          formData.append("subCategory", product.subCategory);
           formData.append("visibility", product.visibility.toString());
-          formData.append("image", imageFile);
+
+          // Append all selected images
+          imageFiles.forEach((file) => {
+            formData.append("images", file);
+          });
+
           formData.append("tags", JSON.stringify(tags));
           formData.append("attributes", JSON.stringify(selectedAttributes));
 
@@ -375,25 +413,25 @@ const handleSubCategoryChange = (value: string) => {
             },
           });
         } else {
-          // Update without new image
+          // Update without new images
           const updatedProduct = {
             name: product.name,
             description: product.description,
             category: product.category,
-            subCategory: product.subCategory, // Fixed field name
+            subCategory: product.subCategory,
             visibility: product.visibility,
             tags,
             attributes: selectedAttributes,
-            // Keep existing image
-            image: product.image
+            // Keep existing images
+            images: product.images
           };
 
           await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, updatedProduct);
         }
       } else {
         // CREATE NEW PRODUCT
-        if (!imageFile) {
-          setError("Please select an image for the product.");
+        if (imageFiles.length === 0) {
+          setError("Please select at least one image for the product.");
           setIsLoading(false);
           return;
         }
@@ -402,9 +440,14 @@ const handleSubCategoryChange = (value: string) => {
         formData.append("name", product.name);
         formData.append("description", product.description);
         formData.append("category", product.category);
-        formData.append("subCategory", product.subCategory); // Fixed field name
-        formData.append("visibility", product.visibility.toString()); // Fixed field name
-        formData.append("image", imageFile);
+        formData.append("subCategory", product.subCategory);
+        formData.append("visibility", product.visibility.toString());
+
+        // Append all selected images
+        imageFiles.forEach((file) => {
+          formData.append("images", file);
+        });
+
         formData.append("tags", JSON.stringify(tags));
         formData.append("attributes", JSON.stringify(selectedAttributes));
 
@@ -573,48 +616,70 @@ const handleSubCategoryChange = (value: string) => {
             <div className="flex items-center mb-4">
               <Cloud className="mr-2 h-5 w-5" />
               <h3 className="text-lg font-semibold">
-                Product Image <span className="text-red-500">*</span>{" "}
+                Product Images <span className="text-red-500">*</span>{" "}
                 <span className="text-sm text-gray-500">( Ratio 1:1 )</span>
               </h3>
             </div>
 
-            <div className="border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center h-48">
-              {previewImage ? (
-                <div className="relative h-32 w-32">
-                  <Image
-                    src={previewImage || "/placeholder.svg"}
-                    alt="Product preview"
-                    fill
-                    className="object-contain"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-white shadow"
-                    onClick={() => {
-                      setPreviewImage(null);
-                      setImageFile(null);
-                      // Reset the file input
-                      const fileInput = document.getElementById('product-image') as HTMLInputElement;
-                      if (fileInput) fileInput.value = '';
-                    }}
-                  >
-                    <span className="sr-only">Remove image</span>×
-                  </Button>
+            <div className="border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center min-h-48">
+              {previewImages.length > 0 ? (
+                <div className="w-full">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                    {previewImages.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <div className="relative h-32 w-full">
+                          <Image
+                            src={preview}
+                            alt={`Product preview ${index + 1}`}
+                            fill
+                            className="object-cover rounded-lg border border-gray-300"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => removeImage(index)}
+                          >
+                            <span className="sr-only">Remove image</span>×
+                          </Button>
+                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                            {index + 1}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-2">
+                      {previewImages.length} image{previewImages.length > 1 ? 's' : ''} selected
+                    </p>
+                    <Input
+                      id="product-image-additional"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="max-w-xs border-gray-300"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Click to replace all images</p>
+                  </div>
                 </div>
               ) : (
                 <>
                   <Cloud className="h-10 w-10 text-gray-300 mb-2" />
-                  <p className="text-gray-500 mb-4">Upload Image</p>
+                  <p className="text-gray-500 mb-4">Upload Images</p>
                   <Input
                     id="product-image"
                     type="file"
+                    multiple
                     accept="image/*"
                     onChange={handleImageChange}
                     className="max-w-xs border-gray-300"
-                    required={!productId} // Only require image for new products
+                    required={!productId} // Only require images for new products
                   />
+                  <p className="text-xs text-gray-500 mt-2">Select multiple images (Ctrl/Cmd + Click)</p>
                 </>
               )}
             </div>
