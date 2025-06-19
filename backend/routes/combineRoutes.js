@@ -105,7 +105,10 @@ router.post('/', async (req, res) => {
           status: productObj.status,
           price: firstAttribute?.price || productObj.price,
           discountedPrice: firstAttribute?.discountedPrice || productObj.discountedPrice,
-          image: productObj.image,
+          images: productObj.images || [], // Updated to handle multiple images array
+          image: productObj.images && productObj.images.length > 0 
+            ? productObj.images[0] 
+            : productObj.image, // Fallback for backward compatibility
           createdAt: productObj.createdAt,
           updatedAt: productObj.updatedAt,
           __v: productObj.__v,

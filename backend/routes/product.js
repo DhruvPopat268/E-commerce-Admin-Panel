@@ -340,7 +340,7 @@ const validateAndTransformProduct = async (row) => {
   return { product, errors };
 };
 
-router.post('/', uploadImage.array('images', 10), async (req, res) => {
+router.post('/',uploadImage.array('images', 10), async (req, res) => {
   try {
     // Parse JSON strings back to objects
     if (req.body.tags && typeof req.body.tags === 'string') {
@@ -683,7 +683,19 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.status(200).json(product);
+    // Transform the product to ensure proper image handling
+    const productObj = product.toObject();
+    
+    // Ensure images array exists and provide backward compatibility
+    const transformedProduct = {
+      ...productObj,
+      images: productObj.images || [], // Ensure images is always an array
+      image: productObj.images && productObj.images.length > 0 
+        ? productObj.images[0] 
+        : productObj.image // Fallback for backward compatibility
+    };
+
+    res.status(200).json(transformedProduct);
   } catch (err) {
     console.log("Error: " + err);
     
@@ -832,17 +844,16 @@ router.post("/productDetail", async (req, res) => {
   }
 });
 
-router.put('/:id', uploadImage.single('image'), async (req, res) => {
+router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
   try {
     // Parse JSON strings back to objects
     if (req.body.tags && typeof req.body.tags === 'string') {
       req.body.tags = JSON.parse(req.body.tags);
     }
-
     if (req.body.attributes && typeof req.body.attributes === 'string') {
       req.body.attributes = JSON.parse(req.body.attributes);
     }
-
+    
     // Convert string values to appropriate types for attributes
     if (req.body.attributes && Array.isArray(req.body.attributes)) {
       req.body.attributes = req.body.attributes.map(attr => ({
@@ -851,49 +862,50 @@ router.put('/:id', uploadImage.single('image'), async (req, res) => {
         discountedPrice: Number(attr.discountedPrice)
       }));
     }
-
+    
     // Convert visibility string to boolean
     if (typeof req.body.visibility === 'string') {
       req.body.visibility = req.body.visibility === 'true';
     }
-
-    // Handle image update with Cloudinary cleanup
-    if (req.file) {
-      // Get the old product to delete old image from Cloudinary
+    
+    // Handle multiple image updates with Cloudinary cleanup
+    if (req.files && req.files.length > 0) {
+      // Get the old product to delete old images from Cloudinary
       const oldProduct = await Product.findById(req.params.id);
-
-      // Delete old image from Cloudinary if it exists
-      if (oldProduct && oldProduct.image) {
-        try {
-          // Extract public_id from Cloudinary URL
-          const publicId = oldProduct.image
-            .split('/')
-            .slice(-2) // Get last two parts: folder/filename
-            .join('/')
-            .split('.')[0]; // Remove file extension
-
-          await cloudinary.uploader.destroy(publicId);
-          console.log('Old product image deleted from Cloudinary:', publicId);
-        } catch (deleteError) {
-          console.error('Error deleting old product image from Cloudinary:', deleteError);
-          // Continue with update even if old image deletion fails
+      
+      // Delete old images from Cloudinary if they exist
+      if (oldProduct && oldProduct.images && oldProduct.images.length > 0) {
+        for (const imageUrl of oldProduct.images) {
+          try {
+            // Extract public_id from Cloudinary URL
+            const publicId = imageUrl
+              .split('/')
+              .slice(-2) // Get last two parts: folder/filename
+              .join('/')
+              .split('.')[0]; // Remove file extension
+            await cloudinary.uploader.destroy(publicId);
+            console.log('Old product image deleted from Cloudinary:', publicId);
+          } catch (deleteError) {
+            console.error('Error deleting old product image from Cloudinary:', deleteError);
+            // Continue with update even if old image deletion fails
+          }
         }
       }
-
-      // Add new image URL to update data
-      req.body.image = req.file.path; // Store full Cloudinary URL
+      
+      // Add new image URLs to update data
+      req.body.images = req.files.map(file => file.path);
     }
-
+    
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true }
     );
-
+    
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-
+    
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
