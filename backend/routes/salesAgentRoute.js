@@ -8,7 +8,7 @@ const Village = require('../models/village')
 const verifyToken = require('../middleware/authMiddleware');
 const mongoose = require('mongoose')
 const Session = require('../models/Session'); // adjust path if needed
-const verifyToken=require('../middleware/authMiddleware')
+
 
 
 // Configure Cloudinary

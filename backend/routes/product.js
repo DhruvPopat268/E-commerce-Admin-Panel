@@ -10,7 +10,7 @@ const jwt = require("jsonwebtoken")
 const subCategory = require('../models/SubCategory')
 const category = require('../models/category')
 const XLSX = require('xlsx');
-const verifyToken=require('../middleware/authMiddleware')
+const verifyToken = require('../middleware/authMiddleware')
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -970,10 +970,10 @@ router.patch("/:id/daily-needs", async (req, res) => {
 
 // -----------------------------------------------------------> andoid 
 
-router.post("/subcategory",verifyToken, async (req, res) => {
+router.post("/subcategory", verifyToken, async (req, res) => {
 
   try {
-    
+
     const subCategoryId = req.body.id;
     console.log(subCategoryId)
 
@@ -1010,19 +1010,29 @@ router.post("/subcategory",verifyToken, async (req, res) => {
     const modifiedProducts = products.map((product) => {
       const productObj = product.toObject();
       const firstAttr = productObj.attributes?.[0];
-      console.log(firstAttr);
+      const firstImage = productObj.images?.[0] || null;
 
       return {
-        ...productObj,
+        _id: productObj._id,
+        name: productObj.name,
+        description: productObj.description,
+        category: productObj.category,
+        subCategory: productObj.subCategory,
+        visibility: productObj.visibility,
+        status: productObj.status,
+        tags: productObj.tags,
+        featured: productObj.featured,
+        showInDailyNeeds: productObj.showInDailyNeeds,
+        createdAt: productObj.createdAt,
+        updatedAt: productObj.updatedAt,
         subCategoryName,
         attributeName: firstAttr?.name ?? null,
         price: firstAttr?.price ?? null,
         discountedPrice: firstAttr?.discountedPrice ?? null,
-        images: productObj.images?.[0] ?? null, // ✅ only first image
-        attributes: undefined, // remove full attributes array
-        images: undefined      // remove full images array
+        images: firstImage ? [firstImage] : []
       };
     });
+
 
     return res.status(200).json({
       success: true,
@@ -1040,13 +1050,10 @@ router.post("/subcategory",verifyToken, async (req, res) => {
   }
 });
 
-router.post("/productDetail",verifyToken, async (req, res) => {
-  
+router.post("/productDetail", verifyToken, async (req, res) => {
   try {
-   
-
     const productId = req.body.id;
-    const product = await Product.findOne({_id: new mongoose.Types.ObjectId(productId)});
+    const product = await Product.findOne({ _id: new mongoose.Types.ObjectId(productId) });
 
     if (!product) {
       return res.status(404).json({
@@ -1063,13 +1070,21 @@ router.post("/productDetail",verifyToken, async (req, res) => {
     }
 
     const productObj = product.toObject();
+
+    // Transform image fields
+    if (productObj.image && typeof productObj.image === 'string') {
+      productObj.images = [productObj.image];
+    } else if (!Array.isArray(productObj.images)) {
+      productObj.images = [];
+    }
+
+    delete productObj.image; // Remove 'image' field
     productObj.subCategoryName = subCategoryName;
 
     res.status(200).json({
       success: true,
       productId: productId,
-
-      data: productObj  // Now includes subCategoryName
+      data: productObj
     });
   } catch (error) {
     console.error("Error fetching product by ID:", error);
@@ -1080,10 +1095,9 @@ router.post("/productDetail",verifyToken, async (req, res) => {
   }
 });
 
-router.post('/by-tags',verifyToken, async (req, res) => {
-  
+
+router.post('/by-tags', verifyToken, async (req, res) => {
   try {
-    
     const { tagName } = req.body;
 
     // Validate input
@@ -1100,42 +1114,35 @@ router.post('/by-tags',verifyToken, async (req, res) => {
       status: true
     });
 
-    // Transform products to include only first attribute's specific fields
+    // Transform products
     const transformedProducts = products.map(product => {
       const productObj = product.toObject();
 
-      // Get first attribute and merge its fields directly into product object
-      if (productObj.attributes && productObj.attributes.length > 0) {
-        const firstAttribute = productObj.attributes[0];
-        productObj.attributeName = firstAttribute.name;
-        productObj.price = firstAttribute.price;
-        productObj.discountedPrice = firstAttribute.discountedPrice;
-        productObj.attributeId = firstAttribute._id;
-      } else {
-        productObj.attributeName = null;
-        productObj.price = null;
-        productObj.discountedPrice = null;
-        productObj.attributeId = null;
-      }
+      // Extract first attribute
+      const firstAttr = productObj.attributes?.[0];
+      productObj.attributeName = firstAttr?.name ?? null;
+      productObj.price = firstAttr?.price ?? null;
+      productObj.discountedPrice = firstAttr?.discountedPrice ?? null;
+      productObj.attributeId = firstAttr?._id ?? null;
 
-      // Keep only the first image or null if no images
-      productObj.image = productObj.images && productObj.images.length > 0 
-        ? productObj.images[0] 
-        : null;
+      // Convert single image to array
+      const firstImage = productObj.images?.[0] || null;
+      productObj.images = firstImage ? [firstImage] : [];
 
-      // Remove the original attributes and images arrays
+      // Remove unwanted fields
       delete productObj.attributes;
-      delete productObj.images;
+      delete productObj.image; // If it exists in schema
+      // `images` already reassigned
 
       return productObj;
     });
 
-    // Return response - always 200 status code
     res.status(200).json({
       success: true,
       count: transformedProducts.length,
       data: transformedProducts
     });
+
   } catch (error) {
     console.error('Error fetching products by tag:', error);
     res.status(500).json({
@@ -1144,5 +1151,6 @@ router.post('/by-tags',verifyToken, async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;
