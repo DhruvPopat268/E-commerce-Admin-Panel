@@ -43,7 +43,7 @@ router.post('/add', verifyToken, async (req, res) => {
         userId,
         productId,
         productName: product.name,
-        images: product.images?.[0] ? [product.images[0]] : [],
+        image: product.images?.[0] || null,
 
         attributes: {
           _id: attributeId,
