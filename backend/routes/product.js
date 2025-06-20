@@ -1029,7 +1029,7 @@ router.post("/subcategory", verifyToken, async (req, res) => {
         attributeName: firstAttr?.name ?? null,
         price: firstAttr?.price ?? null,
         discountedPrice: firstAttr?.discountedPrice ?? null,
-        images: firstImage ? [firstImage] : []
+        image: firstImage 
       };
     });
 
@@ -1116,26 +1116,24 @@ router.post('/by-tags', verifyToken, async (req, res) => {
 
     // Transform products
     const transformedProducts = products.map(product => {
-      const productObj = product.toObject();
+  const productObj = product.toObject();
 
-      // Extract first attribute
-      const firstAttr = productObj.attributes?.[0];
-      productObj.attributeName = firstAttr?.name ?? null;
-      productObj.price = firstAttr?.price ?? null;
-      productObj.discountedPrice = firstAttr?.discountedPrice ?? null;
-      productObj.attributeId = firstAttr?._id ?? null;
+  // Extract first attribute
+  const firstAttr = productObj.attributes?.[0];
+  productObj.attributeName = firstAttr?.name ?? null;
+  productObj.price = firstAttr?.price ?? null;
+  productObj.discountedPrice = firstAttr?.discountedPrice ?? null;
+  productObj.attributeId = firstAttr?._id ?? null;
 
-      // Convert single image to array
-      const firstImage = productObj.images?.[0] || null;
-      productObj.images = firstImage ? [firstImage] : [];
+  // ✅ Assign only first image as `image` (not array)
+  productObj.image = productObj.images?.[0] || null;
 
-      // Remove unwanted fields
-      delete productObj.attributes;
-      delete productObj.image; // If it exists in schema
-      // `images` already reassigned
+  // ❌ Remove unwanted fields
+  delete productObj.attributes;
+  delete productObj.images;
 
-      return productObj;
-    });
+  return productObj;
+});
 
     res.status(200).json({
       success: true,

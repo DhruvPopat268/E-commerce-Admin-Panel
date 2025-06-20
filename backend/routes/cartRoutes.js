@@ -15,6 +15,7 @@ router.post('/add', verifyToken, async (req, res) => {
 
     // Check if product exists
     const product = await Product.findById(productId);
+    console.log(product)
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     // Check if the specific attribute exists in the product
@@ -42,7 +43,8 @@ router.post('/add', verifyToken, async (req, res) => {
         userId,
         productId,
         productName: product.name,
-        image: product.image,
+        images: product.images?.[0] ? [product.images[0]] : [],
+
         attributes: {
           _id: attributeId,
           name: attribute.name,
@@ -116,10 +118,10 @@ router.put('/update', verifyToken, async (req, res) => {
     const { productId, attributeId, quantity } = req.body;
     const userId = req.userId;
 
-    const cartItem = await Cart.findOne({ 
-      userId, 
-      productId, 
-      'attributes._id': attributeId 
+    const cartItem = await Cart.findOne({
+      userId,
+      productId,
+      'attributes._id': attributeId
     });
 
     if (!cartItem) {
@@ -147,41 +149,41 @@ router.put('/update', verifyToken, async (req, res) => {
 
 // 🛒 Remove a specific attribute (variation) from cart
 router.delete('/remove', verifyToken, async (req, res) => {
-    try {
-        const { productId, attributeName } = req.body;
-        const userId = req.userId;
+  try {
+    const { productId, attributeName } = req.body;
+    const userId = req.userId;
 
-        const cartItem = await Cart.findOne({ userId, productId });
+    const cartItem = await Cart.findOne({ userId, productId });
 
-        if (!cartItem) {
-            return res.status(404).json({ error: 'Cart item not found' });
-        }
-
-        cartItem.attributes = cartItem.attributes.filter(
-            (attr) => attr.name !== attributeName
-        );
-
-        // If no attributes remain, remove the whole cart item
-        if (cartItem.attributes.length === 0) {
-            await Cart.findOneAndDelete({ userId, productId });
-            return res.json({ message: 'Item removed from cart' });
-        }
-        await cartItem.save();
-        res.json({ message: 'Attribute removed from cart item', cartItem });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    if (!cartItem) {
+      return res.status(404).json({ error: 'Cart item not found' });
     }
+
+    cartItem.attributes = cartItem.attributes.filter(
+      (attr) => attr.name !== attributeName
+    );
+
+    // If no attributes remain, remove the whole cart item
+    if (cartItem.attributes.length === 0) {
+      await Cart.findOneAndDelete({ userId, productId });
+      return res.json({ message: 'Item removed from cart' });
+    }
+    await cartItem.save();
+    res.json({ message: 'Attribute removed from cart item', cartItem });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 🛒 Clear entire cart
 router.delete('/clear', verifyToken, async (req, res) => {
-    try {
-        const userId = req.userId;
-        await Cart.deleteMany({ userId });
-        res.json({ message: 'Cart cleared' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  try {
+    const userId = req.userId;
+    await Cart.deleteMany({ userId });
+    res.json({ message: 'Cart cleared' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
