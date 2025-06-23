@@ -10,7 +10,7 @@ const mongoose = require('mongoose')
 const Village = require('../models/village')
 const jwt = require('jsonwebtoken')
 
-router.post('/', verifyToken, async (req, res) => {
+router.post('/',verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const { orderType } = req.body;
@@ -107,6 +107,7 @@ router.get('/all', async (req, res) => {
 
     // Create agent map for quick lookup
     const agentMap = new Map(agents.map(agent => [agent._id.toString(), agent]));
+    console.log(agentMap)
 
     // Extract valid village IDs from agents
     const validVillageIds = agents

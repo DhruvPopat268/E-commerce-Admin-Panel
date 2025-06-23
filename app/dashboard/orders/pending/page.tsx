@@ -111,6 +111,7 @@ const fetchPendingOrders = async () => {
 
     if (data.orders) {
       setPendingOrders(data.orders)
+      console.log(data.orders)
       setSelectedOrders(new Set())
       
       setPagination({
@@ -126,108 +127,108 @@ const fetchPendingOrders = async () => {
   }
 }
 
-  const generateInvoiceHTML = (order: Order) => {
-    const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
-    const currentDate = new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+//   const generateInvoiceHTML = (order: Order) => {
+//     const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
+//     const currentDate = new Date().toLocaleDateString('en-GB', {
+//       day: '2-digit',
+//       month: 'short',
+//       year: 'numeric'
+//     })
 
-    return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Invoice - ${order._id.slice(-6).toUpperCase()}</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-            .invoice-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #teal; padding-bottom: 20px; }
-            .company-name { font-size: 28px; font-weight: bold; color: #14b8a6; margin-bottom: 5px; }
-            .invoice-title { font-size: 24px; color: #666; }
-            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .info-section { flex: 1; }
-            .info-section h3 { color: #14b8a6; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px; }
-            .order-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            .order-table th, .order-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
-            .order-table th { background-color: #f8fafc; font-weight: bold; color: #374151; }
-            .total-section { text-align: right; margin-top: 20px; }
-            .total-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-            .total-label { font-weight: bold; margin-right: 20px; min-width: 120px; }
-            .total-amount { font-weight: bold; min-width: 100px; }
-            .grand-total { font-size: 18px; color: #14b8a6; border-top: 2px solid #14b8a6; padding-top: 10px; }
-            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
-            @media print { body { margin: 0; } }
-        </style>
-    </head>
-    <body>
-       <div class="invoice-header" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
-  <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" style="height: 30px;" />
-  <div style="font-size: 24px; font-weight: bold; color: #1abc9c;">Zoya Traders</div>
-</div>
-<div class="invoice-title" style="text-align: center; font-size: 18px; color: #555; margin-bottom: 20px;">INVOICE</div>
+//     return `
+//     <!DOCTYPE html>
+//     <html>
+//     <head>
+//         <meta charset="utf-8">
+//         <title>Invoice - ${order._id.slice(-6).toUpperCase()}</title>
+//         <style>
+//             body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+//             .invoice-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #teal; padding-bottom: 20px; }
+//             .company-name { font-size: 28px; font-weight: bold; color: #14b8a6; margin-bottom: 5px; }
+//             .invoice-title { font-size: 24px; color: #666; }
+//             .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+//             .info-section { flex: 1; }
+//             .info-section h3 { color: #14b8a6; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px; }
+//             .order-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+//             .order-table th, .order-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
+//             .order-table th { background-color: #f8fafc; font-weight: bold; color: #374151; }
+//             .total-section { text-align: right; margin-top: 20px; }
+//             .total-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+//             .total-label { font-weight: bold; margin-right: 20px; min-width: 120px; }
+//             .total-amount { font-weight: bold; min-width: 100px; }
+//             .grand-total { font-size: 18px; color: #14b8a6; border-top: 2px solid #14b8a6; padding-top: 10px; }
+//             .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+//             @media print { body { margin: 0; } }
+//         </style>
+//     </head>
+//     <body>
+//        <div class="invoice-header" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+//   <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" style="height: 30px;" />
+//   <div style="font-size: 24px; font-weight: bold; color: #1abc9c;">Zoya Traders</div>
+// </div>
+// <div class="invoice-title" style="text-align: center; font-size: 18px; color: #555; margin-bottom: 20px;">INVOICE</div>
 
         
-        <div class="invoice-info">
-            <div class="info-section">
-                <h3>Order Details</h3>
-                <p><strong>Order ID:</strong> ${order._id.slice(-6).toUpperCase()}</p>
-                <p><strong>Order Date:</strong> ${formatDate(order.orderDate)}</p>
-                <p><strong>Status:</strong> ${order.status}</p>
-                <p><strong>Invoice Date:</strong> ${currentDate}</p>
-            </div>
+//         <div class="invoice-info">
+//             <div class="info-section">
+//                 <h3>Order Details</h3>
+//                 <p><strong>Order ID:</strong> ${order._id.slice(-6).toUpperCase()}</p>
+//                 <p><strong>Order Date:</strong> ${formatDate(order.orderDate)}</p>
+//                 <p><strong>Status:</strong> ${order.status}</p>
+//                 <p><strong>Invoice Date:</strong> ${currentDate}</p>
+//             </div>
             
-            <div class="info-section">
-                <h3>Customer Details</h3>
-                <p><strong>Sales Agent:</strong> ${order.salesAgentName || 'N/A'}</p>
-                <p><strong>Mobile:</strong> ${order.salesAgentMobile || 'N/A'}</p>
-                <p><strong>Village:</strong> ${order.villageName || 'N/A'}</p>
-                <p><strong>Route:</strong> ${order.routeName || 'N/A'}</p>
-            </div>
-        </div>
+//             <div class="info-section">
+//                 <h3>Customer Details</h3>
+//                 <p><strong>Sales Agent:</strong> ${order.salesAgentName || 'N/A'}</p>
+//                 <p><strong>Mobile:</strong> ${order.salesAgentMobile || 'N/A'}</p>
+//                 <p><strong>Village:</strong> ${order.villageName || 'N/A'}</p>
+//                 <p><strong>Route:</strong> ${order.routeName || 'N/A'}</p>
+//             </div>
+//         </div>
         
-        <table class="order-table">
-            <thead>
-                <tr>
-                    <th>SL</th>
-                    <th>Item Details</th>
-                    <th>Attribute</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Discount Price</th>
-                    <th>Total Price</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${order.orders.map((item, index) => `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${item.productName}</td>
-                        <td>${item.attributes.name}</td>
-                        <td>₹${item.attributes.discountedPrice}</td>
-                        <td>${item.attributes.quantity}</td>
-                        <td>₹${item.attributes.discountedPrice}</td>
-                        <td>₹${item.attributes.total}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
+//         <table class="order-table">
+//             <thead>
+//                 <tr>
+//                     <th>SL</th>
+//                     <th>Item Details</th>
+//                     <th>Attribute</th>
+//                     <th>Price</th>
+//                     <th>Quantity</th>
+//                     <th>Discount Price</th>
+//                     <th>Total Price</th>
+//                 </tr>
+//             </thead>
+//             <tbody>
+//                 ${order.orders.map((item, index) => `
+//                     <tr>
+//                         <td>${index + 1}</td>
+//                         <td>${item.productName}</td>
+//                         <td>${item.attributes.name}</td>
+//                         <td>₹${item.attributes.discountedPrice}</td>
+//                         <td>${item.attributes.quantity}</td>
+//                         <td>₹${item.attributes.discountedPrice}</td>
+//                         <td>₹${item.attributes.total}</td>
+//                     </tr>
+//                 `).join('')}
+//             </tbody>
+//         </table>
         
-        <div class="total-section">
-            <div class="total-row grand-total">
-                <div class="total-label">Grand Total:</div>
-                <div class="total-amount">₹${orderTotal.toLocaleString()}</div>
-            </div>
-        </div>
+//         <div class="total-section">
+//             <div class="total-row grand-total">
+//                 <div class="total-label">Grand Total:</div>
+//                 <div class="total-amount">₹${orderTotal.toLocaleString()}</div>
+//             </div>
+//         </div>
         
-        <div class="footer">
-            <p>Thank you for your business!</p>
-            <p>This is a computer generated invoice.</p>
-        </div>
-    </body>
-    </html>
-    `
-  }
+//         <div class="footer">
+//             <p>Thank you for your business!</p>
+//             <p>This is a computer generated invoice.</p>
+//         </div>
+//     </body>
+//     </html>
+//     `
+//   }
 
   const printSingleInvoice = async (order: Order) => {
     try {
@@ -269,6 +270,8 @@ const fetchPendingOrders = async () => {
       setBulkPrinting(true)
 
       const selectedOrdersData = pendingOrders.filter(order => selectedOrders.has(order._id))
+
+     
 
       // Generate combined HTML for all selected orders
       const combinedHTML = `
@@ -338,10 +341,9 @@ const fetchPendingOrders = async () => {
                         <tr>
                             <th>SL</th>
                             <th>Item Details</th>
-                            <th>Attribute</th>
-                            <th>Price</th>
+                            <th>Attribute</th>                   
                             <th>Quantity</th>
-                            <th>Discount Price</th>
+                            <th>Price</th>
                             <th>Total Price</th>
                         </tr>
                     </thead>
@@ -350,8 +352,7 @@ const fetchPendingOrders = async () => {
                             <tr>
                                 <td>${itemIndex + 1}</td>
                                 <td>${item.productName}</td>
-                                <td>${item.attributes.name}</td>
-                                <td>₹${item.attributes.discountedPrice}</td>
+                                <td>${item.attributes.name}</td>                             
                                 <td>${item.attributes.quantity}</td>
                                 <td>₹${item.attributes.discountedPrice}</td>
                                 <td>₹${item.attributes.total}</td>
@@ -367,10 +368,7 @@ const fetchPendingOrders = async () => {
                     </div>
                 </div>
                 
-                <div class="footer">
-                    <p>Thank you for your business!</p>
-                    <p>This is a computer generated invoice.</p>
-                </div>
+              
             </div>
             `
       }).join('')}
@@ -1096,11 +1094,7 @@ const fetchPendingOrders = async () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <button
-                              className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </button>
+                           
                           </div>
                         </td>
                       </tr>
