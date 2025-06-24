@@ -26,8 +26,8 @@ export default function ProductsPage() {
   // const [selectedSubcategory, setSelectedSubcategory] = useState("")
   // const [selectedStatus, setSelectedStatus] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-const [selectedSubcategory, setSelectedSubcategory] = useState("all")
-const [selectedStatus, setSelectedStatus] = useState("all")
+  const [selectedSubcategory, setSelectedSubcategory] = useState("all")
+  const [selectedStatus, setSelectedStatus] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
 
   // Search states for dropdowns
@@ -100,16 +100,16 @@ const [selectedStatus, setSelectedStatus] = useState("all")
   // })
 
   const filteredSubcategories = subcategories.filter(subcategory => {
-  const matchesSearch = subcategory.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
+    const matchesSearch = subcategory.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
 
-  // If no category is selected, show all subcategories
-  if (!selectedCategory || selectedCategory === "all") {
-    return matchesSearch
-  }
+    // If no category is selected, show all subcategories
+    if (!selectedCategory || selectedCategory === "all") {
+      return matchesSearch
+    }
 
-  // Show only subcategories that belong to the selected category
-  return matchesSearch && subcategory.category?._id === selectedCategory
-})
+    // Show only subcategories that belong to the selected category
+    return matchesSearch && subcategory.category?._id === selectedCategory
+  })
 
   // Get selected category name
   // const getSelectedCategoryName = () => {
@@ -121,10 +121,10 @@ const [selectedStatus, setSelectedStatus] = useState("all")
   // }
 
   const getSelectedCategoryName = () => {
-  if (!selectedCategory || selectedCategory === "all") return "All Categories"
-  const category = categories.find(cat => cat._id === selectedCategory)
-  return category ? category.name : "All Categories"
-}
+    if (!selectedCategory || selectedCategory === "all") return "All Categories"
+    const category = categories.find(cat => cat._id === selectedCategory)
+    return category ? category.name : "All Categories"
+  }
 
   // Get selected subcategory name
   // const getSelectedSubcategoryName = () => {
@@ -135,10 +135,10 @@ const [selectedStatus, setSelectedStatus] = useState("all")
   // }
 
   const getSelectedSubcategoryName = () => {
-  if (!selectedSubcategory || selectedSubcategory === "all") return "All Subcategories"
-  const subcategory = subcategories.find(sub => sub._id === selectedSubcategory)
-  return subcategory ? subcategory.name : "All Subcategories"
-}
+    if (!selectedSubcategory || selectedSubcategory === "all") return "All Subcategories"
+    const subcategory = subcategories.find(sub => sub._id === selectedSubcategory)
+    return subcategory ? subcategory.name : "All Subcategories"
+  }
 
   const fetchProducts = async (page = 1, search = "", categoryId = "", subCategoryId = "", status = "") => {
     try {
@@ -153,7 +153,7 @@ const [selectedStatus, setSelectedStatus] = useState("all")
       if (subCategoryId && subCategoryId !== "all") params.append('subCategoryId', subCategoryId);
       if (status && status !== "all") params.append('status', status);
 
-     console.log('API Params:', params.toString(), { categoryId, subCategoryId, status });
+
 
       const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params.toString()}`);
 
@@ -282,14 +282,14 @@ const [selectedStatus, setSelectedStatus] = useState("all")
     router.push(`/dashboard/products/add?productId=${productId}`)
   }
 
- const clearFilters = () => {
-  setSearchQuery("")
-  setSelectedCategory("all")
-  setSelectedSubcategory("all")
-  setSelectedStatus("all")
-  setCategorySearchQuery("")
-  setSubcategorySearchQuery("")
-}
+  const clearFilters = () => {
+    setSearchQuery("")
+    setSelectedCategory("all")
+    setSelectedSubcategory("all")
+    setSelectedStatus("all")
+    setCategorySearchQuery("")
+    setSubcategorySearchQuery("")
+  }
 
   // Handle category selection
   // const handleCategorySelect = (categoryId) => {
@@ -303,14 +303,14 @@ const [selectedStatus, setSelectedStatus] = useState("all")
   // }
 
   const handleCategorySelect = (categoryId) => {
-  setSelectedCategory(categoryId)
-  // Reset subcategory when category changes
-  setSelectedSubcategory("all")
-  setSubcategorySearchQuery("")
+    setSelectedCategory(categoryId)
+    // Reset subcategory when category changes
+    setSelectedSubcategory("all")
+    setSubcategorySearchQuery("")
 
-  setCategoryOpen(false)
-  setCategorySearchQuery("")
-}
+    setCategoryOpen(false)
+    setCategorySearchQuery("")
+  }
 
   // Handle subcategory selection
   // const handleSubcategorySelect = (subcategoryId) => {
@@ -320,10 +320,10 @@ const [selectedStatus, setSelectedStatus] = useState("all")
   // }
 
   const handleSubcategorySelect = (subcategoryId) => {
-  setSelectedSubcategory(subcategoryId)
-  setSubcategoryOpen(false)
-  setSubcategorySearchQuery("")
-}
+    setSelectedSubcategory(subcategoryId)
+    setSubcategoryOpen(false)
+    setSubcategorySearchQuery("")
+  }
 
   // Bulk Import Functions
   const handleFileSelect = (event) => {
@@ -490,7 +490,6 @@ const [selectedStatus, setSelectedStatus] = useState("all")
             <Command>
               <CommandInput
                 placeholder="Search categories..."
-                value={categorySearchQuery}
                 onValueChange={setCategorySearchQuery}
               />
               <CommandEmpty>No category found.</CommandEmpty>
@@ -504,7 +503,7 @@ const [selectedStatus, setSelectedStatus] = useState("all")
                 {filteredCategories.map((category) => (
                   <CommandItem
                     key={category._id}
-                    value={category._id}
+                    value={category.name}
                     onSelect={() => handleCategorySelect(category._id)}
                   >
                     {category.name}
@@ -532,7 +531,6 @@ const [selectedStatus, setSelectedStatus] = useState("all")
             <Command>
               <CommandInput
                 placeholder="Search subcategories..."
-                value={subcategorySearchQuery}
                 onValueChange={setSubcategorySearchQuery}
               />
               <CommandEmpty>No subcategory found.</CommandEmpty>
