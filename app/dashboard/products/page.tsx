@@ -22,9 +22,12 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState([])
   const [subcategories, setSubcategories] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("")
-  const [selectedSubcategory, setSelectedSubcategory] = useState("")
-  const [selectedStatus, setSelectedStatus] = useState("")
+  // const [selectedCategory, setSelectedCategory] = useState("")
+  // const [selectedSubcategory, setSelectedSubcategory] = useState("")
+  // const [selectedStatus, setSelectedStatus] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+const [selectedSubcategory, setSelectedSubcategory] = useState("all")
+const [selectedStatus, setSelectedStatus] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
 
   // Search states for dropdowns
@@ -84,74 +87,103 @@ export default function ProductsPage() {
   )
 
   // Filter subcategories based on selected category and search query
+  // const filteredSubcategories = subcategories.filter(subcategory => {
+  //   const matchesSearch = subcategory.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
+
+  //   // If no category is selected, show all subcategories
+  //   if (!selectedCategory || selectedCategory === "") {
+  //     return matchesSearch
+  //   }
+
+  //   // Show only subcategories that belong to the selected category
+  //   return matchesSearch && subcategory.category?._id === selectedCategory
+  // })
+
   const filteredSubcategories = subcategories.filter(subcategory => {
-    const matchesSearch = subcategory.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
+  const matchesSearch = subcategory.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
 
-    // If no category is selected, show all subcategories
-    if (!selectedCategory || selectedCategory === "") {
-      return matchesSearch
-    }
+  // If no category is selected, show all subcategories
+  if (!selectedCategory || selectedCategory === "all") {
+    return matchesSearch
+  }
 
-    // Show only subcategories that belong to the selected category
-    return matchesSearch && subcategory.category?._id === selectedCategory
-  })
+  // Show only subcategories that belong to the selected category
+  return matchesSearch && subcategory.category?._id === selectedCategory
+})
 
   // Get selected category name
+  // const getSelectedCategoryName = () => {
+  //   if (!selectedCategory || selectedCategory === "") return "All Categories"
+  //   const category = categories.find(cat => cat._id === selectedCategory)
+  //   console.log(category ? category.name : "All Categories")
+  //   return category ? category.name : "All Categories"
+
+  // }
+
   const getSelectedCategoryName = () => {
-    if (!selectedCategory || selectedCategory === "") return "All Categories"
-    const category = categories.find(cat => cat._id === selectedCategory)
-    return category ? category.name : "All Categories"
-  }
+  if (!selectedCategory || selectedCategory === "all") return "All Categories"
+  const category = categories.find(cat => cat._id === selectedCategory)
+  return category ? category.name : "All Categories"
+}
 
   // Get selected subcategory name
+  // const getSelectedSubcategoryName = () => {
+  //   if (!selectedSubcategory || selectedSubcategory === "") return "All Subcategories"
+  //   const subcategory = subcategories.find(sub => sub._id === selectedSubcategory)
+  //   console.log(subcategory ? subcategory.name : "All Subcategories")
+  //   return subcategory ? subcategory.name : "All Subcategories"
+  // }
+
   const getSelectedSubcategoryName = () => {
-    if (!selectedSubcategory || selectedSubcategory === "") return "All Subcategories"
-    const subcategory = subcategories.find(sub => sub._id === selectedSubcategory)
-    return subcategory ? subcategory.name : "All Subcategories"
-  }
-
-const fetchProducts = async (page = 1, search = "", categoryId = "", subCategoryId = "", status = "") => {
-  try {
-    setIsLoading(true);
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: pageSize.toString(),
-    });
-
-    if (search.trim()) params.append('search', search.trim());
-    if (categoryId && categoryId !== "all") params.append('categoryId', categoryId);
-    if (subCategoryId && subCategoryId !== "all") params.append('subCategoryId', subCategoryId);
-    if (status && status !== "all") params.append('status', status);
-
-    const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params.toString()}`);
-    
-    if (response.data.success) {
-      const { data, pagination } = response.data;
-      setProducts(Array.isArray(data) ? data : []);
-      console.log(data)
-      setCurrentPage(pagination.current);
-      setTotalPages(pagination.total);
-      setTotalRecords(pagination.totalRecords);
-      setHasNext(pagination.hasNext);
-      setHasPrev(pagination.hasPrev);
-    }
-  } catch (error) {
-    if (error.response?.status === 400) {
-      // Handle invalid ID errors
-      console.error("Invalid filter parameters:", error.response.data.message);
-    } else {
-      console.error("Failed to fetch products:", error);
-    }
-    setProducts([]);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-// Helper function to validate ObjectId
-function isValidObjectId(id) {
-  return id && id !== "all" && mongoose.Types.ObjectId.isValid(id);
+  if (!selectedSubcategory || selectedSubcategory === "all") return "All Subcategories"
+  const subcategory = subcategories.find(sub => sub._id === selectedSubcategory)
+  return subcategory ? subcategory.name : "All Subcategories"
 }
+
+  const fetchProducts = async (page = 1, search = "", categoryId = "", subCategoryId = "", status = "") => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pageSize.toString(),
+      });
+
+      if (search.trim()) params.append('search', search.trim());
+      if (categoryId && categoryId !== "all") params.append('categoryId', categoryId);
+      if (subCategoryId && subCategoryId !== "all") params.append('subCategoryId', subCategoryId);
+      if (status && status !== "all") params.append('status', status);
+
+     console.log('API Params:', params.toString(), { categoryId, subCategoryId, status });
+
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products?${params.toString()}`);
+
+      if (response.data.success) {
+        const { data, pagination } = response.data;
+        setProducts(Array.isArray(data) ? data : []);
+        console.log(data)
+        setCurrentPage(pagination.current);
+        setTotalPages(pagination.total);
+        setTotalRecords(pagination.totalRecords);
+        setHasNext(pagination.hasNext);
+        setHasPrev(pagination.hasPrev);
+      }
+    } catch (error) {
+      if (error.response?.status === 400) {
+        // Handle invalid ID errors
+        console.error("Invalid filter parameters:", error.response.data.message);
+      } else {
+        console.error("Failed to fetch products:", error);
+      }
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function to validate ObjectId
+  // function isValidObjectId(id) {
+  //   return id && id !== "all" && mongoose.Types.ObjectId.isValid(id);
+  // }
 
   // Initial load and when filters change
   useEffect(() => {
@@ -250,32 +282,48 @@ function isValidObjectId(id) {
     router.push(`/dashboard/products/add?productId=${productId}`)
   }
 
-const clearFilters = () => {
+ const clearFilters = () => {
   setSearchQuery("")
-  setSelectedCategory("")
-  setSelectedSubcategory("")
-  setSelectedStatus("")
+  setSelectedCategory("all")
+  setSelectedSubcategory("all")
+  setSelectedStatus("all")
   setCategorySearchQuery("")
   setSubcategorySearchQuery("")
 }
 
   // Handle category selection
-  const handleCategorySelect = (categoryId) => {
-    setSelectedCategory(categoryId === "all" ? "" : categoryId)
-    // Reset subcategory when category changes
-    setSelectedSubcategory("")
-    setSubcategorySearchQuery("")
+  // const handleCategorySelect = (categoryId) => {
+  //   setSelectedCategory(categoryId === "all" ? "" : categoryId)
+  //   // Reset subcategory when category changes
+  //   setSelectedSubcategory("")
+  //   setSubcategorySearchQuery("")
 
-    setCategoryOpen(false)
-    setCategorySearchQuery("")
-  }
+  //   setCategoryOpen(false)
+  //   setCategorySearchQuery("")
+  // }
+
+  const handleCategorySelect = (categoryId) => {
+  setSelectedCategory(categoryId)
+  // Reset subcategory when category changes
+  setSelectedSubcategory("all")
+  setSubcategorySearchQuery("")
+
+  setCategoryOpen(false)
+  setCategorySearchQuery("")
+}
 
   // Handle subcategory selection
+  // const handleSubcategorySelect = (subcategoryId) => {
+  //   setSelectedSubcategory(subcategoryId === "all" ? "" : subcategoryId)
+  //   setSubcategoryOpen(false)
+  //   setSubcategorySearchQuery("")
+  // }
+
   const handleSubcategorySelect = (subcategoryId) => {
-    setSelectedSubcategory(subcategoryId === "all" ? "" : subcategoryId)
-    setSubcategoryOpen(false)
-    setSubcategorySearchQuery("")
-  }
+  setSelectedSubcategory(subcategoryId)
+  setSubcategoryOpen(false)
+  setSubcategorySearchQuery("")
+}
 
   // Bulk Import Functions
   const handleFileSelect = (event) => {
@@ -513,11 +561,14 @@ const clearFilters = () => {
           <SelectTrigger>
             <SelectValue placeholder="Select Status" />
           </SelectTrigger>
+
+
           <SelectContent>
-          <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="true">Active</SelectItem>
             <SelectItem value="false">Inactive</SelectItem>
           </SelectContent>
+
         </Select>
 
         <Button

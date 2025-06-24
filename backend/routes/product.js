@@ -368,6 +368,15 @@ router.get("/", async (req, res) => {
       query.status = status === "true";
     }
 
+    // Add these lines for category and subcategory filtering
+    if (categoryId && categoryId !== "all") {
+      query.category = categoryId;
+    }
+
+    if (subCategoryId && subCategoryId !== "all") {
+      query.subCategory = subCategoryId;
+    }
+
     // Execute query with Promise.all for better performance
     const [products, totalCount] = await Promise.all([
       Product.find(query)
@@ -1029,7 +1038,7 @@ router.post("/subcategory", verifyToken, async (req, res) => {
         attributeName: firstAttr?.name ?? null,
         price: firstAttr?.price ?? null,
         discountedPrice: firstAttr?.discountedPrice ?? null,
-        image: firstImage 
+        image: firstImage
       };
     });
 
@@ -1116,24 +1125,24 @@ router.post('/by-tags', verifyToken, async (req, res) => {
 
     // Transform products
     const transformedProducts = products.map(product => {
-  const productObj = product.toObject();
+      const productObj = product.toObject();
 
-  // Extract first attribute
-  const firstAttr = productObj.attributes?.[0];
-  productObj.attributeName = firstAttr?.name ?? null;
-  productObj.price = firstAttr?.price ?? null;
-  productObj.discountedPrice = firstAttr?.discountedPrice ?? null;
-  productObj.attributeId = firstAttr?._id ?? null;
+      // Extract first attribute
+      const firstAttr = productObj.attributes?.[0];
+      productObj.attributeName = firstAttr?.name ?? null;
+      productObj.price = firstAttr?.price ?? null;
+      productObj.discountedPrice = firstAttr?.discountedPrice ?? null;
+      productObj.attributeId = firstAttr?._id ?? null;
 
-  // ✅ Assign only first image as `image` (not array)
-  productObj.image = productObj.images?.[0] || null;
+      // ✅ Assign only first image as `image` (not array)
+      productObj.image = productObj.images?.[0] || null;
 
-  // ❌ Remove unwanted fields
-  delete productObj.attributes;
-  delete productObj.images;
+      // ❌ Remove unwanted fields
+      delete productObj.attributes;
+      delete productObj.images;
 
-  return productObj;
-});
+      return productObj;
+    });
 
     res.status(200).json({
       success: true,
