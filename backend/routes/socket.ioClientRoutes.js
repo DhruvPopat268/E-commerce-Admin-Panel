@@ -4,7 +4,7 @@ const { io } = require('socket.io-client');
 const router = express.Router();
 
 // Socket.IO client connection to printing server
-const socket = io('http://localhost:3000', {
+const socket = io('http://192.168.1.106:3000', {
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionAttempts: 5,
