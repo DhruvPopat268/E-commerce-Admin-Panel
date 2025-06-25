@@ -18,6 +18,7 @@ const routeSetupRoutes = require('./routes/routeSetupRputes');
 const combineRoutes = require('./routes/combineRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/Order');
+const printRouter = require('./routes/socket.ioClientRoutes');
 
 const app = express();
 
@@ -52,7 +53,8 @@ app.use("/api/routes", routeRoutes);
 app.use("/api/routesSetup", routeSetupRoutes);
 app.use("/api/c/b/d", combineRoutes);
 app.use('/api/cart', cartRoutes);
-app.use('/api/orders', orderRoutes); // Will emit socket from here
+app.use('/api/orders', orderRoutes);
+app.use('/api/print', printRouter); // Will emit socket from here
 
 // Start server using http server instead of app.listen
 app.listen(process.env.PORT, () => {

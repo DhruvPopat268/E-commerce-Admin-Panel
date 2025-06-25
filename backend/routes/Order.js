@@ -10,7 +10,7 @@ const mongoose = require('mongoose')
 const Village = require('../models/village')
 const jwt = require('jsonwebtoken')
 
-router.post('/',verifyToken, async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const { orderType } = req.body;
@@ -29,9 +29,9 @@ router.post('/',verifyToken, async (req, res) => {
 
     // Check if today's route is active
     if (!salesAgent.routeStatus) {
-      return res.status(200).json({ 
-        status : 'false',
-        message: "આજે તમારો વારો નથી. તેથી તમે ઓર્ડર આપી શકતા નથી!" 
+      return res.status(200).json({
+        status: 'false',
+        message: "આજે તમારો વારો નથી. તેથી તમે ઓર્ડર આપી શકતા નથી!"
       });
     }
 
@@ -51,6 +51,8 @@ router.post('/',verifyToken, async (req, res) => {
       attributes: item.attributes,
     }));
 
+    console.log(salesAgent.villageName)
+
     // Create and save the new order
     const newOrder = new Order({
       userId,
@@ -64,10 +66,15 @@ router.post('/',verifyToken, async (req, res) => {
     await Cart.deleteMany({ userId });
 
     res.status(200).json({
-      status : 'true',
+      status: 'true',
       message: 'Order placed successfully',
-      order: newOrder
+      order: newOrder,
+      salesAgentName: salesAgent.name,
+      salesAgentMobile: salesAgent.mobileNumber,
+      villageName:salesAgent.villageName,
+
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error placing order' });
@@ -80,7 +87,7 @@ router.get('/all', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    
+
     // Get status filter from query
     const statusFilter = req.query.status;
 
@@ -669,10 +676,10 @@ router.post('/delivered', async (req, res) => {
 
 // ----------------------------------------------->>> for android 
 
-router.post('/orderId',verifyToken, async (req, res) => {
-  
+router.post('/orderId', verifyToken, async (req, res) => {
+
   try {
-    
+
     const { orderId } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -728,9 +735,9 @@ router.post('/orderId',verifyToken, async (req, res) => {
 });
 
 router.post('/orderId/cancel', verifyToken, async (req, res) => {
-  
+
   try {
-    
+
 
     const userId = req.userId; // Extracted from the token
     const { orderId } = req.body;
