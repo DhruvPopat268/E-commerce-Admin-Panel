@@ -630,13 +630,12 @@ router.patch('/returned-bulk', async (req, res) => {
   }
 });
 
-router.post('/cancelled',verifyToken,async (req, res) => {
- 
+router.post('/cancelled', verifyToken, async (req, res) => {
   try {
-    
     const userId = req.userId;
 
-    const cancelledOrders = await Order.find({ userId, status: 'cancelled' });
+    const cancelledOrders = await Order.find({ userId, status: 'cancelled' })
+      .sort({ orderDate: -1 }); // -1 for descending order (most recent first - includes both date and time)
 
     if (!cancelledOrders.length) {
       return res.status(200).json({ cancelledOrders: [] });
@@ -657,15 +656,14 @@ router.post('/cancelled',verifyToken,async (req, res) => {
   }
 });
 
-router.post('/active',verifyToken, async (req, res) => {
-  
+router.post('/active', verifyToken, async (req, res) => {
   try {
-    
     const userId = req.userId;
 
     const activeStatuses = ['pending', 'confirmed', 'out for delivery'];
 
-    const activeOrders = await Order.find({ userId, status: { $in: activeStatuses } });
+    const activeOrders = await Order.find({ userId, status: { $in: activeStatuses } })
+      .sort({ orderDate: -1 }); // -1 for descending order (most recent first)
 
     if (!activeOrders.length) {
       return res.status(200).json({ activeOrders: [] });
@@ -685,13 +683,12 @@ router.post('/active',verifyToken, async (req, res) => {
   }
 });
 
-router.post('/delivered',verifyToken,async (req, res) => {
-  
+router.post('/delivered', verifyToken, async (req, res) => {
   try {
-    
     const userId = req.userId;
 
-    const deliveredOrders = await Order.find({ userId, status: 'delivered' });
+    const deliveredOrders = await Order.find({ userId, status: 'delivered' })
+      .sort({ orderDate: -1 }); // -1 for descending order (most recent first)
 
     if (!deliveredOrders.length) {
       return res.status(200).json({ deliveredOrders: [] });
