@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 const connectToDb = require('./database/db');
+const verifyToken = require('./middleware/authMiddleware')
 
 // Import routes
 const AdminauthRoutes = require('./routes/AdminAuth');
@@ -124,7 +125,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 
 // Print routes
-app.post('/api/print/send-to-print', async (req, res) => {
+app.post('/api/print/send-to-print',verifyToken, async (req, res) => {
   try {
     const requestData = req.body;
    
