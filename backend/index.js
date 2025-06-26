@@ -170,7 +170,7 @@ app.post('/api/print/send-to-print',verifyToken, async (req, res) => {
 
     console.log(`📄 Print request sent to ${printersRoom.size} printer(s) for order:`, order._id);
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: `Print request sent to ${printersRoom.size} printing server(s) successfully`,
       orderId: order._id,
