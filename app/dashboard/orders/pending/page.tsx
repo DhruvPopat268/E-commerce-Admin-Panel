@@ -274,31 +274,153 @@ export default function PendingOrdersPage() {
 
 
       // Generate combined HTML for all selected orders
-      const combinedHTML = `
+     const combinedHTML = `
       <!DOCTYPE html>
       <html>
       <head>
           <meta charset="utf-8">
           <title>Bulk Invoices</title>
           <style>
-              body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-              .page-break { page-break-after: always; }
-              .invoice-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #teal; padding-bottom: 20px; }
-              .company-name { font-size: 28px; font-weight: bold; color: #14b8a6; margin-bottom: 5px; }
-              .invoice-title { font-size: 24px; color: #666; }
-              .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
-              .info-section { flex: 1; }
-              .info-section h3 { color: #14b8a6; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px; }
-              .order-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-              .order-table th, .order-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
-              .order-table th { background-color: #f8fafc; font-weight: bold; color: #374151; }
-              .total-section { text-align: right; margin-top: 20px; }
-              .total-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-              .total-label { font-weight: bold; margin-right: 20px; min-width: 120px; }
-              .total-amount { font-weight: bold; min-width: 100px; }
-              .grand-total { font-size: 18px; color: #14b8a6; border-top: 2px solid #14b8a6; padding-top: 10px; }
-              .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
-              @media print { body { margin: 0; } }
+              <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;700&display=swap" rel="stylesheet">
+
+              @page {
+                size: A4;
+                margin: 0;
+              }
+
+              body {
+                font-family: 'Noto Sans Gujarati', Arial, sans-serif;
+                font-size: 22px;
+                margin: 0;
+                padding: 0;
+              }
+
+              .invoice-container {
+                width: 100mm;
+                height: 140mm;
+                padding: 8mm;
+                box-sizing: border-box;
+                page-break-inside: avoid;
+              }
+
+              .page-break { 
+                page-break-after: always; 
+              }
+
+              .invoice-header {
+                text-align: center;
+                margin-bottom: 15px;
+                border-bottom: 2px solid #14b8a6;
+                padding-bottom: 10px;
+              }
+
+              .header-content {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 5px;
+              }
+
+              .company-logo {
+                width: 40px;
+                height: 40px;
+                margin-right: 10px;
+                object-fit: contain;
+              }
+
+              .company-name {
+                font-size: 30px;
+                font-weight: bold;
+                color: #14b8a6;
+                margin: 0;
+              }
+
+              .invoice-title {
+                font-size: 22px;
+                color: #666;
+              }
+
+              .invoice-info {
+                margin-bottom: 15px;
+              }
+
+              .info-section {
+                margin-bottom: 10px;
+              }
+
+              .info-section h3 {
+                color: #14b8a6;
+                font-size: 20px;
+                margin: 0 0 5px;
+                border-bottom: 1px solid #e5e7eb;
+              }
+
+              .info-section p {
+                margin: 2px 0;
+                font-size: 15px;
+              }
+
+              .order-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 10px;
+              }
+
+              .order-table th, .order-table td {
+                border: 1px solid #e5e7eb;
+                padding: 4px;
+                text-align: left;
+                font-size: 15px;
+              }
+
+              .order-table th {
+                background-color: #f8fafc;
+                font-weight: bold;
+                color: #374151;
+              }
+
+              .gujarati-text {
+                font-family: 'Noto Sans Gujarati', Arial, sans-serif;
+                font-size: 15px;
+              }
+
+              .total-section {
+                text-align: right;
+                margin-top: 10px;
+              }
+
+              .invoice-info-compact {
+                margin-bottom: 10px;
+                font-size: 16px;
+                line-height: 1.4;
+              }
+
+              .invoice-info-compact p {
+                margin: 2px 0;
+              }
+
+              .total-row {
+                display: flex;
+                justify-content: flex-end;
+              }
+
+              .total-label {
+                font-weight: bold;
+                margin-right: 10px;
+                font-size: 18px;
+              }
+
+              .total-amount {
+                font-weight: bold;
+                font-size: 18px;
+                color: #14b8a6;
+              }
+
+              @media print {
+                body {
+                  margin: 0;
+                }
+              }
           </style>
       </head>
       <body>
@@ -311,63 +433,50 @@ export default function PendingOrdersPage() {
         })
 
         return `
-           <div class="invoice-header" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
-  <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" style="height: 30px;" />
-  <div style="font-size: 24px; font-weight: bold; color: #1abc9c;">Zoya Traders</div>
-</div>
-<div class="invoice-title" style="text-align: center; font-size: 18px; color: #555; margin-bottom: 20px;">INVOICE</div>
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <div class="header-content">
+                        <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" class="company-logo" onerror="this.style.display='none'" />
+                        <div class="company-name">Zoya Traders</div>
+                    </div>
+                    <div class="invoice-title">INVOICE</div>
+                </div>
 
-                
-                <div class="invoice-info">
-  <div class="info-section">
-    <h3>Order Details</h3>
-    <p><strong>Order Date:</strong> ${formatDate(order.orderDate)}</p>
-    <p><strong>Order Time:</strong> ${formatTime(order.orderDate)}</p>
-  </div>
+                <div class="invoice-info-compact">
+                    <p>${order.salesAgentName || 'N/A'} | ${order.villageName || order.village || order.villageCode || 'N/A'} | ${order.salesAgentMobile || 'N/A'} | ${formatDate(order.orderDate)} </p>
+                </div>
 
-  <div class="info-section">
-    <h3>Customer Details</h3>
-    <p><strong>Sales Agent:</strong> ${order.salesAgentName || 'N/A'}</p>
-    <p><strong>Mobile:</strong> ${order.salesAgentMobile || 'N/A'}</p>
-    <p><strong>Village:</strong> ${order.villageName || 'N/A'}</p>
-  </div>
-</div>
-
-                
                 <table class="order-table">
                     <thead>
                         <tr>
-                            <th>SL</th>
-                            <th>Item Details</th>
-                                    
-                            <th>Quantity</th>
-                            <th>Price</th>
-                            <th>Total Price</th>
+                            <th style="width: 8%;">SL</th>
+                            <th style="width: 52%;">Item Details</th>
+                            <th style="width: 12%;">Quantity</th>
+                            <th style="width: 14%;">Price</th>
+                            <th style="width: 14%;">Total Price</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${order.orders.map((item, itemIndex) => `
                             <tr>
                                 <td>${itemIndex + 1}</td>
-                                <td>${item.productName}</td>
-                                                       
-                                <td>${item.attributes.quantity}</td>
-                                <td>₹${item.attributes.discountedPrice}</td>
-                                <td>₹${item.attributes.total}</td>
+                                <td class="gujarati-text">${item.productName || 'N/A'}</td>
+                                <td>${item.attributes?.quantity || 0}</td>
+                                <td>₹${item.attributes?.discountedPrice || 0}</td>
+                                <td>₹${item.attributes?.total || 0}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
                 
                 <div class="total-section">
-                    <div class="total-row grand-total">
+                    <div class="total-row">
                         <div class="total-label">Grand Total:</div>
                         <div class="total-amount">₹${orderTotal.toLocaleString()}</div>
                     </div>
                 </div>
-                
-              
             </div>
+            ${index < selectedOrdersData.length - 1 ? '<div class="page-break"></div>' : ''}
             `
       }).join('')}
       </body>

@@ -47,6 +47,7 @@ app.set('trust proxy', 1);
 app.use(cors({
   origin: [
     "http://localhost:3000",
+    "http://localhost:3001",
     "https://e-commerce-admin-panel-eight-sigma.vercel.app"
   ],
   credentials: true
