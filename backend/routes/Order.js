@@ -569,19 +569,11 @@ router.patch('/returned-bulk', async (req, res) => {
   }
 });
 
-router.post('/cancelled', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied. No token provided."
-    });
-  }
-
-  const token = authHeader.split(" ")[1];
+router.post('/cancelled',verifyToken,async (req, res) => {
+ 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.id;
+    
+    const userId = req.userId;
 
     const cancelledOrders = await Order.find({ userId, status: 'cancelled' });
 
@@ -604,19 +596,11 @@ router.post('/cancelled', async (req, res) => {
   }
 });
 
-router.post('/active', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied. No token provided."
-    });
-  }
-
-  const token = authHeader.split(" ")[1];
+router.post('/active',verifyToken, async (req, res) => {
+  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.id;
+    
+    const userId = req.userId;
 
     const activeStatuses = ['pending', 'confirmed', 'out for delivery'];
 
@@ -640,19 +624,11 @@ router.post('/active', async (req, res) => {
   }
 });
 
-router.post('/delivered', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied. No token provided."
-    });
-  }
-
-  const token = authHeader.split(" ")[1];
+router.post('/delivered',verifyToken,async (req, res) => {
+  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.id;
+    
+    const userId = req.userId;
 
     const deliveredOrders = await Order.find({ userId, status: 'delivered' });
 
