@@ -543,7 +543,6 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
   }
 });
 
-
 // PUT update sales agent status
 router.put('/:id/status', async (req, res) => {
   try {

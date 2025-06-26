@@ -188,53 +188,7 @@ app.post('/api/print/send-to-print',verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/print/print-status', (req, res) => {
-  const printersRoom = io.sockets.adapter.rooms.get('printers');
-  const connectedPrinters = printersRoom ? printersRoom.size : 0;
-  
-  res.json({
-    connectedPrinters: connectedPrinters,
-    totalConnections: io.engine.clientsCount,
-    timestamp: new Date().toISOString()
-  });
-});
 
-app.get('/api/print/print-job-status/:orderId', (req, res) => {
-  const orderId = req.params.orderId;
-  const jobResponse = printJobResponses.get(orderId);
-  
-  if (jobResponse) {
-    res.json({
-      orderId: orderId,
-      found: true,
-      ...jobResponse
-    });
-    
-    // Clean up old responses (5 minutes)
-    if (Date.now() - jobResponse.timestamp.getTime() > 300000) {
-      printJobResponses.delete(orderId);
-    }
-  } else {
-    res.json({
-      orderId: orderId,
-      found: false,
-      message: 'Print job status not found or still processing'
-    });
-  }
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  const printersRoom = io.sockets.adapter.rooms.get('printers');
-  const connectedPrinters = printersRoom ? printersRoom.size : 0;
-  
-  res.json({
-    status: 'Server is running',
-    connectedPrinters: connectedPrinters,
-    totalConnections: io.engine.clientsCount,
-    timestamp: new Date().toISOString()
-  });
-});
 
 // Error handling middleware
 app.use((error, req, res, next) => {

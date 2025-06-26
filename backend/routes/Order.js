@@ -13,7 +13,7 @@ const jwt = require('jsonwebtoken')
 router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    const { orderType } = req.body;
+    const { orderType, autoPrint = true } = req.body; // Add autoPrint option
 
     // Validate orderType
     const validOrderTypes = ['take-away', 'delivery'];
@@ -31,7 +31,7 @@ router.post('/', verifyToken, async (req, res) => {
     if (!salesAgent.routeStatus) {
       return res.status(200).json({
         status: 'false',
-        message: "આજે તમારો વારો નથી. તેથી તમે ઓર્ડર આપી શકતા નથી!"
+        message: "આજે તમારો વારો નથી. તેથી તમે ઓર્ડર આપી શકતા નથી!"
       });
     }
 
@@ -51,7 +51,7 @@ router.post('/', verifyToken, async (req, res) => {
       attributes: item.attributes,
     }));
 
-    console.log(salesAgent.villageName)
+    console.log(salesAgent.villageName);
 
     // Create and save the new order
     const newOrder = new Order({
@@ -65,15 +65,76 @@ router.post('/', verifyToken, async (req, res) => {
     await newOrder.save();
     await Cart.deleteMany({ userId });
 
-    res.status(200).json({
+    // Prepare response data
+    const responseData = {
       status: 'true',
       message: 'Order placed successfully',
       order: newOrder,
       salesAgentName: salesAgent.name,
       salesAgentMobile: salesAgent.mobileNumber,
-      villageName:salesAgent.villageName,
+      villageName: salesAgent.villageName,
+    };
 
-    });
+    // Auto-print functionality (if enabled)
+    let printStatus = null;
+    if (autoPrint) {
+      try {
+        // Get io instance from app
+        const io = req.app.get('io');
+        
+        if (io) {
+          // Check if any printers are connected
+          const printersRoom = io.sockets.adapter.rooms.get('printers');
+          
+          if (printersRoom && printersRoom.size > 0) {
+            // Send print job to all connected printers
+            io.to('printers').emit('print-order', {
+              order: newOrder,
+              salesAgentName: salesAgent.name,
+              salesAgentMobile: salesAgent.mobileNumber,
+              villageName: salesAgent.villageName,
+              jobId: newOrder._id.toString()
+            });
+
+            console.log(`📄 Print request sent to ${printersRoom.size} printer(s) for order:`, newOrder._id);
+            
+            printStatus = {
+              success: true,
+              message: `Print request sent to ${printersRoom.size} printing server(s)`,
+              connectedPrinters: printersRoom.size
+            };
+          } else {
+            console.log('⚠️ No printers connected for auto-print');
+            printStatus = {
+              success: false,
+              message: 'No printing servers are connected',
+              connectedPrinters: 0
+            };
+          }
+        } else {
+          console.log('⚠️ Socket.IO not available for auto-print');
+          printStatus = {
+            success: false,
+            message: 'Socket.IO not available',
+            connectedPrinters: 0
+          };
+        }
+      } catch (printError) {
+        console.error('❌ Error in auto-print:', printError);
+        printStatus = {
+          success: false,
+          message: 'Error sending print request',
+          error: printError.message
+        };
+      }
+    }
+
+    // Add print status to response if auto-print was attempted
+    if (printStatus) {
+      responseData.printStatus = printStatus;
+    }
+
+    res.status(200).json(responseData);
 
   } catch (err) {
     console.error(err);
