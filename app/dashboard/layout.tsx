@@ -182,16 +182,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       expanded: pathname.includes("/dashboard/orders"),
     },
 
-
     {
       label: "Village",
       icon: MapPin,
       href: "/dashboard/villages",
       active: pathname === "/dashboard/villages",
     },
-
   ])
-
   const toggleExpand = (index: number) => {
     setNavItems((prev) => prev.map((item, i) => (i === index ? { ...item, expanded: !item.expanded } : item)))
   }
