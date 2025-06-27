@@ -329,14 +329,14 @@ export default function PendingOrdersPage() {
               }
 
               .company-name {
-                font-size: 30px;
+                font-size: 25px;
                 font-weight: bold;
                 color: #14b8a6;
                 margin: 0;
               }
 
               .invoice-title {
-                font-size: 22px;
+                font-size: 17px;
                 color: #666;
               }
 
@@ -370,7 +370,7 @@ export default function PendingOrdersPage() {
                 border: 1px solid #e5e7eb;
                 padding: 4px;
                 text-align: left;
-                font-size: 15px;
+                font-size: 11px;
               }
 
               .order-table th {
@@ -391,7 +391,7 @@ export default function PendingOrdersPage() {
 
               .invoice-info-compact {
                 margin-bottom: 10px;
-                font-size: 16px;
+                font-size: 12px;
                 line-height: 1.4;
               }
 
@@ -407,12 +407,12 @@ export default function PendingOrdersPage() {
               .total-label {
                 font-weight: bold;
                 margin-right: 10px;
-                font-size: 18px;
+                font-size: 15px;
               }
 
               .total-amount {
                 font-weight: bold;
-                font-size: 18px;
+                font-size: 15px;
                 color: #14b8a6;
               }
 
