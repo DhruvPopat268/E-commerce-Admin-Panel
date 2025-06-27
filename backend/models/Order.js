@@ -28,8 +28,12 @@ const orderSchema = new mongoose.Schema({
   orderType: {
     type: String,
     enum: ['take-away', 'delivery'], // optional but useful
+  },
+  cancellationDate: {
+  type: Date,
+  default: null
+}
 
-  }
 });
 
 module.exports = mongoose.model('Order', orderSchema);

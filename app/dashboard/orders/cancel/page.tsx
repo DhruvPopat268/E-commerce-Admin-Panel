@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { useRouter } from "next/navigation" 
+import { useRouter } from "next/navigation"
 import { Calendar, Eye, Printer, Download, XCircle, RotateCcw, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 // Mock toast function - replace with your actual toast implementation
@@ -59,13 +59,13 @@ export default function CancelledOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const [processingOrders, setProcessingOrders] = useState(false)
-  
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
   const [totalCancelledOrders, setTotalCancelledOrders] = useState(0)
-  
+
   const router = useRouter()
 
   useEffect(() => {
@@ -85,16 +85,18 @@ export default function CancelledOrdersPage() {
       setLoading(true)
       // Include pagination parameters in the API call
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?page=${page}&limit=${limit}`
+        `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?status=cancelled&page=${page}&limit=${limit}`
       )
+
       const data = await response.json()
 
       if (data.orders) {
         // Filter only cancelled orders
         const cancelled = data.orders.filter((order: Order) => order.status.toLowerCase() === 'cancelled')
+        console.log(cancelled)
         setCancelledOrders(cancelled)
         setTotalCancelledOrders(cancelled.length)
-        
+
         // Update pagination info based on filtered results
         if (data.pagination) {
           // Calculate cancelled orders pagination
@@ -107,7 +109,7 @@ export default function CancelledOrdersPage() {
           }
           setPagination(cancelledPagination)
         }
-        
+
         setSelectedOrders(new Set()) // Clear selections when data refreshes
       }
     } catch (error) {
@@ -213,24 +215,24 @@ export default function CancelledOrdersPage() {
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     if (!pagination) return []
-    
+
     const pages = []
     const totalPages = pagination.totalPages
     const current = pagination.currentPage
-    
+
     // Always show first page
     if (totalPages > 0) pages.push(1)
-    
+
     // Add pages around current page
     for (let i = Math.max(2, current - 1); i <= Math.min(totalPages - 1, current + 1); i++) {
       if (!pages.includes(i)) pages.push(i)
     }
-    
+
     // Always show last page if more than 1 page
     if (totalPages > 1 && !pages.includes(totalPages)) {
       pages.push(totalPages)
     }
-    
+
     return pages.sort((a, b) => a - b)
   }
 
@@ -337,7 +339,7 @@ export default function CancelledOrdersPage() {
         </div>
       </div>
 
-     
+
 
       {/* Cancelled Orders Table */}
       <div className="bg-white rounded-lg shadow-sm border">
@@ -378,7 +380,7 @@ export default function CancelledOrdersPage() {
                         </td>
                         <td className="p-4">{formatDate(order.orderDate)}</td>
                         <td className="p-4">
-                          {order.cancelledAt ? formatDate(order.cancelledAt) : 'N/A'}
+                          {order.cancellationDate ? formatDate(order.cancellationDate) : 'N/A'}
                         </td>
                         <td className="p-4">
                           <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
@@ -399,14 +401,14 @@ export default function CancelledOrdersPage() {
                         </td>
                         <td className="p-4">
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => handleViewOrder(order._id)}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <button 
+                            <button
                               className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                             >
                               <Printer className="h-4 w-4" />
@@ -423,7 +425,7 @@ export default function CancelledOrdersPage() {
         </div>
       </div>
 
- {/* Pagination Info */}
+      {/* Pagination Info */}
       {pagination && (
         <div className="flex justify-between items-center text-sm text-gray-600">
           <div>
@@ -435,7 +437,7 @@ export default function CancelledOrdersPage() {
         </div>
       )}
 
-      
+
       {/* Pagination Controls */}
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between bg-white px-6 py-3 border rounded-lg">
@@ -473,11 +475,11 @@ export default function CancelledOrdersPage() {
                   <span className="sr-only">Previous</span>
                   <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                 </button>
-                
+
                 {getPageNumbers().map((pageNum, index, array) => {
                   const isCurrentPage = pageNum === currentPage
                   const showEllipsis = index > 0 && pageNum - array[index - 1] > 1
-                  
+
                   return (
                     <React.Fragment key={pageNum}>
                       {showEllipsis && (
@@ -487,18 +489,17 @@ export default function CancelledOrdersPage() {
                       )}
                       <button
                         onClick={() => handlePageChange(pageNum)}
-                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                          isCurrentPage
+                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${isCurrentPage
                             ? 'z-10 bg-red-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600'
                             : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
                     </React.Fragment>
                   )
                 })}
-                
+
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={!pagination.hasNextPage}

@@ -279,6 +279,69 @@ router.get('/all', async (req, res) => {
   }
 });
 
+router.get('/cancelled', async (req, res) => {
+  try {
+    const cancelledOrders = await Order.find({ status: 'cancelled' }).sort({ orderDate: -1 });
+
+    if (!cancelledOrders.length) {
+      return res.status(200).json({ cancelledOrders: [] });
+    }
+
+    const enrichedOrders = await Promise.all(
+      cancelledOrders.map(async (order) => {
+        const salesAgent = await SalesAgent.findById(order.userId);
+
+        return {
+          _id: order._id,
+          status: order.status,
+          orderDate: order.orderDate,
+          itemCount: order.orders.length,
+          salesAgentName: salesAgent?.name || '',
+          villageName: salesAgent?.villageName || '',
+          mobileNumber: salesAgent?.mobileNumber || ''
+        };
+      })
+    );
+
+    res.status(200).json({ cancelledOrders: enrichedOrders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching cancelled orders' });
+  }
+});
+
+router.get('/pending', async (req, res) => {
+  try {
+    const pendingOrders = await Order.find({ status: 'pending' }).sort({ orderDate: -1 });
+
+    if (!pendingOrders.length) {
+      return res.status(200).json({ pendingOrders: [] });
+    }
+
+    const enrichedOrders = await Promise.all(
+      pendingOrders.map(async (order) => {
+        const salesAgent = await SalesAgent.findById(order.userId);
+
+        return {
+          _id: order._id,
+          status: order.status,
+          orderDate: order.orderDate,
+          itemCount: order.orders.length,
+          salesAgentName: salesAgent?.name || '',
+          villageName: salesAgent?.villageName || '',
+          mobileNumber: salesAgent?.mobileNumber || ''
+        };
+      })
+    );
+
+    res.status(200).json({ pendingOrders: enrichedOrders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching pending orders' });
+  }
+});
+
+
 // backend route: GET /api/orders/:id
 
 router.get('/:id', async (req, res) => {
@@ -466,14 +529,12 @@ router.patch('/cancel-bulk', async (req, res) => {
   try {
     const { orderIds } = req.body;
 
-    // Validate orderIds
     if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
       return res.status(400).json({
         message: 'Order IDs array is required and must not be empty'
       });
     }
 
-    // Find orders first to check if they exist and can be cancelled
     const existingOrders = await Order.find({
       _id: { $in: orderIds },
       status: { $in: ['pending', 'confirmed', 'out for delivery'] }
@@ -485,22 +546,22 @@ router.patch('/cancel-bulk', async (req, res) => {
       });
     }
 
-    // Update all found orders to cancelled status
     const updateResult = await Order.updateMany(
       {
         _id: { $in: existingOrders.map(order => order._id) },
         status: { $in: ['pending', 'confirmed', 'out for delivery'] }
       },
       {
-        status: 'cancelled',
-        cancelledAt: new Date() // Optional: add timestamp
+        $set: {
+          status: 'cancelled',
+          cancellationDate: new Date() // ✅ store timestamp of cancellation
+        }
       },
       {
         runValidators: true
       }
     );
 
-    // Get the updated orders to return in response
     const updatedOrders = await Order.find({
       _id: { $in: existingOrders.map(order => order._id) }
     });
@@ -630,84 +691,6 @@ router.patch('/returned-bulk', async (req, res) => {
   }
 });
 
-router.post('/cancelled', verifyToken, async (req, res) => {
-  try {
-    const userId = req.userId;
-
-    const cancelledOrders = await Order.find({ userId, status: 'cancelled' })
-      .sort({ orderDate: -1 }); // -1 for descending order (most recent first - includes both date and time)
-
-    if (!cancelledOrders.length) {
-      return res.status(200).json({ cancelledOrders: [] });
-    }
-
-    // 👇 Transform the result to only return required fields
-    const filteredOrders = cancelledOrders.map(order => ({
-      _id: order._id,
-      status: order.status,
-      orderDate: order.orderDate,
-      itemCount: order.orders.length
-    }));
-
-    res.status(200).json({ cancelledOrders: filteredOrders });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error fetching cancelled orders' });
-  }
-});
-
-router.post('/active', verifyToken, async (req, res) => {
-  try {
-    const userId = req.userId;
-
-    const activeStatuses = ['pending', 'confirmed', 'out for delivery'];
-
-    const activeOrders = await Order.find({ userId, status: { $in: activeStatuses } })
-      .sort({ orderDate: -1 }); // -1 for descending order (most recent first)
-
-    if (!activeOrders.length) {
-      return res.status(200).json({ activeOrders: [] });
-    }
-
-    const filteredOrders = activeOrders.map(order => ({
-      _id: order._id,
-      status: order.status,
-      orderDate: order.orderDate,
-      itemCount: order.orders.length
-    }));
-
-    res.status(200).json({ activeOrders: filteredOrders });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error fetching active orders' });
-  }
-});
-
-router.post('/delivered', verifyToken, async (req, res) => {
-  try {
-    const userId = req.userId;
-
-    const deliveredOrders = await Order.find({ userId, status: 'delivered' })
-      .sort({ orderDate: -1 }); // -1 for descending order (most recent first)
-
-    if (!deliveredOrders.length) {
-      return res.status(200).json({ deliveredOrders: [] });
-    }
-
-    const filteredOrders = deliveredOrders.map(order => ({
-      _id: order._id,
-      status: order.status,
-      orderDate: order.orderDate,
-      itemCount: order.orders.length
-    }));
-
-    res.status(200).json({ deliveredOrders: filteredOrders });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error fetching delivered orders' });
-  }
-});
-
 // ----------------------------------------------->>> for android 
 
 router.post('/orderId', verifyToken, async (req, res) => {
@@ -800,6 +783,84 @@ router.post('/orderId/cancel', verifyToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error cancelling order' });
+  }
+});
+
+router.post('/cancelled', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const cancelledOrders = await Order.find({ userId, status: 'cancelled' })
+      .sort({ cancellationDate: -1 }); // ✅ sort by cancellation timestamp
+
+    if (!cancelledOrders.length) {
+      return res.status(200).json({ cancelledOrders: [] });
+    }
+
+    const filteredOrders = cancelledOrders.map(order => ({
+      _id: order._id,
+      status: order.status,
+      orderDate: order.orderDate,
+      cancellationDate: order.cancellationDate, // ✅ include in response
+      itemCount: order.orders.length
+    }));
+
+    res.status(200).json({ cancelledOrders: filteredOrders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching cancelled orders' });
+  }
+});
+
+router.post('/active', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const activeStatuses = ['pending', 'confirmed', 'out for delivery'];
+
+    const activeOrders = await Order.find({ userId, status: { $in: activeStatuses } })
+      .sort({ orderDate: -1 }); // -1 for descending order (most recent first)
+
+    if (!activeOrders.length) {
+      return res.status(200).json({ activeOrders: [] });
+    }
+
+    const filteredOrders = activeOrders.map(order => ({
+      _id: order._id,
+      status: order.status,
+      orderDate: order.orderDate,
+      itemCount: order.orders.length
+    }));
+
+    res.status(200).json({ activeOrders: filteredOrders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching active orders' });
+  }
+});
+
+router.post('/delivered', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const deliveredOrders = await Order.find({ userId, status: 'delivered' })
+      .sort({ orderDate: -1 }); // -1 for descending order (most recent first)
+
+    if (!deliveredOrders.length) {
+      return res.status(200).json({ deliveredOrders: [] });
+    }
+
+    const filteredOrders = deliveredOrders.map(order => ({
+      _id: order._id,
+      status: order.status,
+      orderDate: order.orderDate,
+      itemCount: order.orders.length
+    }));
+
+    res.status(200).json({ deliveredOrders: filteredOrders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching delivered orders' });
   }
 });
 
