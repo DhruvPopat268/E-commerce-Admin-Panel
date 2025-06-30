@@ -42,14 +42,23 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Prepare order items
-    const orderItems = cartItems.map(item => ({
-      productId: item.productId?.toString(),
-      productName: item.productName,
-      image: item.image,
-      quantity: item.quantity || 1,
-      price: item.price || 0,
-      attributes: item.attributes,
-    }));
+    const orderItems = cartItems.map(item => {
+      // Round the total to nearest whole number
+      const attributes = {
+        ...item.attributes.toObject ? item.attributes.toObject() : item.attributes,
+        total: Math.round(item.attributes.total),
+      };
+
+      return {
+        productId: item.productId?.toString(),
+        productName: item.productName,
+        image: item.image,
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+        attributes,
+      };
+    });
+
 
     console.log(salesAgent.villageName);
 
@@ -81,11 +90,11 @@ router.post('/', verifyToken, async (req, res) => {
       try {
         // Get io instance from app
         const io = req.app.get('io');
-        
+
         if (io) {
           // Check if any printers are connected
           const printersRoom = io.sockets.adapter.rooms.get('printers');
-          
+
           if (printersRoom && printersRoom.size > 0) {
             // Send print job to all connected printers
             io.to('printers').emit('print-order', {
@@ -97,7 +106,7 @@ router.post('/', verifyToken, async (req, res) => {
             });
 
             console.log(`📄 Print request sent to ${printersRoom.size} printer(s) for order:`, newOrder._id);
-            
+
             printStatus = {
               success: true,
               message: `Print request sent to ${printersRoom.size} printing server(s)`,

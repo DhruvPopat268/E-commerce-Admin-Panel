@@ -34,9 +34,11 @@ router.post('/add', verifyToken, async (req, res) => {
     if (existingCartItem) {
       // Same product with same attribute exists - update quantity
       existingCartItem.attributes.quantity += qty;
-      existingCartItem.attributes.total = existingCartItem.attributes.discountedPrice * existingCartItem.attributes.quantity;
-      result = await existingCartItem.save();
-    } else {
+      existingCartItem.attributes.total = parseFloat(
+  (existingCartItem.attributes.discountedPrice * existingCartItem.attributes.quantity).toFixed(2)
+);
+    }
+ else {
       // Either product doesn't exist in cart OR same product with different attribute
       // Create new cart document
       result = await Cart.create({
@@ -50,7 +52,8 @@ router.post('/add', verifyToken, async (req, res) => {
           name: attribute.name,
           discountedPrice: attribute.discountedPrice,
           quantity: qty,
-          total: attribute.discountedPrice * qty
+          total: parseFloat((attribute.discountedPrice * qty).toFixed(2))
+
         },
       });
     }
@@ -60,7 +63,10 @@ router.post('/add', verifyToken, async (req, res) => {
 
     // ✅ Calculate total cart value
     const cartItems = await Cart.find({ userId });
-const totalCartValue = cartItems.reduce((sum, item) => sum + (item.attributes.total || 0), 0);
+const totalCartValue = parseFloat(
+  cartItems.reduce((sum, item) => sum + (item.attributes.total || 0), 0).toFixed(2)
+);
+
 
 
 
@@ -86,16 +92,15 @@ router.post('/my-cart', verifyToken, async (req, res) => {
 
     // Compute totals
     const cartWithTotals = cartItems.map(cart => {
-      const attr = cart.attributes; // single object now
+      const attr = cart.attributes;
 
-      const total = attr.discountedPrice * attr.quantity;
-      // Add total inside attributes object for response
+      const total = parseFloat((attr.discountedPrice * attr.quantity).toFixed(2)); // Rounded to 2 decimals
+
       const attributesWithTotal = {
         ...attr.toObject ? attr.toObject() : attr,
         total
       };
 
-      // productTotal is same as attribute total since only one attribute
       const productTotal = total;
 
       return {
@@ -105,15 +110,16 @@ router.post('/my-cart', verifyToken, async (req, res) => {
       };
     });
 
-const totalCartValue = cartWithTotals.reduce((sum, item) => sum + item.productTotal, 0);
-
-
+    const totalCartValue = parseFloat(
+      cartWithTotals.reduce((sum, item) => sum + item.productTotal, 0).toFixed(2)
+    );
 
     res.json({ cart: cartWithTotals, totalCartValue });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // 🛒 Update quantity of a specific attribute inside a cart item
 router.put('/update', verifyToken, async (req, res) => {

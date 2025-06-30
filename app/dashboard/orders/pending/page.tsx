@@ -379,7 +379,7 @@ export default function PendingOrdersPage() {
                 <div class="total-section">
                     <div class="total-row">
                         <div class="total-label">Grand Total:</div>
-                        <div class="total-amount">${toGujaratiDigits(Math.round(orderTotal))}</div>
+                        <div class="total-amount">${toGujaratiDigits(orderTotal)}</div>
                     </div>
                 </div>
             </div>
