@@ -188,7 +188,7 @@ const printBulkInvoices = async () => {
             <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" class="company-logo" onerror="this.style.display='none'" />
             <div class="company-name">Zoya Traders</div>
           </div>
-          <div class="invoice-title">Estimation${!isFirstPage ? ' (Continued)' : ''}</div>
+          <div class="invoice-title">INVOICE${!isFirstPage ? ' (Continued)' : ''}</div>
           ${!isFirstPage ? `<div class="page-info">Page ${pageNumber} of ${totalPages}</div>` : ''}
         </div>
 
@@ -472,8 +472,6 @@ const printBulkInvoices = async () => {
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.write(combinedHTML)
-      printWindow.location.reload(true);
-
       printWindow.document.close()
 
       // Wait for content to load then print
