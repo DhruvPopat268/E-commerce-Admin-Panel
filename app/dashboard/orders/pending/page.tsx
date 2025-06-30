@@ -166,253 +166,331 @@ export default function PendingOrdersPage() {
     }).join('');
   };
 
-  const printBulkInvoices = async () => {
-    if (selectedOrders.size === 0) {
-      toast.error('Please select at least one order to print')
-      return
-    }
+const printBulkInvoices = async () => {
+  if (selectedOrders.size === 0) {
+    toast.error('Please select at least one order to print')
+    return
+  }
 
-    try {
-      setBulkPrinting(true)
+  try {
+    setBulkPrinting(true)
 
-      const selectedOrdersData = pendingOrders.filter(order => selectedOrders.has(order._id))
+    const selectedOrdersData = pendingOrders.filter(order => selectedOrders.has(order._id))
 
+    // Maximum items per page (adjust this based on your half-page requirement)
+    const ITEMS_PER_PAGE = 11; // This should fit in half A4 page
 
+    // Function to create invoice header
+    const createInvoiceHeader = (order, isFirstPage = true, pageNumber = 1, totalPages = 1) => {
+      return `
+        <div class="invoice-header">
+          <div class="header-content">
+            <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" class="company-logo" onerror="this.style.display='none'" />
+            <div class="company-name">Zoya Traders</div>
+          </div>
+          <div class="invoice-title">INVOICE${!isFirstPage ? ' (Continued)' : ''}</div>
+          ${!isFirstPage ? `<div class="page-info">Page ${pageNumber} of ${totalPages}</div>` : ''}
+        </div>
 
-      // Generate combined HTML for all selected orders
-      const combinedHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <meta charset="utf-8">
-          <title>Bulk Invoices</title>
-          <style>
-              <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;700&display=swap" rel="stylesheet">
+        <div class="invoice-info-compact">
+          <p>${order.salesAgentName || 'N/A'} | ${order.villageName || order.village || order.villageCode || 'N/A'} | ${order.salesAgentMobile || 'N/A'} | ${formatDate(order.orderDate)}</p>
+        </div>
+      `;
+    };
 
-              @page {
-                size: A4;
-                margin: 0;
-              }
+    // Function to create table header
+    const createTableHeader = () => {
+      return `
+        <table class="order-table">
+          <thead>
+            <tr>
+              <th style="width: 8%;">SL</th>
+              <th style="width: 52%;">Item Details</th>
+              <th style="width: 12%;">Quantity</th>
+              <th style="width: 14%;">Price</th>
+              <th style="width: 14%;">Total Price</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+    };
 
+    // Generate combined HTML for all selected orders
+    const combinedHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Bulk Invoices</title>
+        <style>
+            <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;700&display=swap" rel="stylesheet">
+
+            @page {
+              size: A4;
+              margin: 0;
+            }
+
+            body {
+              font-family: 'Noto Sans Gujarati', Arial, sans-serif;
+              font-size: 22px;
+              margin: 0;
+              padding: 0;
+            }
+
+            .invoice-container {
+              width: 100mm;
+              height: 140mm;
+              padding: 8mm;
+              box-sizing: border-box;
+              page-break-inside: avoid;
+            }
+
+            .page-break { 
+              page-break-after: always; 
+            }
+
+            .invoice-header {
+              text-align: center;
+              margin-bottom: 15px;
+              border-bottom: 2px solid #14b8a6;
+              padding-bottom: 10px;
+            }
+
+            .header-content {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin-bottom: 5px;
+            }
+
+            .company-logo {
+              width: 40px;
+              height: 40px;
+              margin-right: 10px;
+              object-fit: contain;
+            }
+
+            .company-name {
+              font-size: 25px;
+              font-weight: bold;
+              color: #14b8a6;
+              margin: 0;
+            }
+
+            .invoice-title {
+              font-size: 17px;
+              color: #666;
+            }
+
+            .page-info {
+              font-size: 12px;
+              color: #888;
+              margin-top: 5px;
+            }
+
+            .invoice-info {
+              margin-bottom: 15px;
+            }
+
+            .info-section {
+              margin-bottom: 10px;
+            }
+
+            .info-section h3 {
+              color: #14b8a6;
+              font-size: 20px;
+              margin: 0 0 5px;
+              border-bottom: 1px solid #e5e7eb;
+            }
+
+            .info-section p {
+              margin: 2px 0;
+              font-size: 15px;
+            }
+
+            .order-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 10px;
+            }
+
+            .order-table th, .order-table td {
+              border: 1px solid #e5e7eb;
+              padding: 4px;
+              text-align: left;
+              font-size: 11px;
+            }
+
+            .order-table th {
+              background-color: #f8fafc;
+              font-weight: bold;
+              color: #374151;
+            }
+
+            .gujarati-text {
+              font-family: 'Noto Sans Gujarati', Arial, sans-serif;
+              font-size: 15px;
+            }
+
+            .total-section {
+              text-align: right;
+              margin-top: 10px;
+            }
+
+            .invoice-info-compact {
+              margin-bottom: 10px;
+              font-size: 12px;
+              line-height: 1.4;
+            }
+
+            .invoice-info-compact p {
+              margin: 2px 0;
+            }
+
+            .total-row {
+              display: flex;
+              justify-content: flex-end;
+            }
+
+            .total-label {
+              font-weight: bold;
+              margin-right: 10px;
+              font-size: 15px;
+            }
+
+            .total-amount {
+              font-weight: bold;
+              font-size: 15px;
+              color: #14b8a6;
+            }
+
+            .continuation-notice {
+              text-align: center;
+              font-style: italic;
+              color: #666;
+              margin-top: 10px;
+              font-size: 12px;
+            }
+
+            .subtotal-row {
+              display: flex;
+              justify-content: flex-end;
+              margin-top: 5px;
+            }
+
+            .subtotal-label {
+              font-weight: normal;
+              margin-right: 10px;
+              font-size: 13px;
+              color: #666;
+            }
+
+            .subtotal-amount {
+              font-size: 13px;
+              color: #666;
+            }
+
+            @media print {
               body {
-                font-family: 'Noto Sans Gujarati', Arial, sans-serif;
-                font-size: 22px;
-                margin: 0;
-                padding: 0;
-              }
-
-              .invoice-container {
-                width: 100mm;
-                height: 140mm;
-                padding: 8mm;
-                box-sizing: border-box;
-                page-break-inside: avoid;
-              }
-
-              .page-break { 
-                page-break-after: always; 
-              }
-
-              .invoice-header {
-                text-align: center;
-                margin-bottom: 15px;
-                border-bottom: 2px solid #14b8a6;
-                padding-bottom: 10px;
-              }
-
-              .header-content {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: 5px;
-              }
-
-              .company-logo {
-                width: 40px;
-                height: 40px;
-                margin-right: 10px;
-                object-fit: contain;
-              }
-
-              .company-name {
-                font-size: 25px;
-                font-weight: bold;
-                color: #14b8a6;
                 margin: 0;
               }
-
-              .invoice-title {
-                font-size: 17px;
-                color: #666;
-              }
-
-              .invoice-info {
-                margin-bottom: 15px;
-              }
-
-              .info-section {
-                margin-bottom: 10px;
-              }
-
-              .info-section h3 {
-                color: #14b8a6;
-                font-size: 20px;
-                margin: 0 0 5px;
-                border-bottom: 1px solid #e5e7eb;
-              }
-
-              .info-section p {
-                margin: 2px 0;
-                font-size: 15px;
-              }
-
-              .order-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 10px;
-              }
-
-              .order-table th, .order-table td {
-                border: 1px solid #e5e7eb;
-                padding: 4px;
-                text-align: left;
-                font-size: 11px;
-              }
-
-              .order-table th {
-                background-color: #f8fafc;
-                font-weight: bold;
-                color: #374151;
-              }
-
-              .gujarati-text {
-                font-family: 'Noto Sans Gujarati', Arial, sans-serif;
-                font-size: 15px;
-              }
-
-              .total-section {
-                text-align: right;
-                margin-top: 10px;
-              }
-
-              .invoice-info-compact {
-                margin-bottom: 10px;
-                font-size: 12px;
-                line-height: 1.4;
-              }
-
-              .invoice-info-compact p {
-                margin: 2px 0;
-              }
-
-              .total-row {
-                display: flex;
-                justify-content: flex-end;
-              }
-
-              .total-label {
-                font-weight: bold;
-                margin-right: 10px;
-                font-size: 15px;
-              }
-
-              .total-amount {
-                font-weight: bold;
-                font-size: 15px;
-                color: #14b8a6;
-              }
-
-              @media print {
-                body {
-                  margin: 0;
-                }
-              }
-          </style>
-      </head>
-      <body>
-          ${selectedOrdersData.map((order, index) => {
-        const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
-        const currentDate = new Date().toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric'
-        })
-
-        return `
-            <div class="invoice-container">
-                <div class="invoice-header">
-                    <div class="header-content">
-                        <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" class="company-logo" onerror="this.style.display='none'" />
-                        <div class="company-name">Zoya Traders</div>
-                    </div>
-                    <div class="invoice-title">INVOICE</div>
-                </div>
-
-                <div class="invoice-info-compact">
-                    <p>${order.salesAgentName || 'N/A'} | ${order.villageName || order.village || order.villageCode || 'N/A'} | ${order.salesAgentMobile || 'N/A'} | ${formatDate(order.orderDate)} </p>
-                </div>
-
-                <table class="order-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 8%;">SL</th>
-                            <th style="width: 52%;">Item Details</th>
-                            <th style="width: 12%;">Quantity</th>
-                            <th style="width: 14%;">Price</th>
-                            <th style="width: 14%;">Total Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${order.orders.map((item, itemIndex) => `
-                            <tr>
-                                <td>${itemIndex + 1}</td>
-                                <td class="gujarati-text">${item.productName || 'N/A'}</td>
-                                <td >${toGujaratiDigits(item.attributes?.quantity || 0)}</td>
-                               <td>${toGujaratiDigits(item.attributes?.discountedPrice || 0)}</td>
-<td>${toGujaratiDigits(item.attributes?.total || 0)}</td>
-
-                            </tr>
-                        `).join('')}
-                    </tbody>
+            }
+        </style>
+    </head>
+    <body>
+        ${selectedOrdersData.map((order, orderIndex) => {
+          const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
+          const items = order.orders || []
+          const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE)
+          
+          let orderHTML = '';
+          
+          // Split items into pages
+          for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+            const startIndex = (pageNum - 1) * ITEMS_PER_PAGE;
+            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, items.length);
+            const pageItems = items.slice(startIndex, endIndex);
+            const isFirstPage = pageNum === 1;
+            const isLastPage = pageNum === totalPages;
+            
+            // Calculate subtotal for current page
+            const pageSubtotal = pageItems.reduce((sum, item) => sum + (item.attributes?.total || 0), 0);
+            
+            orderHTML += `
+              <div class="invoice-container">
+                ${createInvoiceHeader(order, isFirstPage, pageNum, totalPages)}
+                
+                ${createTableHeader()}
+                
+                ${pageItems.map((item, itemIndex) => `
+                  <tr>
+                    <td>${startIndex + itemIndex + 1}</td>
+                    <td class="gujarati-text">${item.productName || 'N/A'}</td>
+                    <td>${toGujaratiDigits(item.attributes?.quantity || 0)}</td>
+                    <td>${toGujaratiDigits(item.attributes?.discountedPrice || 0)}</td>
+                    <td>${toGujaratiDigits(item.attributes?.total || 0)}</td>
+                  </tr>
+                `).join('')}
+                
+                </tbody>
                 </table>
                 
-                <div class="total-section">
+                ${!isLastPage ? `
+                  <div class="subtotal-row">
+                    <div class="subtotal-label">Page Subtotal:</div>
+                    <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}</div>
+                  </div>
+                  <div class="continuation-notice">
+                    ${toGujaratiDigits(`Continued on next page... (${items.length - endIndex} items remaining))`)}
+                  </div>
+                ` : `
+                  <div class="total-section">
+                    ${totalPages > 1 ? `
+                      <div class="subtotal-row">
+                        <div class="subtotal-label">Page Subtotal:</div>
+                        <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}</div>
+                      </div>
+                    ` : ''}
                     <div class="total-row">
-                        <div class="total-label">Grand Total:</div>
-                        <div class="total-amount">${toGujaratiDigits(orderTotal)}</div>
+                      <div class="total-label">Grand Total:</div>
+                      <div class="total-amount">${toGujaratiDigits(orderTotal)}</div>
                     </div>
-                </div>
-            </div>
-            ${index < selectedOrdersData.length - 1 ? '<div class="page-break"></div>' : ''}
-            `
-      }).join('')}
-      </body>
-      </html>
-      `
+                  </div>
+                `}
+              </div>
+              ${(!isLastPage || orderIndex < selectedOrdersData.length - 1) ? '<div class="page-break"></div>' : ''}
+            `;
+          }
+          
+          return orderHTML;
+        }).join('')}
+    </body>
+    </html>
+    `;
 
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank')
-      if (printWindow) {
-        printWindow.document.write(combinedHTML)
-        printWindow.document.close()
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(combinedHTML)
+      printWindow.document.close()
 
-        // Wait for content to load then print
-        setTimeout(() => {
-          printWindow.print()
-          printWindow.close()
-        }, 1000)
+      // Wait for content to load then print
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 1000)
 
-        toast.success(`${selectedOrders.size} invoices generated successfully!`)
-      } else {
-        toast.error('Unable to open print window. Please check popup settings.')
-      }
-    } catch (error) {
-      console.error('Error generating bulk invoices:', error)
-      toast.error('Failed to generate invoices')
-    } finally {
-      setBulkPrinting(false)
+      toast.success(`${selectedOrders.size} invoices generated successfully!`)
+    } else {
+      toast.error('Unable to open print window. Please check popup settings.')
     }
+  } catch (error) {
+    console.error('Error generating bulk invoices:', error)
+    toast.error('Failed to generate invoices')
+  } finally {
+    setBulkPrinting(false)
   }
+}
 
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
