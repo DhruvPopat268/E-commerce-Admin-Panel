@@ -63,9 +63,12 @@ router.post('/add', verifyToken, async (req, res) => {
 
     // ✅ Calculate total cart value
     const cartItems = await Cart.find({ userId });
-const totalCartValue = parseFloat(
-  cartItems.reduce((sum, item) => sum + (item.attributes.total || 0), 0).toFixed(2)
+const totalCartValue = Math.round(
+  cartItems.reduce((sum, item) => sum + (item.attributes.total || 0), 0)
 );
+
+
+
 
 
 
@@ -110,9 +113,10 @@ router.post('/my-cart', verifyToken, async (req, res) => {
       };
     });
 
-    const totalCartValue = parseFloat(
-      cartWithTotals.reduce((sum, item) => sum + item.productTotal, 0).toFixed(2)
-    );
+const totalCartValue = Math.round(
+  cartWithTotals.reduce((sum, item) => sum + item.productTotal, 0)
+);
+
 
     res.json({ cart: cartWithTotals, totalCartValue });
   } catch (err) {
