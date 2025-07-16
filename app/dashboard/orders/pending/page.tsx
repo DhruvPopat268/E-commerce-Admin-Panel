@@ -206,26 +206,21 @@ export default function PendingOrdersPage() {
         
       <div class="order-details-section">
         <div class="order-details-row">
-          <div class="detail-item">
-            <span class="detail-label">Village Code:</span>
-            <span class="detail-value">${order.villageCode || 'N/A'}</span>
-          </div>
+          
           <div class="detail-item">
             <span class="detail-label">Village Name:</span>
             <span class="detail-value">${order.villageName || 'Unknown'}</span>
           </div>
+                    <div class="detail-item">
+            <span class="detail-label">Order Type:</span>
+            <span class="detail-value">
+  ${order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
+</span>
+
+          </div>
         </div>
         
-        <div class="order-details-row">
-          <div class="detail-item">
-            <span class="detail-label">Route Name:</span>
-            <span class="detail-value">${order.routeName || 'N/A'}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Order Type:</span>
-            <span class="detail-value">${order.orderType || 'delivery'}</span>
-          </div>
-        </div>
+       
       </div>
     </div>
   `;
