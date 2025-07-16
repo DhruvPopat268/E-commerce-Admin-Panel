@@ -11,11 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from 'react-toastify';
-
 
 interface SalesAgent {
     _id: string
@@ -77,7 +75,7 @@ export default function SalesAgentPage() {
     const [submitLoading, setSubmitLoading] = useState(false)
     const [villagesLoading, setVillagesLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const { toast } = useToast()
+   
 
     const [newAgent, setNewAgent] = useState({
         name: "",
@@ -98,18 +96,10 @@ export default function SalesAgentPage() {
                 console.log(data.data)
                 setVillages(data.data)
             } else {
-                toast({
-                    title: "Error",
-                    description: data.message || 'Failed to fetch villages',
-                    variant: "destructive",
-                })
+                toast.error(data.message || 'Failed to fetch villages')
             }
         } catch (error) {
-            toast({
-                title: "Error",
-                description: 'Failed to fetch villages',
-                variant: "destructive",
-            })
+            toast.error("Failed to fetch villages")
         } finally {
             setVillagesLoading(false)
         }
@@ -134,19 +124,11 @@ export default function SalesAgentPage() {
                 }
             } else {
                 setError(data.message || 'Failed to fetch sales agents')
-                toast({
-                    title: "Error",
-                    description: data.message || 'Failed to fetch sales agents',
-                    variant: "destructive",
-                })
+                toast.error(data.message || 'Failed to fetch sales agents')
             }
         } catch (error) {
             setError('Network error occurred')
-            toast({
-                title: "Error",
-                description: 'Network error occurred',
-                variant: "destructive",
-            })
+            toast.error("Network error occurred")
         } finally {
             setLoading(false)
         }
@@ -188,11 +170,7 @@ export default function SalesAgentPage() {
 
     const handleAddAgent = async () => {
         if (!newAgent.name || !newAgent.businessName || !newAgent.mobileNumber || !newAgent.address || !newAgent.village) {
-            toast({
-                title: "Validation Error",
-                description: "Please fill in all required fields",
-                variant: "destructive",
-            })
+            toast.error("Please fill in all required fields")
             return
         }
 
@@ -214,11 +192,7 @@ export default function SalesAgentPage() {
                toast.error('Failed to create sales agent')
             }
         } catch {
-            toast({
-                title: "Error",
-                description: 'Network error occurred',
-                variant: "destructive",
-            })
+            toast.error("Network error occurred")
         } finally {
             setSubmitLoading(false)
         }
@@ -236,23 +210,15 @@ export default function SalesAgentPage() {
             const { data } = await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents/${editingAgentId}`, formData)
 
             if (data.success) {
-                toast({ title: "Success", description: "Sales agent updated successfully" })
+                toast.success("Sales agent updated successfully")
                 resetForm()
                 setIsDialogOpen(false)
                 fetchSalesAgents(currentPage, itemsPerPage)
             } else {
-                toast({
-                    title: "Error",
-                    description: data.message || 'Failed to update sales agent',
-                    variant: "destructive",
-                })
+                toast.error("Failed to update sales agent")
             }
         } catch {
-            toast({
-                title: "Error",
-                description: 'Network error occurred',
-                variant: "destructive",
-            })
+            toast.error("Network error occurred")
         } finally {
             setSubmitLoading(false)
         }
@@ -265,24 +231,13 @@ export default function SalesAgentPage() {
             })
 
             if (data.success) {
-                toast({
-                    title: "Success",
-                    description: `Sales agent status ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
-                })
+                toast.success(`Sales agent status ${!currentStatus ? 'activated' : 'deactivated'} successfully`)
                 fetchSalesAgents(currentPage, itemsPerPage)
             } else {
-                toast({
-                    title: "Error",
-                    description: data.message || 'Failed to update status',
-                    variant: "destructive",
-                })
+                toast.error("Failed to update status")
             }
         } catch {
-            toast({
-                title: "Error",
-                description: 'Network error occurred',
-                variant: "destructive",
-            })
+            toast.error("Network error occurred")
         }
     }
 
@@ -293,24 +248,13 @@ export default function SalesAgentPage() {
             })
 
             if (data.success) {
-                toast({
-                    title: "Success",
-                    description: `Route status ${!currentRouteStatus ? 'activated' : 'deactivated'} successfully`,
-                })
+                toast.success(`Route status ${!currentRouteStatus ? 'activated' : 'deactivated'} successfully`)
                 fetchSalesAgents(currentPage, itemsPerPage)
             } else {
-                toast({
-                    title: "Error",
-                    description: data.message || 'Failed to update route status',
-                    variant: "destructive",
-                })
+                toast.error("Failed to update route status")
             }
         } catch {
-            toast({
-                title: "Error",
-                description: 'Network error occurred',
-                variant: "destructive",
-            })
+            toast.error("Network error occurred")
         }
     }
 
@@ -321,21 +265,13 @@ export default function SalesAgentPage() {
             const { data } = await axios.delete(`${process.env.NEXT_PUBLIC_BASE_URL}/api/salesAgents/${id}`)
 
             if (data.success) {
-                toast({ title: "Success", description: "Sales agent deleted successfully" })
+                toast.success("Sales agent deleted successfully")
                 fetchSalesAgents(currentPage, itemsPerPage)
             } else {
-                toast({
-                    title: "Error",
-                    description: data.message || 'Failed to delete sales agent',
-                    variant: "destructive",
-                })
+                toast.error("Failed to delete sales agent")
             }
         } catch {
-            toast({
-                title: "Error",
-                description: 'Network error occurred',
-                variant: "destructive",
-            })
+            toast.error("Network error occurred")
         }
     }
 
@@ -367,14 +303,10 @@ export default function SalesAgentPage() {
                 document.body.removeChild(a)
                 window.URL.revokeObjectURL(url)
 
-                toast({ title: "Success", description: "Sales agents data exported successfully" })
+                toast.success("Sales agents data exported successfully")
             }
         } catch {
-            toast({
-                title: "Error",
-                description: 'Failed to export data',
-                variant: "destructive",
-            })
+            toast.error("Failed to export data")
         }
     }
 
@@ -557,7 +489,7 @@ export default function SalesAgentPage() {
                                                 </SelectItem>
                                             ) : (
                                                 villages.map((village) => (
-                                                    <SelectItem key={village._id} value={village._id} >
+                                                    <SelectItem key={village.id} value={village.id} >
                                                         {village.name}
                                                     </SelectItem>
                                                 ))
