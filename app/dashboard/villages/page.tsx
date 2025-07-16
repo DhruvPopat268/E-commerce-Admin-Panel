@@ -302,7 +302,7 @@ const handleEditVillage = async () => {
             <TableRow>
               <TableHead className="w-[80px]">SL</TableHead>
               <TableHead>Village Name</TableHead>
-              <TableHead>Village Code</TableHead>
+              {/* <TableHead>Village Code</TableHead> */}
               <TableHead>Created Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -326,7 +326,7 @@ const handleEditVillage = async () => {
                 <TableRow key={village.id}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell className="font-medium">{village.name}</TableCell>
-                  <TableCell>{village.villageCode}</TableCell>
+                  {/* <TableCell>{village.villageCode}</TableCell> */}
 
                   <TableCell>{village.createdAt}</TableCell>
 

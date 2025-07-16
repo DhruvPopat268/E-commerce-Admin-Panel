@@ -797,10 +797,10 @@ export default function PendingOrdersPage() {
     const generateTableRows = (orderList) => {
       return orderList.map(order => `
     <tr>
-      <td>${order.villageCode}</td>
+      <td>${order.villageName}</td>
       <td>${order.salesAgentName}</td>
       <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
-      <td>${order.orderType}</td>
+      <td>${order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}</td>
 
     </tr>
   `).join('');
@@ -932,7 +932,7 @@ export default function PendingOrdersPage() {
       <table>
         <thead>
           <tr>
-            <th>Village Code</th>
+            <th>Village Name</th>
             <th>Customer Name</th>
             <th>Total Amount</th>
             <th>Order Type</th>
@@ -953,11 +953,10 @@ export default function PendingOrdersPage() {
       <table>
         <thead>
           <tr>
-            <th>Village Code</th>
+            <th>Village Name</th>
             <th>Customer Name</th>
             <th>Total Amount</th>
             <th>Order Type</th>
-
           </tr>
         </thead>
         <tbody>
@@ -1384,14 +1383,17 @@ export default function PendingOrdersPage() {
                           <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
                           <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
                           <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
-                          <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
+                          {/* <div className="text-sm text-gray-500">{order.routeName || "-"}</div> */}
                         </td>
                         <td className="p-4">
                           <div className="font-medium">
                             ₹{(order.cartTotal || calculateCartTotal(order.orders)).toLocaleString()}
                           </div>
                         </td>
-                        <td className="p-4">{order.orderType}</td>
+                        <td className="p-4">
+                          {order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
+                        </td>
+
 
                         <td className="p-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
