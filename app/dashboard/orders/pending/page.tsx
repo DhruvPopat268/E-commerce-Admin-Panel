@@ -193,7 +193,7 @@ const printBulkInvoices = async () => {
         </div>
 
         <div class="invoice-info-compact">
-          <p>${order.salesAgentName || 'N/A'} | ${order.villageName || order.village || order.villageCode || 'N/A'} | ${order.salesAgentMobile || 'N/A'} | ${formatDate(order.orderDate)}</p>
+          <p>${order.salesAgentName || 'N/A'} | ${order.villageName || order.village || order.villageCode || 'N/A'} | ${order.salesAgentMobile || 'N/A'} | ${formatDate(order.orderDate)} | ${order.orderType}</p>
         </div>
       `;
     };
@@ -600,6 +600,8 @@ const printBulkInvoices = async () => {
       <td>${order.villageCode}</td>
       <td>${order.salesAgentName}</td>
       <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
+      <td>${order.orderType}</td>
+
     </tr>
   `).join('');
     };
@@ -714,6 +716,7 @@ const printBulkInvoices = async () => {
   </style>
 </head>
 <body>
+
   <div class="header">
     <div class="company-name">Your Company Name</div>
     <div class="report-title">Order Confirmation Report</div>
@@ -732,6 +735,7 @@ const printBulkInvoices = async () => {
             <th>Village Code</th>
             <th>Customer Name</th>
             <th>Total Amount</th>
+            <th>Order Type</th>
           </tr>
         </thead>
         <tbody>
@@ -752,6 +756,8 @@ const printBulkInvoices = async () => {
             <th>Village Code</th>
             <th>Customer Name</th>
             <th>Total Amount</th>
+            <th>Order Type</th>
+
           </tr>
         </thead>
         <tbody>
@@ -1145,6 +1151,7 @@ const printBulkInvoices = async () => {
                     <th className="text-left p-4">Order Date</th>
                     <th className="text-left p-4">Customer</th>
                     <th className="text-left p-4">Total Amount</th>
+                    <th className="text-left p-4">Order Type</th>
                     <th className="text-left p-4">Order Status</th>
                     <th className="text-left p-4">Action</th>
                   </tr>
@@ -1184,6 +1191,8 @@ const printBulkInvoices = async () => {
                             ₹{(order.cartTotal || calculateCartTotal(order.orders)).toLocaleString()}
                           </div>
                         </td>
+                        <td className="p-4">{order.orderType}</td>
+                        
                         <td className="p-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                             <Clock className="h-3 w-3 mr-1" />
