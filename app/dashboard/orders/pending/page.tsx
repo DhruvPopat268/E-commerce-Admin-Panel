@@ -615,8 +615,8 @@ export default function PendingOrdersPage() {
                 <div class="col-sr">${startIndex + itemIndex + 1}</div>
                 <div class="col-item gujarati-text">${item.productName || 'N/A'}</div>
                 <div class="col-qty">${toGujaratiDigits(item.attributes?.quantity || 0)}</div>
-                <div class="col-rate">${toGujaratiDigits(item.attributes?.discountedPrice || 0)}.00</div>
-                <div class="col-total">${toGujaratiDigits(item.attributes?.total || 0)}.00</div>
+                <div class="col-rate">${toGujaratiDigits(item.attributes?.discountedPrice || 0)}</div>
+                <div class="col-total">${toGujaratiDigits(item.attributes?.total || 0)}</div>
               </div>
             `).join('')}
             
@@ -636,7 +636,7 @@ export default function PendingOrdersPage() {
               <div class="subtotal-section">
                 <div class="subtotal-row">
                   <div class="subtotal-label">Page Subtotal:</div>
-                  <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}.00</div>
+                  <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}</div>
                 </div>
               </div>
               <div class="continuation-notice">
@@ -647,12 +647,12 @@ export default function PendingOrdersPage() {
                 ${totalPages > 1 ? `
                   <div class="subtotal-row">
                     <div class="subtotal-label">Page Subtotal:</div>
-                    <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}.00</div>
+                    <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}</div>
                   </div>
                 ` : ''}
                 <div class="grand-total-row">
                   <div class="grand-total-label">Grand Total</div>
-                  <div class="grand-total-amount">${toGujaratiDigits(orderTotal)}.00</div>
+                  <div class="grand-total-amount">${toGujaratiDigits(orderTotal)}</div>
                 </div>
               </div>
             `}
@@ -703,7 +703,6 @@ export default function PendingOrdersPage() {
 
   const handleViewOrder = (orderId: string) => {
     router.push(`/dashboard/order-details/${orderId}`)
-
   }
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
