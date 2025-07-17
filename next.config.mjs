@@ -1,5 +1,8 @@
+// next.config.js
+import withPWA from 'next-pwa';
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const baseConfig = {
   experimental: {
     middlewarePrefetch: true,
   },
@@ -12,6 +15,16 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+};
 
-export default nextConfig
+const nextConfig = withPWA({
+  ...baseConfig,
+  pwa: {
+    dest: 'public',
+    register: true,
+    skipWaiting: true,
+    disable: process.env.NODE_ENV === 'development', // disables PWA in dev
+  },
+});
+
+export default nextConfig;
