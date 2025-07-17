@@ -197,25 +197,25 @@ export default function VillagePage() {
 
   const [isVillageActive, setIsVillageActive] = useState(false);
 
-const handleAllVillagesStatus = async () => {
-  try {
-    setLoading(true)
-    const newStatus = !isVillageActive;
-    setIsVillageActive(newStatus);
+  const handleAllVillagesStatus = async () => {
+    try {
+      setLoading(true)
+      const newStatus = !isVillageActive;
+      setIsVillageActive(newStatus);
 
-    await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/status`, { status: newStatus });
-    
-    // Refetch villages to get updated statuses
-    await fetchVillages();
-    
-  } catch (err) {
-    console.error(err);
-    // Rollback UI change if API fails
-    setIsVillageActive(!newStatus);
-  } finally {
-    setLoading(false)
-  }
-};
+      await axios.patch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/villages/status`, { status: newStatus });
+
+      // Refetch villages to get updated statuses
+      await fetchVillages();
+
+    } catch (err) {
+      console.error(err);
+      // Rollback UI change if API fails
+      setIsVillageActive(!newStatus);
+    } finally {
+      setLoading(false)
+    }
+  };
 
   if (loading) {
     return (
