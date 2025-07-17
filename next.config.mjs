@@ -1,4 +1,4 @@
-// next.config.js
+// next.config.mjs
 import withPWA from 'next-pwa';
 
 /** @type {import('next').NextConfig} */
@@ -23,7 +23,7 @@ const nextConfig = withPWA({
     dest: 'public',
     register: true,
     skipWaiting: true,
-    disable: process.env.NODE_ENV === 'development', // disables PWA in dev
+    disable: process.env.NODE_ENV === 'development',
   },
 });
 
