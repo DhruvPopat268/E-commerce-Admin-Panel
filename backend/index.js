@@ -37,8 +37,11 @@ const io = new Server(server, {
     credentials: true
   },
   allowEIO3: true,
-  transports: ['polling', 'websocket']
+  transports: ['websocket'], // Use WebSocket only for more stability
+  pingInterval: 25000,       // Send ping every 25s
+  pingTimeout: 60000         // Wait 60s before timing out
 });
+
 
 // Connect to database
 connectToDb();
