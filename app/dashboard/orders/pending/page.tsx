@@ -878,6 +878,7 @@ export default function PendingOrdersPage() {
   }
 
   // PDF Generation function
+
   const generateOrderReport = async (orderIds) => {
     try {
       // Fetch the selected orders data (you might already have this in state)
@@ -907,27 +908,97 @@ export default function PendingOrdersPage() {
 
   // Function to generate HTML for the report
   const generateReportHTML = (orders) => {
-    // Split orders into two columns
-    const midPoint = Math.ceil(orders.length / 2);
-    const leftColumnOrders = orders.slice(0, midPoint);
-    const rightColumnOrders = orders.slice(midPoint);
-
-    // Calculate totals
-    const leftTotal = leftColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
-    const rightTotal = rightColumnOrders.reduce((sum, order) => sum + order.cartTotal, 0);
+    // Calculate total
     const grandTotal = orders.reduce((sum, order) => sum + order.cartTotal, 0);
 
-    const generateTableRows = (orderList) => {
-      return orderList.map(order => `
-    <tr>
-      <td>${order.villageName}</td>
-      <td>${order.salesAgentName}</td>
-      <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
-      <td>${order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}</td>
+    // Calculate approximate orders per page
+    // Considering header (40px), report info (20px), table header (20px), 
+    // footer info (30px), grand total (25px) = ~135px used
+    // Remaining space: 14cm ≈ 530px - 135px = 395px
+    // Each table row ≈ 20px, so approximately 19-20 rows per page
+    const ORDERS_PER_PAGE = 18; // Conservative estimate
 
-    </tr>
-  `).join('');
+    const totalPages = Math.ceil(orders.length / ORDERS_PER_PAGE);
+
+    const generateTableRows = (orderList, currentPage, totalPages) => {
+      return orderList.map(order => `
+      <tr>
+        <td>${order.villageName}</td>
+        <td>${order.salesAgentName}</td>
+        <td>₹${order.cartTotal.toLocaleString('en-IN')}</td>
+        <td>${order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}</td>
+      </tr>
+    `).join('');
     };
+
+    const generatePageContent = (pageOrders, currentPage, totalPages, isLastPage) => {
+      const pageTotal = pageOrders.reduce((sum, order) => sum + order.cartTotal, 0);
+      const remainingOrders = orders.length - (currentPage * ORDERS_PER_PAGE);
+
+      return `
+      <div class="page" style="page-break-after: ${isLastPage ? 'avoid' : 'always'};">
+        <div class="header">
+          <div class="company-name">Your Company Name</div>
+          <div class="report-title">Order Confirmation Report</div>
+        </div>
+        
+        <div class="report-info">
+          <div>Date: ${new Date().toLocaleDateString()}</div>
+          <div>Page: ${currentPage + 1} of ${totalPages}</div>
+        </div>
+        
+        <div class="orders-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Village Name</th>
+                <th>Customer Name</th>
+                <th>Total Amount</th>
+                <th>Order Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${generateTableRows(pageOrders, currentPage, totalPages)}
+              <tr class="total-row">
+                <td colspan="3">Page Total</td>
+                <td>₹${pageTotal.toLocaleString('en-IN')}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        ${isLastPage ? `
+          <div class="grand-total">
+            Grand Total: ₹${grandTotal.toLocaleString('en-IN')}
+          </div>
+        ` : ''}
+        
+        <div class="footer">
+          <p>Generated on ${new Date().toLocaleDateString()}</p>
+          ${!isLastPage ? `
+            <p class="pagination-info">
+              <strong>Next page contains ${Math.min(remainingOrders, ORDERS_PER_PAGE)} more orders</strong>
+            </p>
+          ` : `
+            <p class="pagination-info">
+              <strong>Total Orders: ${orders.length} | Total Amount: ₹${grandTotal.toLocaleString('en-IN')}</strong>
+            </p>
+          `}
+        </div>
+      </div>
+    `;
+    };
+
+    // Generate pages
+    let pagesHTML = '';
+    for (let i = 0; i < totalPages; i++) {
+      const startIndex = i * ORDERS_PER_PAGE;
+      const endIndex = Math.min(startIndex + ORDERS_PER_PAGE, orders.length);
+      const pageOrders = orders.slice(startIndex, endIndex);
+      const isLastPage = i === totalPages - 1;
+
+      pagesHTML += generatePageContent(pageOrders, i, totalPages, isLastPage);
+    }
 
     return `
 <!DOCTYPE html>
@@ -939,99 +1010,166 @@ export default function PendingOrdersPage() {
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
-      font-size: 12px;
+      margin: 0;
+      padding: 0;
+      font-size: 9px;
+      box-sizing: border-box;
     }
+    
+    .page {
+      width: 10.5cm;
+      height: 14cm;
+      position: relative;
+      padding: 8px;
+      box-sizing: border-box;
+      margin: 0;
+      display: block;
+    }
+    
     .header {
       text-align: center;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #333;
-      padding-bottom: 10px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 4px;
     }
+    
     .company-name {
-      font-size: 24px;
+      font-size: 12px;
       font-weight: bold;
-      margin-bottom: 5px;
+      margin-bottom: 2px;
     }
+    
     .report-title {
-      font-size: 18px;
-      margin-bottom: 10px;
+      font-size: 10px;
+      margin-bottom: 4px;
     }
+    
     .report-info {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 8px;
       font-weight: bold;
+      font-size: 8px;
     }
-    .columns-container {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-    .column {
+    
+    .orders-container {
       flex: 1;
+      overflow: hidden;
     }
+    
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
+      font-size: 7px;
     }
+    
     th, td {
       border: 1px solid #ddd;
-      padding: 6px;
+      padding: 2px 3px;
       text-align: left;
-      font-size: 11px;
     }
+    
     th {
       background-color: #f2f2f2;
       font-weight: bold;
+      font-size: 7px;
     }
+    
     .total-row {
       font-weight: bold;
       background-color: #f9f9f9;
     }
+    
     .grand-total {
-      margin-top: 20px;
+      margin-top: 6px;
       text-align: center;
-      padding: 10px;
+      padding: 4px;
       background-color: #e6f3ff;
-      border: 2px solid #0066cc;
+      border: 1px solid #0066cc;
       font-weight: bold;
-      font-size: 14px;
+      font-size: 9px;
     }
+    
     .footer {
-      margin-top: 30px;
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
       text-align: center;
       font-style: italic;
       color: #666;
-      font-size: 10px;
+      font-size: 6px;
     }
+    
+    .pagination-info {
+      margin-top: 4px;
+      font-weight: bold;
+      color: #333;
+      font-size: 7px;
+    }
+    
     @media print {
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      
       body {
         margin: 0;
-        padding: 10px;
-        font-size: 10px;
-      }
-      .header {
-        margin-bottom: 15px;
-      }
-      .company-name {
-        font-size: 20px;
-      }
-      .report-title {
-        font-size: 16px;
-      }
-      .columns-container {
-        gap: 15px;
-      }
-      th, td {
-        padding: 4px;
+        padding: 0;
         font-size: 9px;
       }
-      .grand-total {
-        font-size: 12px;
-        margin-top: 15px;
+      
+      .page {
+        width: 10.5cm;
+        height: 14cm;
+        position: relative;
+        padding: 8px;
+        box-sizing: border-box;
+        margin: 0;
+        display: block;
       }
+      
+      .header {
+        margin-bottom: 6px;
+      }
+      
+      .company-name {
+        font-size: 12px;
+      }
+      
+      .report-title {
+        font-size: 10px;
+      }
+      
+      .report-info {
+        font-size: 8px;
+        margin-bottom: 6px;
+      }
+      
+      table {
+        font-size: 7px;
+      }
+      
+      th, td {
+        padding: 2px 3px;
+        font-size: 7px;
+      }
+      
+      .grand-total {
+        font-size: 9px;
+        margin-top: 6px;
+      }
+      
+      .footer {
+        font-size: 6px;
+      }
+      
+      .pagination-info {
+        font-size: 7px;
+      }
+      
       button {
         display: none;
       }
@@ -1039,69 +1177,7 @@ export default function PendingOrdersPage() {
   </style>
 </head>
 <body>
-
-  <div class="header">
-    <div class="company-name">Your Company Name</div>
-    <div class="report-title">Order Confirmation Report</div>
-  </div>
-  
-  <div class="report-info">
-    <div>Date: ${new Date().toLocaleDateString()}</div>
-    <div>Total Orders: ${orders.length}</div>
-  </div>
-  
-  <div class="columns-container">
-    <div class="column">
-      <table>
-        <thead>
-          <tr>
-            <th>Village Name</th>
-            <th>Customer Name</th>
-            <th>Total Amount</th>
-            <th>Order Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${generateTableRows(leftColumnOrders)}
-          <tr class="total-row">
-            <td colspan="2">Subtotal</td>
-            <td>₹${leftTotal.toLocaleString('en-IN')}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    
-    ${rightColumnOrders.length > 0 ? `
-    <div class="column">
-      <table>
-        <thead>
-          <tr>
-            <th>Village Name</th>
-            <th>Customer Name</th>
-            <th>Total Amount</th>
-            <th>Order Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${generateTableRows(rightColumnOrders)}
-          <tr class="total-row">
-            <td colspan="2">Subtotal</td>
-            <td>₹${rightTotal.toLocaleString('en-IN')}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    ` : ''}
-  </div>
-  
-  <div class="grand-total">
-    Grand Total: ₹${grandTotal.toLocaleString('en-IN')}
-  </div>
-  
-  <div class="footer">
-    <p>This report contains all confirmed orders as of ${new Date().toLocaleDateString()}</p>
-    <p>Generated on ${new Date().toLocaleString()}</p>
-  </div>
+  ${pagesHTML}
 </body>
 </html>
 `;

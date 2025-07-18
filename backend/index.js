@@ -42,8 +42,6 @@ const io = new Server(server, {
   pingTimeout: 60000           // ❌ Disconnect if no pong after 60s
 });
 
-
-
 // Connect to database
 connectToDb();
 
