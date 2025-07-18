@@ -175,76 +175,116 @@ export default function PendingOrdersPage() {
 
       const selectedOrdersData = pendingOrders.filter(order => selectedOrders.has(order._id))
 
-      // Maximum items per page (adjust this based on your half-page requirement)
-      const ITEMS_PER_PAGE = 9; // This should fit in half A4 page
+      // Configuration constants
+      const ITEMS_PER_PAGE = 9;
+      const INVOICE_WIDTH = '10.5cm';
+      const INVOICE_HEIGHT = '14cm';
+
+      // Helper function to convert numbers to Gujarati digits
+      const toGujaratiDigits = (num) => {
+        const gujaratiDigits = ['૦', '૧', '૨', '૩', '૪', '૫', '૬', '૭', '૮', '૯'];
+        return num.toString().replace(/[0-9]/g, (digit) => gujaratiDigits[parseInt(digit)]);
+      };
+
+      // Function to format date with time
+      const formatDateWithTime = (dateString) => {
+        if (!dateString) return { date: '16/07/2025', time: '10:30 AM' };
+
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+
+        let hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+
+        return {
+          date: `${toGujaratiDigits(day)}/${toGujaratiDigits(month)}/${toGujaratiDigits(year)}`,
+          time: `${toGujaratiDigits(hours)}:${toGujaratiDigits(minutes)} ${ampm}`
+        };
+      };
 
       // Function to create invoice header
       const createInvoiceHeader = (order, isFirstPage = true, pageNumber = 1, totalPages = 1) => {
+        const dateTime = formatDateWithTime(order.orderDate);
         return `
-    <div class="invoice-header">
-      <div class="header-content">
-        <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" class="company-logo" onerror="this.style.display='none'" />
-        <div class="company-name">Zoya Traders</div>
-      </div>
-      <div class="invoice-title">ESTIMATE${!isFirstPage ? ' (Continued)' : ''}</div>
-      ${!isFirstPage ? `<div class="page-info">Page ${pageNumber} of ${totalPages}</div>` : ''}
-    </div>
-
-    <div class="invoice-details">
-      <div class="customer-info">
-        <div class="customer-label">M/s. :</div>
-        <div class="customer-details">
-          <div class="customer-name">${order.customerName || order.salesAgentName || 'વિપુલભાઈ ગોધાવરા'}</div>
-          <div class="customer-contact">${order.salesAgentMobile || order.customerMobile || '6320344507'}</div>
-        </div>
-        <div class="order-date">
-          <div>${order.orderDate ? formatDate(order.orderDate) : '16/07/2025'}</div>
-        </div>
-      </div>
-        
-      <div class="order-details-section">
-        <div class="order-details-row">
-          
-          <div class="detail-item">
-            <span class="detail-label">Village Name:</span>
-            <span class="detail-value">${order.villageName || 'Unknown'}</span>
+        <div class="invoice-header">
+          <div class="header-content">
+            <img src="${window.location.origin}/zoya_traders.png" alt="Zoya Traders Logo" class="company-logo" onerror="this.style.display='none'" />
+            <div class="company-name">Zoya Traders</div>
           </div>
-                    <div class="detail-item">
-            <span class="detail-label">Order Type:</span>
-            <span class="detail-value">
-  ${order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
-</span>
+          <div class="invoice-title">ESTIMATE${!isFirstPage ? ' (Continued)' : ''}</div>
+          ${!isFirstPage ? `<div class="page-info">Page ${pageNumber} of ${totalPages}</div>` : ''}
+        </div>
 
+        <div class="invoice-details">
+          <div class="customer-info">
+            <div class="customer-label">M/s. :</div>
+            <div class="customer-details">
+              <div class="customer-name">${order.salesAgentName || order.customerName || 'વિપુલભાઈ ગોધાવરા'}</div>
+              <div class="customer-contact">${order.salesAgentMobile || order.customerMobile || '6320344507'}</div>
+            </div>
+            <div class="order-date">
+              <div class="date-line">${dateTime.date}</div>
+              <div class="time-line">${dateTime.time}</div>
+            </div>
+          </div>
+            
+          <div class="order-details-section">
+            <div class="order-details-row">
+              <div class="detail-item">
+                <span class="detail-label">Village:</span>
+                <span class="detail-value">${order.villageName || 'Unknown'}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Type:</span>
+                <span class="detail-value">
+                  ${order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        
-       
-      </div>
-    </div>
-  `;
+      `;
       };
 
       // Function to create table header
       const createTableHeader = () => {
         return `
-    <div class="invoice-table">
-      <div class="table-header">
-        <div class="col-sr">ક્રમ</div>
-        <div class="col-item">આઇટમનું નામ</div>
-        <div class="col-qty">જથ્થો</div>
-        <div class="col-rate">કિંમત</div>
-        <div class="col-total">કુલ કિંમત</div>
-      </div>
-      <div class="table-body">
-  `;
+        <div class="invoice-table">
+          <div class="table-header">
+            <div class="col-sr">ક્રમ</div>
+            <div class="col-item">આઇટમ</div>
+            <div class="col-qty">જથ્થો</div>
+            <div class="col-rate">કિંમત</div>
+            <div class="col-total">કુલ</div>
+          </div>
+          <div class="table-body">
+      `;
+      };
+
+      // Function to create empty rows to fill remaining space
+      const createEmptyRows = (count) => {
+        return Array.from({ length: count }, (_, i) => `
+        <div class="table-row empty-row">
+          <div class="col-sr">&nbsp;</div>
+          <div class="col-item">&nbsp;</div>
+          <div class="col-qty">&nbsp;</div>
+          <div class="col-rate">&nbsp;</div>
+          <div class="col-total">&nbsp;</div>
+        </div>
+      `).join('');
       };
 
       // Function to close table
       const closeTable = () => {
         return `
-      </div>
-    </div>
-  `;
+          </div>
+        </div>
+      `;
       };
 
       // Generate combined HTML for all selected orders
@@ -253,7 +293,7 @@ export default function PendingOrdersPage() {
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Bulk Estimates</title>
+    <title>Bulk Estimates - Zoya Traders</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;700&display=swap');
 
@@ -262,138 +302,158 @@ export default function PendingOrdersPage() {
           margin: 0;
         }
 
+        * {
+          box-sizing: border-box;
+        }
+
         body {
           font-family: 'Noto Sans Gujarati', Arial, sans-serif;
-          font-size: 14px;
+          font-size: 12px;
           margin: 0;
           padding: 0;
-          line-height: 1.3;
+          line-height: 1.2;
+          background: white;
+          color: #000;
         }
 
         .invoice-container {
-          width: 100mm;
-          height: 140mm;
-          padding: 8mm;
-          box-sizing: border-box;
+          width: ${INVOICE_WIDTH};
+          height: ${INVOICE_HEIGHT};
+          padding: 6mm;
           page-break-inside: avoid;
           background: white;
+          position: relative;
+          margin: 0;
+          float: left;
+          border: 1px solid #ddd;
         }
 
         .page-break { 
           page-break-after: always; 
+          clear: both;
         }
 
         .invoice-header {
           text-align: center;
-          margin-bottom: 15px;
-          border-bottom: 2px solid #000;
-          padding-bottom: 10px;
+          margin-bottom: 8px;
+          border-bottom: 1px solid #000;
+          padding-bottom: 5px;
         }
 
         .header-content {
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 5px;
+          margin-bottom: 3px;
         }
 
         .company-logo {
-          width: 40px;
-          height: 40px;
-          margin-right: 10px;
+          width: 25px;
+          height: 25px;
+          margin-right: 6px;
           object-fit: contain;
         }
 
         .company-name {
-          font-size: 20px;
+          font-size: 16px;
           font-weight: bold;
           color: #000;
           margin: 0;
         }
 
         .invoice-title {
-          font-size: 16px;
+          font-size: 15px;
           font-weight: bold;
           color: #000;
           text-decoration: underline;
-          margin: 5px 0;
+          margin: 3px 0;
         }
 
         .page-info {
-          font-size: 12px;
+          font-size: 10px;
           color: #666;
-          margin-top: 5px;
+          margin-top: 3px;
         }
 
         .invoice-details {
-          margin-bottom: 15px;
-          border: 2px solid #000;
-          padding: 10px;
+          margin-bottom: 8px;
+          border: 1px solid #000;
+          padding: 5px;
         }
 
         .customer-info {
           display: flex;
           align-items: flex-start;
-          margin-bottom: 12px;
-          padding-bottom: 8px;
+          margin-bottom: 6px;
+          padding-bottom: 4px;
           border-bottom: 1px solid #000;
         }
 
         .customer-label {
           font-weight: bold;
-          margin-right: 10px;
+          margin-right: 5px;
           white-space: nowrap;
           font-size: 14px;
-          min-width: 35px;
+          min-width: 25px;
         }
 
         .customer-details {
           flex: 1;
-          margin-right: 15px;
+          margin-right: 8px;
         }
 
         .customer-name {
           font-weight: bold;
           font-size: 14px;
-          margin-bottom: 3px;
+          margin-bottom: 2px;
+          line-height: 1.1;
         }
 
         .customer-contact {
-          font-size: 12px;
+          font-size: 13px;
           font-weight: bold;
           color: #000;
         }
 
         .order-date {
           text-align: right;
-          font-size: 12px;
+          font-size: 10px;
           white-space: nowrap;
           font-weight: bold;
+          min-width: 80px;
+        }
+
+        .date-line {
+          margin-bottom: 2px;
+        }
+
+        .time-line {
+          font-size: 11px;
         }
 
         .order-details-section {
-          margin-top: 8px;
+          margin-top: 4px;
         }
 
         .order-details-row {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 6px;
-          gap: 10px;
+          margin-bottom: 3px;
+          gap: 5px;
         }
 
         .detail-item {
           flex: 1;
           display: flex;
           align-items: center;
-          font-size: 11px;
-          min-height: 20px;
+          font-size: 10px;
+          min-height: 15px;
         }
 
         .detail-label {
           font-weight: bold;
-          margin-right: 5px;
-          min-width: 60px;
+          margin-right: 3px;
+          min-width: 35px;
           color: #000;
         }
 
@@ -401,12 +461,13 @@ export default function PendingOrdersPage() {
           font-weight: normal;
           color: #333;
           word-break: break-word;
+          font-size: 13px;
         }
 
         .invoice-table {
           width: 100%;
           border: 2px solid #000;
-          margin-bottom: 10px;
+          margin-bottom: 6px;
           border-collapse: collapse;
         }
 
@@ -415,73 +476,133 @@ export default function PendingOrdersPage() {
           background-color: #f0f0f0;
           border-bottom: 2px solid #000;
           font-weight: bold;
-          font-size: 12px;
+          font-size: 20px;
           text-align: center;
+          height: 30px;
+          align-items: center;
         }
 
         .table-body {
-          min-height: 200px;
+          min-height: 180px;
         }
 
         .table-row {
           display: flex;
           border-bottom: 1px solid #000;
-          min-height: 25px;
+          min-height: 30px;
           align-items: center;
+          font-size: 20px;
         }
 
         .table-row:last-child {
-          border-bottom: none;
+          border-bottom: 1px solid #000;
+        }
+
+        .empty-row {
+          border-bottom: 1px solid #000 !important;
         }
 
         .col-sr {
-          width: 8%;
-          padding: 4px 2px;
-          border-right: 1px solid #000;
+          width: 12%;
+          padding: 3px 2px;
+          border-right: 2px solid #000;
           text-align: center;
-          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          min-height: 24px;
         }
 
         .col-item {
-          width: 52%;
-          padding: 4px 6px;
-          border-right: 1px solid #000;
-          text-align: left;
-          box-sizing: border-box;
+          width: 38%;
+          padding: 3px 4px;
+          border-right: 2px solid #000;
+          text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          font-size: 15px;
+          min-height: 24px;
         }
 
         .col-qty {
-          width: 12%;
-          padding: 4px 2px;
-          border-right: 1px solid #000;
+          width: 15%;
+          padding: 3px 2px;
+          border-right: 2px solid #000;
           text-align: center;
-          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          min-height: 24px;
         }
 
         .col-rate {
-          width: 14%;
-          padding: 4px 2px;
-          border-right: 1px solid #000;
-          text-align: right;
-          box-sizing: border-box;
+          width: 17%;
+          padding: 3px 2px;
+          border-right: 2px solid #000;
+          text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          min-height: 24px;
         }
 
         .col-total {
-          width: 14%;
-          padding: 4px 2px;
-          text-align: right;
-          box-sizing: border-box;
+          width: 18%;
+          padding: 3px 2px;
+          text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          min-height: 24px;
+          border-right: none;
+        }
+
+        .table-header .col-sr,
+        .table-header .col-item,
+        .table-header .col-qty,
+        .table-header .col-rate {
+          border-right: 2px solid #000;
+          border-top: none;
+          border-bottom: none;
+        }
+
+        .table-header .col-total {
+          border-right: none;
+          border-top: none;
+          border-bottom: none;
+        }
+
+        .table-row .col-sr,
+        .table-row .col-item,
+        .table-row .col-qty,
+        .table-row .col-rate {
+          border-right: 2px solid #000;
+          border-top: none;
+          border-bottom: none;
+        }
+
+        .table-row .col-total {
+          border-right: none;
+          border-top: none;
+          border-bottom: none;
         }
 
         .gujarati-text {
           font-family: 'Noto Sans Gujarati', Arial, sans-serif;
-          font-size: 12px;
+          font-size: 15px;
         }
 
         .total-section {
-          margin-top: 10px;
-          padding: 10px;
-          border: 2px solid #000;
+          margin-top: 6px;
+          padding: 5px;
+          border: 1px solid #000;
           background-color: #f9f9f9;
         }
 
@@ -490,19 +611,19 @@ export default function PendingOrdersPage() {
           justify-content: space-between;
           align-items: center;
           font-weight: bold;
-          font-size: 16px;
-          padding: 5px 0;
-          border-top: 2px solid #000;
-          margin-top: 10px;
-          padding-top: 10px;
+          font-size: 13px;
+          padding: 3px 0;
+          border-top: 1px solid #000;
+          margin-top: 5px;
+          padding-top: 5px;
         }
 
         .grand-total-label {
-          font-size: 14px;
+          font-size: 12px;
         }
 
         .grand-total-amount {
-          font-size: 16px;
+          font-size: 17px;
           font-weight: bold;
         }
 
@@ -510,16 +631,16 @@ export default function PendingOrdersPage() {
           text-align: center;
           font-style: italic;
           color: #666;
-          margin-top: 10px;
-          font-size: 12px;
-          padding: 5px;
+          margin-top: 5px;
+          font-size: 10px;
+          padding: 3px;
           border: 1px solid #ccc;
           background-color: #f9f9f9;
         }
 
         .subtotal-section {
-          margin-top: 10px;
-          padding: 5px;
+          margin-top: 6px;
+          padding: 3px;
           border: 1px solid #000;
           background-color: #f5f5f5;
         }
@@ -527,8 +648,8 @@ export default function PendingOrdersPage() {
         .subtotal-row {
           display: flex;
           justify-content: space-between;
-          font-size: 12px;
-          margin-bottom: 5px;
+          font-size: 11px;
+          margin-bottom: 3px;
         }
 
         .subtotal-label {
@@ -541,19 +662,18 @@ export default function PendingOrdersPage() {
           color: #000;
         }
 
-        .footer-note {
-          text-align: center;
-          font-size: 10px;
-          margin-top: 10px;
-          font-style: italic;
-          color: #666;
-        }
-
         @media print {
           body {
             margin: 0;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+          
+          .invoice-container {
+            border: none;
+            float: left;
+            margin: 0;
+            padding: 6mm;
           }
           
           .invoice-table {
@@ -569,12 +689,27 @@ export default function PendingOrdersPage() {
             border-bottom: 1px solid #000 !important;
           }
           
-          .col-sr, .col-item, .col-qty, .col-rate {
-            border-right: 1px solid #000 !important;
+          .table-row:last-child {
+            border-bottom: 1px solid #000 !important;
+          }
+          
+          .empty-row {
+            border-bottom: 1px solid #000 !important;
+          }
+          
+          .table-header .col-sr,
+          .table-header .col-item,
+          .table-header .col-qty,
+          .table-header .col-rate,
+          .table-row .col-sr,
+          .table-row .col-item,
+          .table-row .col-qty,
+          .table-row .col-rate {
+            border-right: 2px solid #000 !important;
           }
           
           .invoice-details {
-            border: 2px solid #000 !important;
+            border: 1px solid #000 !important;
           }
           
           .customer-info {
@@ -585,13 +720,13 @@ export default function PendingOrdersPage() {
 </head>
 <body>
     ${selectedOrdersData.map((order, orderIndex) => {
-        const orderTotal = order.cartTotal || calculateCartTotal(order.orders)
-        const items = order.orders || []
-        const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE)
+        const orderTotal = order.cartTotal || calculateCartTotal(order.orders);
+        const items = order.orders || [];
+        const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
 
         let orderHTML = '';
 
-        // Split items into pages
+        // Generate pages for each order
         for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
           const startIndex = (pageNum - 1) * ITEMS_PER_PAGE;
           const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, items.length);
@@ -618,15 +753,7 @@ export default function PendingOrdersPage() {
               </div>
             `).join('')}
             
-            ${Array.from({ length: Math.max(0, ITEMS_PER_PAGE - pageItems.length) }, (_, i) => `
-              <div class="table-row">
-                <div class="col-sr"></div>
-                <div class="col-item"></div>
-                <div class="col-qty"></div>
-                <div class="col-rate"></div>
-                <div class="col-total"></div>
-              </div>
-            `).join('')}
+            ${createEmptyRows(Math.max(0, ITEMS_PER_PAGE - pageItems.length))}
             
             ${closeTable()}
             
@@ -634,11 +761,11 @@ export default function PendingOrdersPage() {
               <div class="subtotal-section">
                 <div class="subtotal-row">
                   <div class="subtotal-label">Page Subtotal:</div>
-                  <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}</div>
+                  <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}.00</div>
                 </div>
               </div>
               <div class="continuation-notice">
-                Continued on next page... (${items.length - endIndex} items remaining)
+                Continued... (${items.length - endIndex} items remaining)
               </div>
             ` : `
               <div class="total-section">
@@ -654,7 +781,6 @@ export default function PendingOrdersPage() {
                 </div>
               </div>
             `}
-            
           </div>
           ${(!isLastPage || orderIndex < selectedOrdersData.length - 1) ? '<div class="page-break"></div>' : ''}
         `;
@@ -667,28 +793,28 @@ export default function PendingOrdersPage() {
 `;
 
       // Create a new window for printing
-      const printWindow = window.open('', '_blank')
+      const printWindow = window.open('', '_blank');
       if (printWindow) {
-        printWindow.document.write(combinedHTML)
-        printWindow.document.close()
+        printWindow.document.write(combinedHTML);
+        printWindow.document.close();
 
         // Wait for content to load then print
         setTimeout(() => {
-          printWindow.print()
-          printWindow.close()
-        }, 1000)
+          printWindow.print();
+          printWindow.close();
+        }, 1000);
 
-        toast.success(`${selectedOrders.size} estimates generated successfully!`)
+        toast.success(`${selectedOrders.size} estimates generated successfully!`);
       } else {
-        toast.error('Unable to open print window. Please check popup settings.')
+        toast.error('Unable to open print window. Please check popup settings.');
       }
     } catch (error) {
-      console.error('Error generating bulk estimates:', error)
-      toast.error('Failed to generate estimates')
+      console.error('Error generating bulk estimates:', error);
+      toast.error('Failed to generate estimates');
     } finally {
-      setBulkPrinting(false)
+      setBulkPrinting(false);
     }
-  }
+  };
 
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked)
