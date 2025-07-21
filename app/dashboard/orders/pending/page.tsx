@@ -97,8 +97,6 @@ export default function PendingOrdersPage() {
     }
   }, [selectedOrders, pendingOrders])
 
-
-
   const fetchPendingOrders = async () => {
     try {
       setLoading(true) // Make sure this is at the beginning
@@ -313,7 +311,7 @@ export default function PendingOrdersPage() {
           padding: 0;
           line-height: 1.2;
           background: white;
-          color: #000;
+          color: #222;
         }
 
         .invoice-container {
@@ -325,7 +323,7 @@ export default function PendingOrdersPage() {
           position: relative;
           margin: 0;
           float: left;
-          border: 1px solid #ddd;
+          border: 1px solid #bbb;
         }
 
         .page-break { 
@@ -336,7 +334,7 @@ export default function PendingOrdersPage() {
         .invoice-header {
           text-align: center;
           margin-bottom: 8px;
-          border-bottom: 1px solid #000;
+          border-bottom: 1px solid #bbb;
           padding-bottom: 5px;
         }
 
@@ -356,28 +354,28 @@ export default function PendingOrdersPage() {
 
         .company-name {
           font-size: 16px;
-          font-weight: bold;
-          color: #000;
+          font-weight: 400;
+          color: #222;
           margin: 0;
         }
 
         .invoice-title {
           font-size: 15px;
-          font-weight: bold;
-          color: #000;
+          font-weight: 400;
+          color: #222;
           text-decoration: underline;
           margin: 3px 0;
         }
 
         .page-info {
           font-size: 10px;
-          color: #666;
+          color: #888;
           margin-top: 3px;
         }
 
         .invoice-details {
           margin-bottom: 8px;
-          border: 1px solid #000;
+          border: 1px solid #bbb;
           padding: 5px;
         }
 
@@ -386,11 +384,11 @@ export default function PendingOrdersPage() {
           align-items: flex-start;
           margin-bottom: 6px;
           padding-bottom: 4px;
-          border-bottom: 1px solid #000;
+          border-bottom: 1px solid #bbb;
         }
 
         .customer-label {
-          font-weight: bold;
+          font-weight: 400;
           margin-right: 5px;
           white-space: nowrap;
           font-size: 14px;
@@ -403,7 +401,7 @@ export default function PendingOrdersPage() {
         }
 
         .customer-name {
-          font-weight: bold;
+          font-weight: 400;
           font-size: 14px;
           margin-bottom: 2px;
           line-height: 1.1;
@@ -411,15 +409,15 @@ export default function PendingOrdersPage() {
 
         .customer-contact {
           font-size: 13px;
-          font-weight: bold;
-          color: #000;
+          font-weight: 400;
+          color: #222;
         }
 
         .order-date {
           text-align: right;
           font-size: 10px;
           white-space: nowrap;
-          font-weight: bold;
+          font-weight: 400;
           min-width: 80px;
         }
 
@@ -451,14 +449,14 @@ export default function PendingOrdersPage() {
         }
 
         .detail-label {
-          font-weight: bold;
+          font-weight: 400;
           margin-right: 3px;
           min-width: 35px;
-          color: #000;
+          color: #222;
         }
 
         .detail-value {
-          font-weight: normal;
+          font-weight: 400;
           color: #333;
           word-break: break-word;
           font-size: 13px;
@@ -466,16 +464,17 @@ export default function PendingOrdersPage() {
 
         .invoice-table {
           width: 100%;
-          border: 2px solid #000;
+          border: 1px solid #bbb;
           margin-bottom: 6px;
           border-collapse: collapse;
+          display: table;
         }
 
         .table-header {
-          display: flex;
-          background-color: #f0f0f0;
-          border-bottom: 2px solid #000;
-          font-weight: bold;
+          display: table-row;
+          background-color: #fafafa;
+          border-bottom: 1px solid #bbb;
+          font-weight: 400;
           font-size: 20px;
           text-align: center;
           height: 30px;
@@ -484,83 +483,49 @@ export default function PendingOrdersPage() {
 
         .table-body {
           min-height: 180px;
+          display: table-row-group;
         }
 
         .table-row {
-          display: flex;
-          border-bottom: 1px solid #000;
+          display: table-row;
+          border-bottom: 1px solid #bbb;
           min-height: 30px;
           align-items: center;
           font-size: 20px;
+          font-weight: 400;
         }
 
         .table-row:last-child {
-          border-bottom: 1px solid #000;
+          border-bottom: 1px solid #bbb;
         }
 
         .empty-row {
-          border-bottom: 1px solid #000 !important;
+          border-bottom: 1px solid #bbb !important;
         }
 
-        .col-sr {
-          width: 12%;
+        .col-sr, .col-item, .col-qty, .col-rate, .col-total {
+          border-right: 1px solid #bbb;
+          border-bottom: 1px solid #bbb;
+          border-top: none;
+          border-left: none;
           padding: 3px 2px;
-          border-right: 2px solid #000;
           text-align: center;
-          display: flex;
+          display: table-cell;
           align-items: center;
           justify-content: center;
           font-size: 15px;
           min-height: 24px;
+          font-weight: 400;
         }
-
         .col-item {
-          width: 38%;
           padding: 3px 4px;
-          border-right: 2px solid #000;
-          text-align: center;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-          font-size: 15px;
-          min-height: 24px;
+          width: 38%;
         }
-
-        .col-qty {
-          width: 15%;
-          padding: 3px 2px;
-          border-right: 2px solid #000;
-          text-align: center;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 15px;
-          min-height: 24px;
-        }
-
-        .col-rate {
-          width: 17%;
-          padding: 3px 2px;
-          border-right: 2px solid #000;
-          text-align: center;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 15px;
-          min-height: 24px;
-        }
-
+        .col-sr { width: 12%; }
+        .col-qty { width: 15%; }
+        .col-rate { width: 17%; }
         .col-total {
           width: 18%;
-          padding: 3px 2px;
-          text-align: center;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 15px;
-          min-height: 24px;
           border-right: none;
         }
 
@@ -568,7 +533,7 @@ export default function PendingOrdersPage() {
         .table-header .col-item,
         .table-header .col-qty,
         .table-header .col-rate {
-          border-right: 2px solid #000;
+          border-right: 1px solid #bbb;
           border-top: none;
           border-bottom: none;
         }
@@ -583,7 +548,7 @@ export default function PendingOrdersPage() {
         .table-row .col-item,
         .table-row .col-qty,
         .table-row .col-rate {
-          border-right: 2px solid #000;
+          border-right: 1px solid #bbb;
           border-top: none;
           border-bottom: none;
         }
@@ -602,18 +567,18 @@ export default function PendingOrdersPage() {
         .total-section {
           margin-top: 6px;
           padding: 5px;
-          border: 1px solid #000;
-          background-color: #f9f9f9;
+          border: 1px solid #bbb;
+          background-color: #fafafa;
         }
 
         .grand-total-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          font-weight: bold;
+          font-weight: 400;
           font-size: 13px;
           padding: 3px 0;
-          border-top: 1px solid #000;
+          border-top: 1px solid #bbb;
           margin-top: 5px;
           padding-top: 5px;
         }
@@ -624,25 +589,25 @@ export default function PendingOrdersPage() {
 
         .grand-total-amount {
           font-size: 17px;
-          font-weight: bold;
+          font-weight: 400;
         }
 
         .continuation-notice {
           text-align: center;
           font-style: italic;
-          color: #666;
+          color: #888;
           margin-top: 5px;
           font-size: 10px;
           padding: 3px;
-          border: 1px solid #ccc;
-          background-color: #f9f9f9;
+          border: 1px solid #eee;
+          background-color: #fafafa;
         }
 
         .subtotal-section {
           margin-top: 6px;
           padding: 3px;
-          border: 1px solid #000;
-          background-color: #f5f5f5;
+          border: 1px solid #bbb;
+          background-color: #fafafa;
         }
 
         .subtotal-row {
@@ -653,13 +618,13 @@ export default function PendingOrdersPage() {
         }
 
         .subtotal-label {
-          font-weight: normal;
-          color: #666;
+          font-weight: 400;
+          color: #888;
         }
 
         .subtotal-amount {
-          font-weight: bold;
-          color: #000;
+          font-weight: 400;
+          color: #222;
         }
 
         @media print {
@@ -668,52 +633,40 @@ export default function PendingOrdersPage() {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
-          
           .invoice-container {
             border: none;
             float: left;
             margin: 0;
             padding: 6mm;
           }
-          
           .invoice-table {
-            border: 2px solid #000 !important;
+            border: 1px solid #bbb !important;
           }
-          
           .table-header {
-            background-color: #f0f0f0 !important;
-            border-bottom: 2px solid #000 !important;
+            background-color: #fafafa !important;
+            border-bottom: 1px solid #bbb !important;
           }
-          
           .table-row {
-            border-bottom: 1px solid #000 !important;
+            border-bottom: 1px solid #bbb !important;
           }
-          
           .table-row:last-child {
-            border-bottom: 1px solid #000 !important;
+            border-bottom: 1px solid #bbb !important;
           }
-          
           .empty-row {
-            border-bottom: 1px solid #000 !important;
+            border-bottom: 1px solid #bbb !important;
           }
-          
-          .table-header .col-sr,
-          .table-header .col-item,
-          .table-header .col-qty,
-          .table-header .col-rate,
-          .table-row .col-sr,
-          .table-row .col-item,
-          .table-row .col-qty,
-          .table-row .col-rate {
-            border-right: 2px solid #000 !important;
+          .col-sr, .col-item, .col-qty, .col-rate, .col-total {
+            border-right: 1px solid #bbb !important;
+            border-bottom: 1px solid #bbb !important;
           }
-          
+          .col-total {
+            border-right: none !important;
+          }
           .invoice-details {
-            border: 1px solid #000 !important;
+            border: 1px solid #bbb !important;
           }
-          
           .customer-info {
-            border-bottom: 1px solid #000 !important;
+            border-bottom: 1px solid #bbb !important;
           }
         }
     </style>
