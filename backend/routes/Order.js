@@ -355,11 +355,22 @@ router.get('/pending', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).lean(); // Use .lean() to allow adding extra fields manually
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    // Fetch sales agent details using userId from order
+    const salesAgent = await SalesAgent.findById(order.userId);
+    if (salesAgent) {
+      order.salesAgentName = salesAgent.name;
+      order.villageName = salesAgent.villageName;
+    } else {
+      order.salesAgentName = null;
+      order.villageName = null;
+    }
+
     res.json({ success: true, order });
   } catch (err) {
-    console.log(err)
+    console.log(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

@@ -117,7 +117,7 @@ export default function AllOrdersPage() {
     // Filter by search term
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase()
-      filtered = filtered.filter(order => 
+      filtered = filtered.filter(order =>
         order._id.toLowerCase().includes(searchLower) ||
         order.status.toLowerCase().includes(searchLower) ||
         order.salesAgentName?.toLowerCase().includes(searchLower) ||
@@ -193,7 +193,7 @@ export default function AllOrdersPage() {
 
   const getStatusCounts = () => {
     const counts: Record<string, number> = {}
-    
+
     // Initialize all status counts to 0
     statusCards.forEach(card => {
       counts[card.key] = 0
@@ -202,7 +202,7 @@ export default function AllOrdersPage() {
     // Count orders by status (use filteredOrders for dynamic counting)
     filteredOrders.forEach(order => {
       const status = order.status.toLowerCase().trim()
-      
+
       // Handle different possible status variations
       if (status === 'pending') counts['pending']++
       else if (status === 'confirmed') counts['confirmed']++
@@ -287,7 +287,7 @@ export default function AllOrdersPage() {
       </div>
 
       {/* Date Range Selector */}
-      <Card>
+      {/* <Card>
         <CardContent className="p-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Select Date Range</h3>
@@ -330,10 +330,10 @@ export default function AllOrdersPage() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Status Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {statusCards.map((card, index) => {
           const count = statusCounts[card.key] || 0
           return (
@@ -350,7 +350,7 @@ export default function AllOrdersPage() {
             </Card>
           )
         })}
-      </div>
+      </div> */}
 
       {/* Search, Records Per Page, and Export */}
       <div className="flex flex-col lg:flex-row gap-4 justify-between">
@@ -361,14 +361,14 @@ export default function AllOrdersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-80"
           />
-          <Button 
+          <Button
             className="bg-teal-600 hover:bg-teal-700"
             onClick={handleSearch}
           >
             Search
           </Button>
         </div>
-        
+
         <div className="flex gap-4 items-center">
           <div className="flex items-center gap-2">
             <Label htmlFor="recordsPerPage" className="whitespace-nowrap">Show:</Label>
@@ -386,7 +386,7 @@ export default function AllOrdersPage() {
             </Select>
             <span className="text-sm text-gray-600">entries</span>
           </div>
-          
+
           <Button variant="outline" className="text-teal-600 border-teal-600 hover:bg-teal-50">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -410,8 +410,11 @@ export default function AllOrdersPage() {
                     <TableHead className="font-semibold">Order ID</TableHead>
                     <TableHead className="font-semibold">Order Date</TableHead>
                     <TableHead className="font-semibold">Customer</TableHead>
+
                     <TableHead className="font-semibold">Total Amount</TableHead>
                     <TableHead className="font-semibold">Order Status</TableHead>
+                    <TableHead className="text-left p-4">Order Type</TableHead>
+
                     <TableHead className="font-semibold">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -446,18 +449,19 @@ export default function AllOrdersPage() {
                             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                           </Badge>
                         </TableCell>
+                        <TableCell className="p-4">
+                          {order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => handleViewOrder(order._id)}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="sm">
-                              <Printer className="h-4 w-4" />
-                            </Button>
+                            
                           </div>
                         </TableCell>
                       </TableRow>
@@ -473,7 +477,7 @@ export default function AllOrdersPage() {
                     <div className="text-sm text-gray-600">
                       Showing {pagination.startIndex} to {pagination.endIndex} of {pagination.totalOrders} entries
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -484,7 +488,7 @@ export default function AllOrdersPage() {
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      
+
                       <div className="flex gap-1">
                         {generatePageNumbers().map((page, index) => (
                           <Button
@@ -499,7 +503,7 @@ export default function AllOrdersPage() {
                           </Button>
                         ))}
                       </div>
-                      
+
                       <Button
                         variant="outline"
                         size="sm"

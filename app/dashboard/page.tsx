@@ -54,7 +54,8 @@ export default function DashboardPage() {
         cancelledOrdersRes.json()
       ]);
 
-      console.log(categoriesData)
+      console.log('pending', pendingOrdersData);
+      console.log('cancelled', cancelledOrdersData);
 
       // Update stats
       setStats({
@@ -79,16 +80,24 @@ export default function DashboardPage() {
   const formatDate = (dateString) => {
     try {
       const date = new Date(dateString);
-      const now = new Date();
-      const diffTime = Math.abs(now - date);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays === 1) return 'Added 1 day ago';
-      if (diffDays <= 7) return `Added ${diffDays} days ago`;
-      if (diffDays <= 30) return `Added ${Math.ceil(diffDays / 7)} weeks ago`;
-      return `Added ${Math.ceil(diffDays / 30)} months ago`;
+      // Format date to DD/MM/YYYY
+      const formattedDate = date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+
+      // Format time to HH:MM AM/PM
+      const formattedTime = date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      return `${formattedDate}, ${formattedTime}`;
     } catch {
-      return 'Added recently';
+      return 'Invalid date';
     }
   };
 
@@ -142,18 +151,18 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="col-span-1">
-<CardHeader>
-  <div className="flex items-center justify-between">
-    <CardTitle className="text-lg font-semibold">Recent Orders</CardTitle>
-    <Link
-      href="/dashboard/orders/pending"
-      className="text-sm font-medium text-blue-600 hover:underline"
-    >
-      View All Orders
-    </Link>
-  </div>
-  <CardDescription>Recent pending orders</CardDescription>
-</CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold">Recent Orders</CardTitle>
+              <Link
+                href="/dashboard/orders/pending"
+                className="text-sm font-medium text-blue-600 hover:underline"
+              >
+                View All Orders
+              </Link>
+            </div>
+            <CardDescription>Recent pending orders</CardDescription>
+          </CardHeader>
 
 
           <CardContent>
@@ -197,18 +206,18 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="col-span-1">
-<CardHeader>
-  <div className="flex items-center justify-between">
-    <CardTitle className="text-lg font-semibold">Recent Cancelled Orders</CardTitle>
-    <Link
-      href="/dashboard/orders/cancel"
-      className="text-sm font-medium text-blue-600 hover:underline"
-    >
-      View All Orders
-    </Link>
-  </div>
-  <CardDescription>Recently cancelled orders</CardDescription>
-</CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold">Recent Cancelled Orders</CardTitle>
+              <Link
+                href="/dashboard/orders/cancel"
+                className="text-sm font-medium text-blue-600 hover:underline"
+              >
+                View All Orders
+              </Link>
+            </div>
+            <CardDescription>Recently cancelled orders</CardDescription>
+          </CardHeader>
 
 
           <CardContent>
@@ -237,12 +246,12 @@ export default function DashboardPage() {
                       <p className="font-medium">
                         Order #{order._id?.slice(-8) || order.id?.slice(-8) || `${index + 1}`}
                       </p>
-                     <p className="text-sm text-muted-foreground">
-  Cancelled • {formatDate(order.orderDate)}
-</p>
-<p className="text-xs text-muted-foreground">
-  {order.salesAgentName} • {order.villageName} • {order.mobileNumber}
-</p>
+                      <p className="text-sm text-muted-foreground">
+                        Cancelled • {formatDate(order.orderDate)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {order.salesAgentName} • {order.villageName} • {order.mobileNumber}
+                      </p>
 
                     </div>
                     <div className="flex gap-2 text-xs">

@@ -63,6 +63,7 @@ export default function OrderDetailsPage() {
       const data = await response.json()
 
       if (data.order) {
+        console.log('Order Details:', data.order)
         setOrderDetails(data.order)
       } else {
         throw new Error('Order not found')
@@ -152,16 +153,7 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" className="text-blue-600 border-blue-600">
-            <MapPin className="h-4 w-4 mr-2" />
-            Show Location in Map
-          </Button>
-          <Button className="bg-teal-600 hover:bg-teal-700">
-            <Printer className="h-4 w-4 mr-2" />
-            Print Invoice
-          </Button>
-        </div>
+        
       </div>
 
       {/* Order Summary */}
@@ -200,12 +192,12 @@ export default function OrderDetailsPage() {
             <div>
               <p className="text-sm text-gray-600">Sales Agent</p>
               <p className="font-medium">{orderDetails.salesAgentName || "N/A"}</p>
-              <p className="text-sm text-gray-500">{orderDetails.salesAgentMobile || "-"}</p>
+          
             </div>
             <div>
               <p className="text-sm text-gray-600">Location</p>
               <p className="font-medium">{orderDetails.villageName || "N/A"}</p>
-              <p className="text-sm text-gray-500">{orderDetails.routeName || "-"}</p>
+          
             </div>
           </div>
         </CardContent>
@@ -276,7 +268,8 @@ export default function OrderDetailsPage() {
                   <span className="text-lg">Grand Total:</span>
                 </TableCell>
                 <TableCell>
-                  <span className="text-lg font-bold text-green-600">₹108,000</span>
+                  <span className="text-lg font-bold text-green-600">₹{orderDetails.orders.reduce((acc, item) => acc + item.attributes.total, 0).toLocaleString()}</span>
+
                 </TableCell>
               </TableRow>
             </TableBody>

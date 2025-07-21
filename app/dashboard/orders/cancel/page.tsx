@@ -252,7 +252,7 @@ export default function CancelledOrdersPage() {
       </div>
 
       {/* Date Range Selector */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      {/* <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Select Date Range</h3>
@@ -300,7 +300,7 @@ export default function CancelledOrdersPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Search and Export */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -329,13 +329,7 @@ export default function CancelledOrdersPage() {
             <option value={25}>25 per page</option>
             <option value={50}>50 per page</option>
           </select>
-          <button
-            onClick={exportToCSV}
-            className="px-4 py-2 border border-red-600 text-red-600 rounded-md bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-          >
-            <Download className="h-4 w-4 mr-2 inline" />
-            Export
-          </button>
+         
         </div>
       </div>
 
@@ -359,6 +353,8 @@ export default function CancelledOrdersPage() {
                   <th className="text-left p-4 font-semibold">Customer</th>
                   <th className="text-left p-4 font-semibold">Total Amount</th>
                   <th className="text-left p-4 font-semibold">Order Status</th>
+                  <th className="text-left p-4">Order Type</th>
+
                   <th className="text-left p-4 font-semibold">Action</th>
                 </tr>
               </thead>
@@ -398,6 +394,9 @@ export default function CancelledOrdersPage() {
                             <XCircle className="h-3 w-3 mr-1" />
                             Cancelled
                           </span>
+                        </td>
+                        <td className="p-4">
+                          {order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
                         </td>
                         <td className="p-4">
                           <div className="flex gap-2">
@@ -479,7 +478,6 @@ export default function CancelledOrdersPage() {
                 {getPageNumbers().map((pageNum, index, array) => {
                   const isCurrentPage = pageNum === currentPage
                   const showEllipsis = index > 0 && pageNum - array[index - 1] > 1
-
                   return (
                     <React.Fragment key={pageNum}>
                       {showEllipsis && (
@@ -490,8 +488,8 @@ export default function CancelledOrdersPage() {
                       <button
                         onClick={() => handlePageChange(pageNum)}
                         className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${isCurrentPage
-                            ? 'z-10 bg-red-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600'
-                            : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                          ? 'z-10 bg-red-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600'
+                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
                           }`}
                       >
                         {pageNum}

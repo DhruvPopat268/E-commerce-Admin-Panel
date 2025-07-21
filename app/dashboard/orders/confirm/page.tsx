@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { useRouter } from "next/navigation" 
+import { useRouter } from "next/navigation"
 import { Calendar, Eye, Printer, Download, CheckCircle, Package, Truck, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -60,7 +60,7 @@ export default function ConfirmedOrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const [processingOrders, setProcessingOrders] = useState(false)
-  
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -90,7 +90,7 @@ export default function ConfirmedOrdersPage() {
   const fetchAllConfirmedOrders = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch all orders with a large limit to get all confirmed orders
       // We'll handle pagination on the frontend for confirmed orders specifically
       const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/all?limit=1000`)
@@ -318,7 +318,7 @@ export default function ConfirmedOrdersPage() {
       </div>
 
       {/* Date Range Selector */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      {/* <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Select Date Range</h3>
@@ -366,7 +366,7 @@ export default function ConfirmedOrdersPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Search and Export */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -385,13 +385,7 @@ export default function ConfirmedOrdersPage() {
           </button>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={exportToCSV}
-            className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-          >
-            <Download className="h-4 w-4 mr-2 inline" />
-            Export
-          </button>
+          
         </div>
       </div>
 
@@ -412,7 +406,7 @@ export default function ConfirmedOrdersPage() {
           </select>
           <span className="text-sm text-gray-700">entries</span>
         </div>
-        
+
         {totalConfirmedOrders > 0 && (
           <div className="text-sm text-gray-700">
             Showing {startIndex} to {endIndex} of {totalConfirmedOrders} entries
@@ -448,8 +442,8 @@ export default function ConfirmedOrdersPage() {
                 onClick={markAsOutForDelivery}
                 disabled={selectedOrders.size === 0 || processingOrders}
                 className={`px-4 py-2 rounded-md text-white font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${selectedOrders.size === 0 || processingOrders
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700'
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-orange-600 hover:bg-orange-700'
                   }`}
               >
                 {processingOrders ? (
@@ -489,6 +483,8 @@ export default function ConfirmedOrdersPage() {
                   <th className="text-left p-4 font-semibold">Customer</th>
                   <th className="text-left p-4 font-semibold">Total Amount</th>
                   <th className="text-left p-4 font-semibold">Order Status</th>
+                  <th className="text-left p-4">Order Type</th>
+
                   <th className="text-left p-4 font-semibold">Action</th>
                 </tr>
               </thead>
@@ -536,20 +532,19 @@ export default function ConfirmedOrdersPage() {
                             Confirmed
                           </span>
                         </td>
+                          <td className="p-4">
+                          {order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
+                        </td>
                         <td className="p-4">
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => handleViewOrder(order._id)}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <button 
-                              className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </button>
+                           
                           </div>
                         </td>
                       </tr>
@@ -570,17 +565,16 @@ export default function ConfirmedOrdersPage() {
               <div className="text-sm text-gray-700">
                 Showing {startIndex} to {endIndex} of {totalConfirmedOrders} entries
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 {/* Previous button */}
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
-                    currentPage === 1
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${currentPage === 1
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Previous
@@ -593,13 +587,12 @@ export default function ConfirmedOrdersPage() {
                       key={index}
                       onClick={() => typeof page === 'number' ? handlePageChange(page) : undefined}
                       disabled={typeof page !== 'number'}
-                      className={`px-3 py-2 rounded-md text-sm font-medium ${
-                        page === currentPage
+                      className={`px-3 py-2 rounded-md text-sm font-medium ${page === currentPage
                           ? 'bg-teal-600 text-white'
                           : typeof page === 'number'
-                          ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                          : 'bg-white text-gray-400 cursor-default'
-                      }`}
+                            ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            : 'bg-white text-gray-400 cursor-default'
+                        }`}
                     >
                       {page}
                     </button>
@@ -615,11 +608,10 @@ export default function ConfirmedOrdersPage() {
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
-                    currentPage === totalPages
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${currentPage === totalPages
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-1" />

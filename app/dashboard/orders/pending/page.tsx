@@ -1344,7 +1344,7 @@ export default function PendingOrdersPage() {
       </div>
 
       {/* Date Range Selector */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      {/* <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Select Date Range</h3>
@@ -1392,7 +1392,7 @@ export default function PendingOrdersPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Search and Export */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -1448,13 +1448,7 @@ export default function PendingOrdersPage() {
               </>
             )}
           </button>
-          <button
-            onClick={exportToCSV}
-            className="px-4 py-2 border border-teal-600 text-teal-600 rounded-md bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-          >
-            <Download className="h-4 w-4 mr-2 inline" />
-            Export
-          </button>
+
         </div>
       </div>
 

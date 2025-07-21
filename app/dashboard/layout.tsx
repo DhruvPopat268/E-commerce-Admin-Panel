@@ -101,24 +101,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           active: pathname === "/dashboard/products",
           icon: ChevronRight,
         },
-        {
-          label: "Bulk Import",
-          href: "/dashboard/bulk-import",
-          active: pathname === "/dashboard/bulk-import",
-          icon: ChevronRight,
-        },
-        {
-          label: "Bulk Export",
-          href: "/dashboard/bulk-export",
-          active: pathname === "/dashboard/bulk-export",
-          icon: ChevronRight,
-        },
-        {
-          label: "Limited Stocks",
-          href: "/dashboard/limited-stocks",
-          active: pathname === "/dashboard/limited-stocks",
-          icon: ChevronRight,
-        },
+  
       ],
       expanded:
         pathname.includes("/dashboard/attributes") ||
@@ -159,25 +142,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           icon: ChevronRight,
 
         },
-        {
-          label: "Out for Delivery",
-          href: "/dashboard/orders/out-for-delivery",
-          active: pathname === "/dashboard/orders/out-for-delivery",
-          icon: ChevronRight,
+        // {
+        //   label: "Out for Delivery",
+        //   href: "/dashboard/orders/out-for-delivery",
+        //   active: pathname === "/dashboard/orders/out-for-delivery",
+        //   icon: ChevronRight,
 
-        },
-        {
-          label: "Delivered",
-          href: "/dashboard/orders/delivered",
-          active: pathname === "/dashboard/orders/delivered",
-          icon: ChevronRight,
-        },
-        {
-          label: "Returned",
-          href: "/dashboard/orders/returned",
-          active: pathname === "/dashboard/orders/returned",
-          icon: ChevronRight,
-        },
+        // },
+        // {
+        //   label: "Delivered",
+        //   href: "/dashboard/orders/delivered",
+        //   active: pathname === "/dashboard/orders/delivered",
+        //   icon: ChevronRight,
+        // },
+        // {
+        //   label: "Returned",
+        //   href: "/dashboard/orders/returned",
+        //   active: pathname === "/dashboard/orders/returned",
+        //   icon: ChevronRight,
+        // },
       ],
       expanded: pathname.includes("/dashboard/orders"),
     },
