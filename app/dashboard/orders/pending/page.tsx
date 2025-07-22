@@ -711,22 +711,14 @@ export default function PendingOrdersPage() {
             ${closeTable()}
             
             ${!isLastPage ? `
-              <div class="subtotal-section">
-                <div class="subtotal-row">
-                  <div class="subtotal-label">Page Subtotal:</div>
-                  <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}.00</div>
-                </div>
-              </div>
+              
               <div class="continuation-notice">
                 Continued... (${items.length - endIndex} items remaining)
               </div>
             ` : `
               <div class="total-section">
                 ${totalPages > 1 ? `
-                  <div class="subtotal-row">
-                    <div class="subtotal-label">Page Subtotal:</div>
-                    <div class="subtotal-amount">${toGujaratiDigits(pageSubtotal)}</div>
-                  </div>
+                  
                 ` : ''}
                 <div class="grand-total-row">
                   <div class="grand-total-label">Grand Total</div>
