@@ -54,6 +54,46 @@ export default function ProductsPage() {
 
   const router = useRouter()
 
+  // Refresh products when returning from edit page
+  useEffect(() => {
+    const handleRouteChange = () => {
+      // Refresh products when route changes (e.g., returning from edit page)
+      fetchProducts(currentPage, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)
+    }
+
+    // Listen for route changes
+    window.addEventListener('focus', handleRouteChange)
+    
+    return () => {
+      window.removeEventListener('focus', handleRouteChange)
+    }
+  }, [currentPage, searchQuery, selectedCategory, selectedSubcategory, selectedStatus])
+
+  // Restore page state when returning from edit page
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('productsPageState')
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState)
+        setCurrentPage(state.currentPage || 1)
+        setSearchQuery(state.searchQuery || "")
+        setSelectedCategory(state.selectedCategory || "all")
+        setSelectedSubcategory(state.selectedSubcategory || "all")
+        setSelectedStatus(state.selectedStatus || "all")
+        setPageSize(state.pageSize || 10)
+        
+        // Clear the saved state
+        sessionStorage.removeItem('productsPageState')
+        
+        // Refresh products with restored state
+        fetchProducts(state.currentPage || 1, state.searchQuery || "", state.selectedCategory || "all", state.selectedSubcategory || "all", state.selectedStatus || "all")
+      } catch (error) {
+        console.error('Error restoring page state:', error)
+        sessionStorage.removeItem('productsPageState')
+      }
+    }
+  }, [])
+
   // Fetch categories and subcategories once
   useEffect(() => {
     async function fetchStaticData() {
@@ -279,6 +319,16 @@ export default function ProductsPage() {
   }
 
   const handleEdit = (productId) => {
+    // Store current page state in sessionStorage so we can return to the same page
+    sessionStorage.setItem('productsPageState', JSON.stringify({
+      currentPage,
+      searchQuery,
+      selectedCategory,
+      selectedSubcategory,
+      selectedStatus,
+      pageSize
+    }))
+    
     router.push(`/dashboard/products/add?productId=${productId}`)
   }
 
@@ -597,9 +647,16 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex gap-2">
-
-
-          
+          <Button 
+            variant="outline" 
+            onClick={() => fetchProducts(currentPage, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)}
+            className="border-gray-300"
+          >
+            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </Button>
           <Button asChild className="bg-teal-700 hover:bg-teal-800 text-white">
             <Link href="/dashboard/products/add">+ Add new product</Link>
           </Button>

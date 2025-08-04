@@ -51,6 +51,15 @@ const SearchableSelect = ({
   searchPlaceholder = "Search...",
   className = "",
   required = false
+}: {
+  options: Array<{ _id: string; name: string }>;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  searchPlaceholder?: string;
+  className?: string;
+  required?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,15 +67,15 @@ const SearchableSelect = ({
   // Filter options based on search term
   const filteredOptions = useMemo(() => {
     if (!searchTerm) return options;
-    return options.filter(option =>
+    return options.filter((option: { _id: string; name: string }) =>
       option.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [options, searchTerm]);
 
   // Get selected option display text
-  const selectedOption = options.find(option => option._id === value);
+  const selectedOption = options.find((option: { _id: string; name: string }) => option._id === value);
 
-  const handleSelect = (optionValue) => {
+  const handleSelect = (optionValue: string) => {
     onChange(optionValue);
     setIsOpen(false);
     setSearchTerm('');
@@ -123,7 +132,7 @@ const SearchableSelect = ({
           {/* Options List */}
           <div className="max-h-60 overflow-y-auto">
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => (
+              filteredOptions.map((option: { _id: string; name: string }) => (
                 <button
                   key={option._id}
                   type="button"
@@ -192,6 +201,9 @@ export default function AddProductPage() {
 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [settingPrimaryImage, setSettingPrimaryImage] = useState<number | null>(null);
+  const [debugMode, setDebugMode] = useState(false); // Add debug mode for testing
+  const [primaryImageSuccess, setPrimaryImageSuccess] = useState<number | null>(null); // Track successful primary image setting
 
   const [filterSubCate, setFilterSubCate] = useState([])
 
@@ -349,6 +361,43 @@ export default function AddProductPage() {
     setImageFiles(newFiles);
   };
 
+  // Set as Primary: Only update local state, no API call
+  const setAsPrimary = (index: number) => {
+    if (!Array.isArray(previewImages) || previewImages.length === 0) return;
+    if (index === 0) return; // Already primary
+
+    // Move the selected image to the front
+    const newPreviews = [...previewImages];
+    const [movedPreview] = newPreviews.splice(index, 1);
+    newPreviews.unshift(movedPreview);
+    setPreviewImages(newPreviews);
+
+    // Do the same for imageFiles if needed
+    if (imageFiles.length > 0 && index < imageFiles.length) {
+      const newFiles = [...imageFiles];
+      const [movedFile] = newFiles.splice(index, 1);
+      newFiles.unshift(movedFile);
+      setImageFiles(newFiles);
+    }
+
+    // Optional: show a quick success indicator
+    setPrimaryImageSuccess(0);
+    setTimeout(() => setPrimaryImageSuccess(null), 2000);
+  };
+
+  useEffect(() => {
+    console.log('PreviewImages state changed:', {
+      length: previewImages.length,
+      firstImagePreview: previewImages[0]?.substring(0, 50) + '...'
+    });
+  }, [previewImages]);
+
+  useEffect(() => {
+    console.log('SettingPrimaryImage state changed:', settingPrimaryImage);
+  }, [settingPrimaryImage]);
+
+
+
   const handleCategoryChange = async (value: string) => {
     console.log("Selected category:", value);
     console.log("fetched subcategories:", fetchedSubcategories);
@@ -439,8 +488,8 @@ export default function AddProductPage() {
             visibility: product.visibility,
             tags,
             attributes: selectedAttributes,
-            // Keep existing images
-            images: product.images
+            // Always send the current previewImages order as images
+            images: previewImages
           };
 
           await axios.put(`${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${productId}`, updatedProduct);
@@ -517,6 +566,44 @@ export default function AddProductPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Test Section for Debugging */}
+        {debugMode && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-yellow-800 mb-2">Debug Information</h3>
+            <div className="text-xs text-yellow-700 space-y-1">
+              <p>Total Images: {previewImages.length}</p>
+              <p>Setting Primary Image: {settingPrimaryImage !== null ? `Image ${settingPrimaryImage + 1}` : 'None'}</p>
+              <p>Primary Image Success: {primaryImageSuccess !== null ? `Image ${primaryImageSuccess + 1}` : 'None'}</p>
+              <p>Product ID: {productId || 'New Product'}</p>
+              <p>Images with "Set as Primary" button: {previewImages.length > 1 ? previewImages.length - 1 : 0}</p>
+            </div>
+
+            {/* Test buttons */}
+            {previewImages.length > 1 && (
+              <div className="mt-3 pt-3 border-t border-yellow-200">
+                <h4 className="text-xs font-medium text-yellow-800 mb-2">Test Buttons:</h4>
+                <div className="flex gap-2 flex-wrap">
+                  {previewImages.map((_, index) => (
+                    index !== 0 && (
+                      <Button
+                        key={index}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        onClick={() => setAsPrimary(index)}
+                        disabled={settingPrimaryImage === index}
+                      >
+                        Test Set Image {index + 1} as Primary
+                      </Button>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Name and Category Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column - Name and Description */}
@@ -595,7 +682,6 @@ export default function AddProductPage() {
                     required
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="subcategory">Sub Category</Label>
                   <SearchableSelect
@@ -630,40 +716,52 @@ export default function AddProductPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column - Image */}
           <div className="space-y-4">
-              {/* Upload Button */}
-              <div className="flex items-center justify-between">
-                <Label htmlFor="product-image" className="text-sm font-medium">
-                  Upload Images (Max 10)
-                </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('product-image')?.click()}
-                  className="flex items-center gap-2"
-                  disabled={previewImages.length >= 10}
-                >
-                  <Cloud className="h-4 w-4" />
-                  {previewImages.length > 0 ? 'Add More Images' : 'Choose Images'}
-                </Button>
-              </div>
-
-              {/* Hidden File Input */}
-              <input
-                id="product-image"
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
+            {/* Upload Button */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="product-image" className="text-sm font-medium">
+                Upload Images (Max 10)
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('product-image')?.click()}
+                className="flex items-center gap-2"
                 disabled={previewImages.length >= 10}
-              />
+              >
+                <Cloud className="h-4 w-4" />
+                {previewImages.length > 0 ? 'Add More Images' : 'Choose Images'}
+              </Button>
+            </div>
 
-              {previewImages.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-gray-700">
-                      Product Images ({previewImages.length}/10)
-                    </h3>
+            {/* Hidden File Input */}
+            <input
+              id="product-image"
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+              disabled={previewImages.length >= 10}
+            />
+
+            {previewImages.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Product Images ({previewImages.length}/10)
+                  </h3>
+                  <div className="flex gap-2">
+                    {/* Debug toggle for testing */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDebugMode(!debugMode)}
+                      className={`text-xs ${debugMode ? 'bg-yellow-100 border-yellow-300' : ''}`}
+                      title="Toggle debug mode to always show action buttons"
+                    >
+                      {debugMode ? 'Debug ON' : 'Debug'}
+                    </Button>
                     {previewImages.length > 0 && (
                       <Button
                         type="button"
@@ -681,9 +779,11 @@ export default function AddProductPage() {
                       </Button>
                     )}
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {Array.isArray(previewImages) && previewImages.length > 0 && previewImages.map((preview, index) => (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {Array.isArray(previewImages) && previewImages.length > 0 && previewImages.map((preview, index) => {
+                    return (
                       <div key={`${preview}-${index}`} className="relative group">
                         <div className="relative h-32 w-full">
                           <Image
@@ -693,12 +793,12 @@ export default function AddProductPage() {
                             className="object-cover rounded-lg border border-gray-300 transition-all duration-200 group-hover:border-gray-400"
                           />
 
-                          {/* Remove button */}
+                          {/* Remove button - highest z-index */}
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity z-30"
                             onClick={() => removeImage(index)}
                           >
                             <span className="sr-only">Remove image</span>
@@ -707,47 +807,61 @@ export default function AddProductPage() {
 
                           {/* Primary image indicator */}
                           {index === 0 && (
-                            <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium">
+                            <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium z-20">
                               Primary
                             </div>
                           )}
 
+                          {/* Setting as primary indicator */}
+                          {settingPrimaryImage === index && (
+                            <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded font-medium animate-pulse z-20">
+                              Setting...
+                            </div>
+                          )}
+
+                          {/* Success indicator */}
+                          {primaryImageSuccess === index && (
+                            <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded font-medium z-20">
+                              ✓ Primary
+                            </div>
+                          )}
+
                           {/* Image number */}
-                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded z-20">
                             {index + 1}
                           </div>
 
-                          {/* Move buttons for reordering */}
-                          <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {index > 0 && (
+                          {/* Action buttons - positioned with higher z-index */}
+                          <div className={`absolute bottom-2 right-2 flex gap-1 transition-opacity z-30 ${debugMode ? 'opacity-100' : 'opacity-100'}`}>
+                            {/* Set as Primary button (only show if not already primary) */}
+                            {index !== 0 && (
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="icon"
-                                className="h-5 w-5 bg-black bg-opacity-60 text-white hover:bg-opacity-80"
-                                onClick={() => moveImage(index, index - 1)}
-                                title="Move left"
+                                size="sm"
+                                className="bg-green-600 text-white hover:bg-green-700 border border-white shadow-lg text-xs px-2 py-1 h-auto relative z-40"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('Set as Primary button clicked for index:', index);
+                                  setAsPrimary(index);
+                                }}
+                                disabled={settingPrimaryImage === index}
+                                title="Set as Primary"
+                                style={{ pointerEvents: 'auto' }} // Ensure button can receive clicks
                               >
-                                ←
-                              </Button>
-                            )}
-                            {index < previewImages.length - 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5 bg-black bg-opacity-60 text-white hover:bg-opacity-80"
-                                onClick={() => moveImage(index, index + 1)}
-                                title="Move right"
-                              >
-                                →
+                                {settingPrimaryImage === index ? (
+                                  <div className="animate-spin rounded-full h-3 w-3 border border-white border-t-transparent"></div>
+                                ) : (
+                                  "Set as Primary"
+                                )}
                               </Button>
                             )}
                           </div>
                         </div>
 
-                        {/* Image info on hover */}
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+                        {/* MODIFIED: Hover overlay - with pointer-events-none and lower z-index */}
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center pointer-events-none z-10">
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity text-center">
                             <p className="text-white text-xs bg-black bg-opacity-60 px-2 py-1 rounded">
                               Click to reorder or remove
@@ -755,46 +869,48 @@ export default function AddProductPage() {
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Helper text */}
-                  <p className="text-xs text-gray-500 mt-2">
-                    The first image will be used as the primary product image.
-                    Use the arrow buttons to reorder images.
-                  </p>
+                    );
+                  })}
                 </div>
-              )}
 
-              {/* Empty state when no images */}
-              {previewImages.length === 0 && (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <div className="text-gray-400 mb-2">
-                    <svg className="mx-auto h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <p className="text-sm text-gray-500">No images selected</p>
-                  <p className="text-xs text-gray-400 mt-1">Upload up to 10 product images</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('product-image')?.click()}
-                    className="mt-4 flex items-center gap-2"
-                  >
-                    <Cloud className="h-4 w-4" />
-                    Choose Images
-                  </Button>
-                </div>
-              )}
-
-              {/* Upload limit warning */}
-              {previewImages.length >= 10 && (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
-                  Maximum 10 images allowed. Remove some images to upload more.
+                {/* Helper text */}
+                <p className="text-xs text-gray-500 mt-2">
+                  The first image will be used as the primary product image.
+                  Click "Set as Primary" on any image to make it the primary image.
+                  {debugMode && <span className="text-yellow-600 font-medium"> Debug mode is ON - buttons are always visible.</span>}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Empty state when no images */}
+            {previewImages.length === 0 && (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <div className="text-gray-400 mb-2">
+                  <svg className="mx-auto h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-500">No images selected</p>
+                <p className="text-xs text-gray-400 mt-1">Upload up to 10 product images</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('product-image')?.click()}
+                  className="mt-4 flex items-center gap-2"
+                >
+                  <Cloud className="h-4 w-4" />
+                  Choose Images
+                </Button>
+              </div>
+            )}
+
+            {/* Upload limit warning */}
+            {previewImages.length >= 10 && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                Maximum 10 images allowed. Remove some images to upload more.
+              </p>
+            )}
+          </div>
 
           {/* Right Column - Tags */}
           <div className="bg-white rounded-lg p-6 border border-gray-200">

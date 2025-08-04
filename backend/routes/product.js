@@ -977,6 +977,62 @@ router.patch("/:id/daily-needs", async (req, res) => {
   }
 });
 
+// PATCH /api/products/:id/set-primary-image
+router.patch("/:id/set-primary-image", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { imageIndex } = req.body;
+
+    // Validate imageIndex
+    if (typeof imageIndex !== 'number' || imageIndex < 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid image index. Must be a non-negative number." 
+      });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Product not found" 
+      });
+    }
+
+    // Check if images array exists and has the specified index
+    if (!product.images || !Array.isArray(product.images) || imageIndex >= product.images.length) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid image index or no images found" 
+      });
+    }
+
+    // Reorder images array to put the selected image at index 0
+    const reorderedImages = [...product.images];
+    const selectedImage = reorderedImages.splice(imageIndex, 1)[0];
+    reorderedImages.unshift(selectedImage);
+
+    // Update the product with reordered images
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { images: reorderedImages },
+      { new: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Primary image updated successfully",
+      data: updatedProduct
+    });
+  } catch (err) {
+    console.error("Error updating primary image:", err);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
+  }
+});
+
 // -----------------------------------------------------------> andoid 
 
 router.post("/subcategory", verifyToken, async (req, res) => {
