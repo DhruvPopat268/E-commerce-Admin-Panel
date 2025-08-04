@@ -187,10 +187,7 @@ const handleStatusToggle = async (id) => {
                   className="pl-10 w-64"
                 />
               </div>
-              <Button variant="outline" className="text-teal-600 border-teal-600 hover:bg-teal-50">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
+
             </div>
           </div>
         </div>

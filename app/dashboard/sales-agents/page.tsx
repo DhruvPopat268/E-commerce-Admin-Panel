@@ -550,10 +550,7 @@ export default function SalesAgentPage() {
                             <SelectItem value="100">100</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button variant="outline" onClick={handleExport}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
-                    </Button>
+
                 </div>
             </div>
 

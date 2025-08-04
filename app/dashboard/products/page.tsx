@@ -647,16 +647,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => fetchProducts(currentPage, searchQuery, selectedCategory, selectedSubcategory, selectedStatus)}
-            className="border-gray-300"
-          >
-            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </Button>
+          
           <Button asChild className="bg-teal-700 hover:bg-teal-800 text-white">
             <Link href="/dashboard/products/add">+ Add new product</Link>
           </Button>
