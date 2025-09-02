@@ -1490,6 +1490,7 @@ export default function PendingOrdersPage() {
                     <th className="text-left p-4">Total Amount</th>
                     <th className="text-left p-4">Order Type</th>
                     <th className="text-left p-4">Order Status</th>
+                    <th className="text-left p-4">From Admin</th>
                     <th className="text-left p-4">Action</th>
                   </tr>
                 </thead>
@@ -1533,11 +1534,16 @@ export default function PendingOrdersPage() {
                         </td>
 
 
+
                         <td className="p-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                             <Clock className="h-3 w-3 mr-1" />
                             Pending
                           </span>
+                        </td>
+
+                         <td className="p-4">
+                          <div className="font-medium text-gray-800">{order.fromAdmin ? 'હા' : 'ના'}</div>
                         </td>
                         <td className="p-4">
                           <div className="flex gap-2">

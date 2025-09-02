@@ -484,6 +484,7 @@ export default function ConfirmedOrdersPage() {
                   <th className="text-left p-4 font-semibold">Total Amount</th>
                   <th className="text-left p-4 font-semibold">Order Status</th>
                   <th className="text-left p-4">Order Type</th>
+                  <th className="text-left p-4">From Admin</th>
 
                   <th className="text-left p-4 font-semibold">Action</th>
                 </tr>
@@ -519,7 +520,7 @@ export default function ConfirmedOrdersPage() {
                           <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
                           <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
                           <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
-                          <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
+                          {/* <div className="text-sm text-gray-500">{order.routeName || "-"}</div> */}
                         </td>
                         <td className="p-4">
                           <div className="font-medium">
@@ -534,6 +535,9 @@ export default function ConfirmedOrdersPage() {
                         </td>
                           <td className="p-4">
                           {order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium text-gray-800">{order.fromAdmin ? 'હા' : 'ના'}</div>
                         </td>
                         <td className="p-4">
                           <div className="flex gap-2">

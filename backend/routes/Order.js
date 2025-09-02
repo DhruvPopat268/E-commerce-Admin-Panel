@@ -884,4 +884,95 @@ router.post('/delivered', verifyToken, async (req, res) => {
   }
 });
 
+router.post('/fromAdmin', async (req, res) => {
+  try {
+    const {
+      customerId,
+      customerName,
+      salesAgentName,
+      villageName,
+      mobileNumber,
+      fulfillmentType,
+      items,
+      totalItems,
+      totalAmount,
+      villageCode
+    } = req.body;
+
+    // Validate required fields
+    if (!customerId || !fulfillmentType || !items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: customerId, fulfillmentType, and items are required'
+      });
+    }
+
+    // Transform frontend items to match your Order schema
+    const transformedOrders = items.map(item => {
+      const discountedPrice = item.discountedPrice || item.price || 0;
+      const quantity = item.quantity || 0;
+      const total = discountedPrice * quantity;
+
+      return {
+        productId: item.productId,
+        productName: item.productName,
+        image: item.image || '', // Add image if available
+        attributes: {
+          id: item.attributeId,
+          name: item.attributeName,
+          price: item.price,
+          discountedPrice,
+          quantity,
+          total // ✅ calculated here
+        }
+      };
+    });
+
+    // Create new order document
+    const newOrder = new Order({
+      userId: customerId, // Using customerId as userId
+      orders: transformedOrders,
+      orderDate: new Date(),
+      status: 'pending',
+      villageCode: villageCode || '', // Add villageCode if provided
+      orderType: fulfillmentType === 'takeaway' ? 'take-away' : 'delivery',
+      cancellationDate: null,
+      fromAdmin: true // Since this is from admin dashboard
+    });
+
+    // Save the order to database
+    const savedOrder = await newOrder.save();
+
+    // Success response
+    res.status(201).json({
+      success: true,
+      message: 'Order placed successfully',
+      data: {
+        orderId: savedOrder._id,
+        orderDate: savedOrder.orderDate,
+        status: savedOrder.status,
+        totalItems: totalItems,
+        totalAmount: totalAmount,
+        orderType: savedOrder.orderType,
+        customerInfo: {
+          customerId,
+          customerName,
+          salesAgentName,
+          villageName,
+          mobileNumber
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error placing order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to place order',
+      error: error.message
+    });
+  }
+});
+
+
 module.exports = router;

@@ -411,7 +411,7 @@ export default function AllOrdersPage() {
                     <TableHead className="font-semibold">Total Amount</TableHead>
                     <TableHead className="font-semibold">Order Status</TableHead>
                     <TableHead className="text-left p-4">Order Type</TableHead>
-
+                    <TableHead className="text-left p-4">From Admin</TableHead>
                     <TableHead className="font-semibold">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -434,7 +434,7 @@ export default function AllOrdersPage() {
                           <div className="font-medium text-gray-800">{order.salesAgentName || "N/A"}</div>
                           <div className="text-sm text-gray-500">{order.salesAgentMobile || "-"}</div>
                           <div className="font-medium text-gray-800">{order.villageName || "N/A"}</div>
-                          <div className="text-sm text-gray-500">{order.routeName || "-"}</div>
+                          {/* <div className="text-sm text-gray-500">{order.routeName || "-"}</div> */}
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">
@@ -448,6 +448,9 @@ export default function AllOrdersPage() {
                         </TableCell>
                         <TableCell className="p-4">
                           {order.orderType === 'take-away' ? 'લઈ જવું' : 'મોકલવુ'}
+                        </TableCell>
+                        <TableCell className="p-4">
+                          <div className="font-medium text-gray-800">{order.fromAdmin ? 'હા' : 'ના'}</div>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
