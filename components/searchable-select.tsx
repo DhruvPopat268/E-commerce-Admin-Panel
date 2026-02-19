@@ -50,11 +50,11 @@ export function SearchableSelect({
       <PopoverContent
         align="start"
         sideOffset={4}
-        className="w-[var(--radix-popover-trigger-width)] p-0"
+        className="w-[var(--radix-popover-trigger-width)] p-0 z-[100]"
       >
         <Command>
           <CommandInput placeholder="Search..." />
-          <CommandList className="max-h-72 overflow-y-auto">
+          <CommandList className="max-h-72" style={{ overflowY: 'scroll' }}>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((opt) => (

@@ -16,12 +16,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Minus, Plus, Package, ShoppingBag, Trash2, Users, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SearchableSelect, type Option } from "@/components/searchable-select"
+import { ProductSelector } from "@/components/product-selector"
 import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 type ProductRow = {
   productId: string
   attributeId: string
   quantity: number
+  productData?: Product
+  attributeData?: ProductAttribute
 }
 
 type Customer = {
@@ -71,13 +76,15 @@ export default function DashboardPage() {
   const [open, setOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
-  const [fulfillment, setFulfillment] = useState<"takeaway" | "delivery" | null>(null);
+  const [fulfillment, setFulfillment] = useState<"takeaway" | "delivery" | null>("takeaway");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingOrderData, setLoadingOrderData] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [showProductSelector, setShowProductSelector] = useState<number | null>(null);
 
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     fetchDashboardData();
@@ -165,8 +172,8 @@ export default function DashboardPage() {
       );
 
       setProducts(
-        productsData?.products ||
         productsData?.data ||
+        productsData?.products ||
         (Array.isArray(productsData) ? productsData : [])
       );
 
@@ -237,7 +244,12 @@ export default function DashboardPage() {
   const getRowSubtotal = (row: ProductRow): number => {
     if (!row.productId || !row.attributeId) return 0;
     
-    const product = products.find(p => (p._id || p.id) === row.productId);
+    // Use cached data first
+    if (row.attributeData) {
+      return row.attributeData.discountedPrice * row.quantity;
+    }
+    
+    const product = row.productData || products.find(p => (p._id || p.id) === row.productId);
     if (!product || !product.attributes) return 0;
 
     const attribute = product.attributes.find(attr => attr._id === row.attributeId);
@@ -274,7 +286,9 @@ export default function DashboardPage() {
   }
 
   function addProductRow() {
+    const newIndex = productRows.length;
     setProductRows((rows) => [...rows, { productId: "", attributeId: "", quantity: 1 }]);
+    setShowProductSelector(newIndex);
   }
 
   function removeProductRow(index: number) {
@@ -285,8 +299,20 @@ export default function DashboardPage() {
     setProductRows((rows) => rows.map((r, i) => (i === index ? { ...r, productId, attributeId: "" } : r)));
   }
 
+  function handleProductSelect(index: number, productId: string, attributeId: string) {
+    setProductRows((rows) => rows.map((r, i) => (i === index ? { ...r, productId, attributeId } : r)));
+    setShowProductSelector(null);
+  }
+
   function updateRowAttribute(index: number, attributeId: string) {
-    setProductRows((rows) => rows.map((r, i) => (i === index ? { ...r, attributeId } : r)));
+    setProductRows((rows) => rows.map((r, i) => {
+      if (i === index) {
+        const product = r.productData || products.find(p => (p._id || p.id) === r.productId);
+        const attributeData = product?.attributes?.find(attr => attr._id === attributeId);
+        return { ...r, attributeId, attributeData };
+      }
+      return r;
+    }));
   }
 
   function setRowQuantity(index: number, quantity: number) {
@@ -375,8 +401,8 @@ export default function DashboardPage() {
 
         setOpen(false);
         resetForm();
-        // Refresh dashboard data to show new order
-        fetchDashboardData();
+        // Redirect to all orders page
+        router.push('/dashboard/orders/all');
       } else {
         throw new Error(result.message || 'Failed to place order');
       }
@@ -584,183 +610,184 @@ export default function DashboardPage() {
 
       {/* Place Order Dialog */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-[800px] overflow-x-hidden max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[calc(100vw-20rem)] w-[calc(100vw-20rem)] h-[95vh] max-h-[95vh] left-[calc(50%+9rem)] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Place Order</DialogTitle>
             <DialogDescription>
-              Select a customer, choose fulfillment, then add one or more products with attributes and quantities.
+              Select customer, add products, and complete the order.
             </DialogDescription>
           </DialogHeader>
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="grid gap-2">
-              <Label htmlFor="customer">Customer</Label>
-              <SearchableSelect
-                options={customerOptions}
-                value={selectedCustomer ?? ""}
-                onChange={(v) => setSelectedCustomer(v)}
-                placeholder="Search or select customer"
-                disabled={loadingOrderData || placingOrder}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <Label>Products</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addProductRow}
-                  disabled={!selectedCustomer || loadingOrderData || placingOrder}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add product
-                </Button>
+          
+          <div className="flex-1 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,400px] gap-6 h-full">
+              {/* Left Column - Product Selector */}
+              <div className="overflow-y-auto pr-2">
+                <ProductSelector
+                  onSelect={(productId, attributeId, productData, attributeData) => {
+                    setProductRows((rows) => [...rows, { productId, attributeId, quantity: 1, productData, attributeData }]);
+                  }}
+                  disabled={!selectedCustomer || placingOrder}
+                />
               </div>
 
-              {productRows.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Add one or more products after selecting a customer. Each product requires an attribute and quantity.
-                </p>
-              )}
-
-              <div className="grid gap-3">
-                {productRows.map((row, index) => {
-                  const attrOptions = attributeOptionsForProduct(row.productId);
-                  const subtotal = getRowSubtotal(row);
-                  
-                  return (
-                    <div
-                      key={`prod-row-${index}`}
-                      className="rounded-md border p-4 space-y-3"
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="min-w-0">
-                          <Label className="text-sm font-medium mb-1 block">Product</Label>
-                          <SearchableSelect
-                            options={productOptions}
-                            value={row.productId}
-                            onChange={(v) => updateRowProduct(index, v)}
-                            placeholder="Search or select product"
-                            disabled={loadingOrderData || placingOrder}
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <Label className="text-sm font-medium mb-1 block">Attribute</Label>
-                          <SearchableSelect
-                            options={attrOptions}
-                            value={row.attributeId}
-                            onChange={(v) => updateRowAttribute(index, v)}
-                            placeholder="Search or select attribute"
-                            disabled={!row.productId || loadingOrderData || placingOrder}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm font-medium">Quantity:</Label>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => decRowQty(index)}
-                            disabled={placingOrder}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            value={row.quantity}
-                            onChange={(e) => setRowQuantity(index, Number(e.target.value))}
-                            className="w-16 text-center h-8"
-                            disabled={placingOrder}
-                          />
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => incRowQty(index)}
-                            disabled={placingOrder}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          {subtotal > 0 && (
-                            <div className="text-sm font-semibold text-green-600">
-                              Subtotal: ₹{subtotal}
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-red-500 hover:text-red-700"
-                            onClick={() => removeProductRow(index)}
-                            aria-label="Remove product"
-                            disabled={placingOrder}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {productRows.length > 0 && (
-                <div className="border-t pt-3 space-y-2">
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>
-                      {productRows.length} product{productRows.length === 1 ? "" : "s"} • {totalItems} total item{totalItems === 1 ? "" : "s"}
-                    </span>
+              {/* Right Column - Order Details */}
+              <div className="border-l pl-6 overflow-y-auto">
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                  <div>
+                    <Label>Customer</Label>
+                    <SearchableSelect
+                      options={customerOptions}
+                      value={selectedCustomer ?? ""}
+                      onChange={(v) => setSelectedCustomer(v)}
+                      placeholder="Select customer"
+                      disabled={loadingOrderData || placingOrder}
+                    />
                   </div>
-                  {orderTotal > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-semibold">Order Total:</span>
-                      <span className="text-xl font-bold text-green-600">₹{orderTotal}</span>
+
+                  <div>
+                    <Label>Fulfillment</Label>
+                    <RadioGroup
+                      value={fulfillment ?? "takeaway"}
+                      onValueChange={(v) => setFulfillment(v as "takeaway" | "delivery")}
+                      className="flex gap-4 mt-2"
+                      disabled={placingOrder}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem id="takeaway" value="takeaway" disabled={placingOrder} />
+                        <Label htmlFor="takeaway">Takeaway</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem id="delivery" value="delivery" disabled={placingOrder} />
+                        <Label htmlFor="delivery">Delivery</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  <div>
+                    <Label className="mb-2 block">Selected Products</Label>
+                    {productRows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8 border rounded-lg">
+                        Select products from the left
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {productRows.map((row, index) => {
+                          const product = row.productData || products.find(p => (p._id || p.id) === row.productId);
+                          const attribute = row.attributeData || product?.attributes?.find(attr => attr._id === row.attributeId);
+                          const subtotal = getRowSubtotal(row);
+                          
+                          return (
+                            <div key={index} className="border rounded-lg p-3 space-y-2">
+                              <div className="flex gap-2">
+                                {product?.images?.[0] && (
+                                  <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100 flex-shrink-0">
+                                    <Image
+                                      src={product.images[0]}
+                                      alt={product?.name || ''}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm line-clamp-1">{product?.name || product?.productName}</p>
+                                  <p className="text-xs text-muted-foreground">{attribute?.name} • ₹{attribute?.discountedPrice}</p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500"
+                                  onClick={() => removeProductRow(index)}
+                                  disabled={placingOrder}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              
+                              {product?.attributes && product.attributes.length > 1 && (
+                                <div>
+                                  <Label className="text-xs">Attribute</Label>
+                                  <select
+                                    value={row.attributeId}
+                                    onChange={(e) => updateRowAttribute(index, e.target.value)}
+                                    className="w-full text-sm border rounded px-2 py-1 mt-1"
+                                    disabled={placingOrder}
+                                  >
+                                    {product.attributes.map((attr) => (
+                                      <option key={attr._id} value={attr._id}>
+                                        {attr.name} - ₹{attr.discountedPrice}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => decRowQty(index)}
+                                    disabled={placingOrder}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    value={row.quantity}
+                                    onChange={(e) => setRowQuantity(index, Number(e.target.value))}
+                                    className="w-14 text-center h-7 text-sm"
+                                    disabled={placingOrder}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => incRowQty(index)}
+                                    disabled={placingOrder}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                <span className="text-sm font-semibold text-green-600">₹{subtotal}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {productRows.length > 0 && (
+                    <div className="border-t pt-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Total Items:</span>
+                        <span className="font-medium">{totalItems}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-semibold">Order Total:</span>
+                        <span className="text-xl font-bold text-green-600">₹{orderTotal}</span>
+                      </div>
                     </div>
                   )}
-                </div>
-              )}
-            </div>
 
-            <div className="grid gap-2">
-              <Label>Fulfillment</Label>
-              <RadioGroup
-                value={fulfillment ?? ""}
-                onValueChange={(v) => setFulfillment(v as "takeaway" | "delivery")}
-                className="flex flex-wrap items-center gap-4"
-                disabled={placingOrder}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem id="fulfillment-takeaway" value="takeaway" disabled={placingOrder} />
-                  <Label htmlFor="fulfillment-takeaway">Takeaway</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem id="fulfillment-delivery" value="delivery" disabled={placingOrder} />
-                  <Label htmlFor="fulfillment-delivery">Delivery</Label>
-                </div>
-              </RadioGroup>
+                  <div className="flex gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={placingOrder} className="flex-1">
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={!isValid || placingOrder} className="flex-1">
+                      {placingOrder ? 'Placing...' : `Place Order`}
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </div>
-
-            <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={placingOrder}>
-                <X className="h-4 w-4 mr-1" />
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!isValid || placingOrder}>
-                {placingOrder ? 'Placing Order...' : `Place Order${orderTotal > 0 ? ` - ₹${orderTotal}` : ''}`}
-              </Button>
-            </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
