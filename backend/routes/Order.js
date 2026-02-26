@@ -943,6 +943,35 @@ router.post('/fromAdmin', async (req, res) => {
     // Save the order to database
     const savedOrder = await newOrder.save();
 
+    // Auto-print functionality
+    let printStatus = null;
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const printersRoom = io.sockets.adapter.rooms.get('printers');
+        if (printersRoom && printersRoom.size > 0) {
+          io.to('printers').emit('print-order', {
+            order: savedOrder,
+            salesAgentName,
+            salesAgentMobile: mobileNumber,
+            villageName,
+            jobId: savedOrder._id.toString()
+          });
+          console.log(`📄 Print request sent to ${printersRoom.size} printer(s) for order:`, savedOrder._id);
+          printStatus = {
+            success: true,
+            message: `Print request sent to ${printersRoom.size} printing server(s)`,
+            connectedPrinters: printersRoom.size
+          };
+        } else {
+          printStatus = { success: false, message: 'No printing servers are connected', connectedPrinters: 0 };
+        }
+      }
+    } catch (printError) {
+      console.error('❌ Error in auto-print:', printError);
+      printStatus = { success: false, message: 'Error sending print request', error: printError.message };
+    }
+
     // Success response
     res.status(201).json({
       success: true,
@@ -961,7 +990,8 @@ router.post('/fromAdmin', async (req, res) => {
           villageName,
           mobileNumber
         }
-      }
+      },
+      printStatus
     });
 
   } catch (error) {
