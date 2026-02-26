@@ -359,7 +359,7 @@ router.get("/", async (req, res) => {
       query.$or = [
         { name: { $regex: searchTerm, $options: 'i' } },
         { description: { $regex: searchTerm, $options: 'i' } },
-        { sku: { $regex: searchTerm, $options: 'i' } }
+        { tags: { $in: [new RegExp(searchTerm, 'i')] } }
       ];
     }
 
