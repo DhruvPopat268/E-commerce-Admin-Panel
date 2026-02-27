@@ -15,7 +15,7 @@ router.post('/add', verifyToken, async (req, res) => {
 
     // Check if product exists
     const product = await Product.findById(productId);
-    console.log(product)
+   
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     // Check if the specific attribute exists in the product

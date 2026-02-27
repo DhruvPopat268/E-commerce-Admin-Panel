@@ -64,12 +64,12 @@ router.put('/:id/status', async (req, res) => {
             }
           }
 
-          console.log(`Updated and notified ${updateResult.modifiedCount} sales agents`);
+          
         } else {
-          console.log(`Route disabled - no notifications sent to ${updateResult.modifiedCount} sales agents`);
+          
         }
       } else {
-        console.log(`No route setup or agents for route ID: ${id}`);
+        
       }
     } catch (agentUpdateError) {
       console.error('Error updating agents:', agentUpdateError);

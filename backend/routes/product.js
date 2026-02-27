@@ -81,11 +81,11 @@ const processExcelData = (buffer, filename) => {
       throw new Error('Excel file must contain at least a header row and one data row');
     }
 
-    console.log('Raw Excel data:', jsonData);
+    //console.log('Raw Excel data:', jsonData);
 
     // Get headers and normalize them
     const headers = jsonData[0].map(h => String(h || '').trim());
-    console.log('Headers found:', headers);
+    //console.log('Headers found:', headers);
 
     // Process data rows
     const processedData = [];
@@ -120,7 +120,7 @@ const processExcelData = (buffer, filename) => {
       }
     }
 
-    console.log('Processed data:', processedData);
+    //console.log('Processed data:', processedData);
     return processedData;
 
   } catch (error) {
@@ -132,7 +132,7 @@ const processExcelData = (buffer, filename) => {
 // Helper function to find or create category
 const findOrCreateCategory = async (categoryName) => {
   try {
-    console.log(`🔍 Finding or creating category: ${categoryName}`);
+    //console.log(`🔍 Finding or creating category: ${categoryName}`);
 
     // First try to find existing category
     let matchedCategory = await category.findOne({
@@ -140,12 +140,12 @@ const findOrCreateCategory = async (categoryName) => {
     }).lean();
 
     if (matchedCategory) {
-      console.log('✅ Existing category found:', matchedCategory.name, 'ID:', matchedCategory._id);
+      //console.log('✅ Existing category found:', matchedCategory.name, 'ID:', matchedCategory._id);
       return matchedCategory;
     }
 
     // Create new category if not found
-    console.log('🆕 Creating new category:', categoryName);
+    //console.log('🆕 Creating new category:', categoryName);
     const newCategory = new category({
       name: categoryName.trim(),
       status: true,
@@ -153,7 +153,7 @@ const findOrCreateCategory = async (categoryName) => {
     });
 
     const savedCategory = await newCategory.save();
-    console.log('✅ New category created:', savedCategory.name, 'ID:', savedCategory._id);
+    //console.log('✅ New category created:', savedCategory.name, 'ID:', savedCategory._id);
 
     return savedCategory.toObject();
 
@@ -166,7 +166,7 @@ const findOrCreateCategory = async (categoryName) => {
 // Helper function to find or create subcategory
 const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName) => {
   try {
-    console.log(`🔍 Finding or creating subcategory: ${subcategoryName} for category: ${categoryName}`);
+    //console.log(`🔍 Finding or creating subcategory: ${subcategoryName} for category: ${categoryName}`);
 
     // First try to find existing subcategory
     let matchedSubcategory = await subCategory.findOne({
@@ -174,27 +174,27 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
     }).lean();
 
     if (matchedSubcategory) {
-      console.log('✅ Existing subcategory found:', matchedSubcategory.name, 'ID:', matchedSubcategory._id);
+      //console.log('✅ Existing subcategory found:', matchedSubcategory.name, 'ID:', matchedSubcategory._id);
 
       // Check if subcategory belongs to the correct category
       let subcategoryCategoryId = matchedSubcategory.category || matchedSubcategory.categoryId;
 
       if (subcategoryCategoryId && subcategoryCategoryId.toString() === categoryId.toString()) {
-        console.log('✅ Subcategory belongs to correct category');
+        //console.log('✅ Subcategory belongs to correct category');
         return matchedSubcategory;
       } else {
-        console.log('⚠️ Subcategory exists but belongs to different category');
+        //console.log('⚠️ Subcategory exists but belongs to different category');
         // You can either:
         // 1. Create a new subcategory with same name but different category
         // 2. Update existing subcategory to new category
         // 3. Throw error
         // Here we'll create a new one with a slightly different approach
-        console.log('🆕 Creating new subcategory with same name for different category');
+        //console.log('🆕 Creating new subcategory with same name for different category');
       }
     }
 
     // Create new subcategory
-    console.log('🆕 Creating new subcategory:', subcategoryName);
+    //console.log('🆕 Creating new subcategory:', subcategoryName);
     const newSubcategory = new subCategory({
       name: subcategoryName.trim(),
       category: categoryId, // Use category field
@@ -204,7 +204,7 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
     });
 
     const savedSubcategory = await newSubcategory.save();
-    console.log('✅ New subcategory created:', savedSubcategory.name, 'ID:', savedSubcategory._id);
+    //console.log('✅ New subcategory created:', savedSubcategory.name, 'ID:', savedSubcategory._id);
 
     return savedSubcategory.toObject();
 
@@ -216,45 +216,45 @@ const findOrCreateSubcategory = async (subcategoryName, categoryId, categoryName
 
 // Helper function to validate and transform product data
 const validateAndTransformProduct = async (row) => {
-  console.log(`\n=== Validating Row ${row.rowNumber} ===`);
-  console.log('Row data:', row);
+  //console.log(`\n=== Validating Row ${row.rowNumber} ===`);
+  //console.log('Row data:', row);
 
   const errors = [];
   const { name, category: categoryName, subcategory: subcategoryName, description = '', price = 0, stock = 0, rowNumber } = row;
 
   // Log what we're validating
-  console.log('Validating:', { name, categoryName, subcategoryName });
+  //console.log('Validating:', { name, categoryName, subcategoryName });
 
   // Required field validation with detailed logging
   if (!name || name.trim().length === 0) {
-    console.log('❌ Name validation failed:', name);
+    //console.log('❌ Name validation failed:', name);
     errors.push(`Row ${rowNumber}: Product name is required`);
   } else {
-    console.log('✅ Name validation passed:', name);
+    //console.log('✅ Name validation passed:', name);
   }
 
   if (!categoryName || categoryName.trim().length === 0) {
-    console.log('❌ Category validation failed:', categoryName);
+    //console.log('❌ Category validation failed:', categoryName);
     errors.push(`Row ${rowNumber}: Category is required`);
   } else {
-    console.log('✅ Category validation passed:', categoryName);
+    //console.log('✅ Category validation passed:', categoryName);
   }
 
   if (!subcategoryName || subcategoryName.trim().length === 0) {
-    console.log('❌ Subcategory validation failed:', subcategoryName);
+    //console.log('❌ Subcategory validation failed:', subcategoryName);
     errors.push(`Row ${rowNumber}: Subcategory is required`);
   } else {
-    console.log('✅ Subcategory validation passed:', subcategoryName);
+    //console.log('✅ Subcategory validation passed:', subcategoryName);
   }
 
   // Early return if required fields are missing
   if (errors.length > 0) {
-    console.log('❌ Basic validation failed, errors:', errors);
+    //console.log('❌ Basic validation failed, errors:', errors);
     return { product: null, errors };
   }
 
   // Step 1: Find or create category
-  console.log('🔍 Step 1: Finding or creating category...');
+  //console.log('🔍 Step 1: Finding or creating category...');
   let matchedCategory;
   try {
     matchedCategory = await findOrCreateCategory(categoryName);
@@ -265,7 +265,7 @@ const validateAndTransformProduct = async (row) => {
   }
 
   // Step 2: Find or create subcategory
-  console.log('🔍 Step 2: Finding or creating subcategory...');
+  //console.log('🔍 Step 2: Finding or creating subcategory...');
   let matchedSubcategory;
   try {
     matchedSubcategory = await findOrCreateSubcategory(subcategoryName, matchedCategory._id, categoryName);
@@ -276,18 +276,18 @@ const validateAndTransformProduct = async (row) => {
   }
 
   // Step 3: Check for duplicate product name
-  console.log('🔍 Step 3: Checking for duplicate products...');
+  //console.log('🔍 Step 3: Checking for duplicate products...');
   try {
     const existingProduct = await Product.findOne({
       name: { $regex: new RegExp(`^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
     });
 
     if (existingProduct) {
-      console.log('❌ Duplicate product found:', existingProduct.name);
+      //console.log('❌ Duplicate product found:', existingProduct.name);
       errors.push(`Row ${rowNumber}: Product '${name}' already exists`);
       return { product: null, errors };
     } else {
-      console.log('✅ No duplicate product found');
+      //console.log('✅ No duplicate product found');
     }
   } catch (dbError) {
     console.error('Database error during duplicate check:', dbError);
@@ -296,7 +296,7 @@ const validateAndTransformProduct = async (row) => {
   }
 
   // Step 4: Validate price and stock
-  console.log('🔍 Step 4: Validating price and stock...');
+  //console.log('🔍 Step 4: Validating price and stock...');
   const finalPrice = isNaN(price) ? 0 : Math.max(0, parseFloat(price));
   const finalStock = isNaN(stock) ? 0 : Math.max(0, parseInt(stock));
 
@@ -313,7 +313,7 @@ const validateAndTransformProduct = async (row) => {
   }
 
   // Step 5: Create product object
-  console.log('🔍 Step 5: Creating product object...');
+  //console.log('🔍 Step 5: Creating product object...');
   const product = {
     name: name.trim(),
     description: description.trim() || '',
@@ -361,6 +361,7 @@ router.get("/", async (req, res) => {
         { description: { $regex: searchTerm, $options: 'i' } },
         { tags: { $in: [new RegExp(searchTerm, 'i')] } }
       ];
+      query.status = true;
     }
 
     // Apply status filter if provided
@@ -479,30 +480,24 @@ router.post('/', uploadImage.array('images', 10), async (req, res) => {
 
 // Bulk import route (new)
 router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) => {
-  console.log('\n🚀 Starting bulk import process...');
+  //console.log('\n🚀 Starting bulk import process...');
 
   try {
     if (!req.file) {
-      console.log('❌ No file uploaded');
+      //console.log('❌ No file uploaded');
       return res.status(400).json({
         success: false,
         message: 'No Excel file uploaded'
       });
     }
 
-    console.log('📁 File received:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
-
     // Process Excel data
     let excelData;
     try {
       excelData = processExcelData(req.file.buffer, req.file.originalname);
-      console.log(`📊 Processed ${excelData.length} rows from Excel`);
+      //console.log(`📊 Processed ${excelData.length} rows from Excel`);
     } catch (error) {
-      console.log('❌ Excel processing failed:', error.message);
+      //console.log('❌ Excel processing failed:', error.message);
       return res.status(400).json({
         success: false,
         message: `Error processing Excel file: ${error.message}`
@@ -510,7 +505,7 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
     }
 
     if (!excelData || excelData.length === 0) {
-      console.log('❌ No valid data found in Excel');
+      //console.log('❌ No valid data found in Excel');
       return res.status(400).json({
         success: false,
         message: 'Excel file contains no valid data rows'
@@ -532,30 +527,30 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
     const createdSubcategories = [];
 
     // Process each row
-    console.log('🔄 Processing rows...');
+    //console.log('🔄 Processing rows...');
     for (let i = 0; i < excelData.length; i++) {
       const row = excelData[i];
-      console.log(`\n--- Processing row ${i + 1}/${excelData.length} ---`);
+      //console.log(`\n--- Processing row ${i + 1}/${excelData.length} ---`);
 
       try {
         const { product, errors } = await validateAndTransformProduct(row);
 
         if (errors.length > 0) {
-          console.log(`❌ Validation failed for row ${row.rowNumber}:`, errors);
+          //console.log(`❌ Validation failed for row ${row.rowNumber}:`, errors);
           results.errors.push(...errors);
           results.failed++;
           continue;
         }
 
         if (!product) {
-          console.log(`❌ No product object created for row ${row.rowNumber}`);
+          //console.log(`❌ No product object created for row ${row.rowNumber}`);
           results.failed++;
           results.errors.push(`Row ${row.rowNumber}: Failed to create product object`);
           continue;
         }
 
         // Create and save the product
-        console.log(`💾 Saving product: ${product.name}`);
+        //console.log(`💾 Saving product: ${product.name}`);
         const newProduct = new Product(product);
         const savedProduct = await newProduct.save();
 
@@ -569,25 +564,15 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
         });
 
         results.successful++;
-        console.log(`✅ Successfully saved: ${savedProduct.name} (ID: ${savedProduct._id})`);
+        //console.log(`✅ Successfully saved: ${savedProduct.name} (ID: ${savedProduct._id})`);
 
       } catch (error) {
-        console.log(`❌ Database error for row ${row.rowNumber}:`, error.message);
+        //console.log(`❌ Database error for row ${row.rowNumber}:`, error.message);
         console.error('Error details:', error);
         results.failed++;
         results.errors.push(`Row ${row.rowNumber}: Database error - ${error.message}`);
       }
     }
-
-    // Prepare response
-    console.log('\n📊 Import Summary:', {
-      total: results.total,
-      successful: results.successful,
-      failed: results.failed,
-      errorCount: results.errors.length,
-      categoriesCreated: results.categoriesCreated,
-      subcategoriesCreated: results.subcategoriesCreated
-    });
 
     let message = `Bulk import completed. ${results.successful} products created, ${results.failed} failed.`;
     if (results.categoriesCreated > 0 || results.subcategoriesCreated > 0) {
@@ -620,7 +605,7 @@ router.post('/bulk-import', uploadExcel.single('excelFile'), async (req, res) =>
     }
 
     // Log final response
-    console.log('📋 Final response prepared');
+    //console.log('📋 Final response prepared');
     res.status(200).json(response);
 
   } catch (error) {
@@ -795,7 +780,7 @@ router.get("/:id", async (req, res) => {
 
     res.status(200).json(transformedProduct);
   } catch (err) {
-    console.log("Error: " + err);
+    //console.log("Error: " + err);
 
     // Handle specific MongoDB errors
     if (err.name === 'CastError') {
@@ -846,7 +831,7 @@ router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
               .join('/')
               .split('.')[0]; // Remove file extension
             await cloudinary.uploader.destroy(publicId);
-            console.log('Old product image deleted from Cloudinary:', publicId);
+            //console.log('Old product image deleted from Cloudinary:', publicId);
           } catch (deleteError) {
             console.error('Error deleting old product image from Cloudinary:', deleteError);
             // Continue with update even if old image deletion fails
@@ -920,7 +905,7 @@ router.delete('/:id', async (req, res) => {
           .split('.')[0]; // Remove file extension
 
         await cloudinary.uploader.destroy(publicId);
-        console.log('Product image deleted from Cloudinary:', publicId);
+        //console.log('Product image deleted from Cloudinary:', publicId);
       } catch (deleteError) {
         console.error('Error deleting product image from Cloudinary:', deleteError);
         // Continue with product deletion even if image deletion fails
@@ -1040,7 +1025,7 @@ router.post("/subcategory", verifyToken, async (req, res) => {
   try {
 
     const subCategoryId = req.body.id;
-    console.log(subCategoryId)
+    //console.log(subCategoryId)
 
     if (!mongoose.Types.ObjectId.isValid(subCategoryId)) {
       return res.status(400).json({

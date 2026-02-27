@@ -20,8 +20,6 @@ const sendNotificationToPlayer = async (playerId, title, message, data = {}) => 
         },
       }
     );
-
-    console.log(`✅ Notification sent to ${playerId}`);
     return response.data;
   } catch (error) {
     console.error(`❌ Failed to send notification to ${playerId}:`, error.response?.data || error.message);

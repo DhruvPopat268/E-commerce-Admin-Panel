@@ -18,8 +18,6 @@ const sendNotificationsToAgents = async () => {
         });
       }
     }
-
-    console.log(`✅ Scheduled notifications sent to ${agents.length} agents`);
   } catch (error) {
     console.error('❌ Error sending scheduled notifications:', error.message);
   }

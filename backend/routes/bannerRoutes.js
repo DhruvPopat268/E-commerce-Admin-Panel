@@ -260,7 +260,7 @@ router.get('/', async (req, res) => {
 
     res.status(200).json(bannersWithImageUrl);
   } catch (err) {
-    console.log(err)
+    
     res.status(500).json({ error: err.message });
   }
 });
@@ -275,7 +275,7 @@ router.put('/toggle/:id', async (req, res) => {
     await banner.save();
     res.json(banner);
   } catch (err) {
-    console.log(err)
+  
     res.status(500).json({ error: err.message });
   }
 });
@@ -300,7 +300,7 @@ router.post('/android',verifyToken, async (req, res) => {
 
     res.status(200).json(bannersWithImageUrl);
   } catch (err) {
-    console.log(err);
+   
     res.status(500).json({ error: err.message });
   }
 })

@@ -25,7 +25,7 @@ const ProductSchema = new mongoose.Schema(
     images: [String],
     tags: [{ type: String }],
     attributes: [AttributeSchema],
-    featured: { type: Boolean, default: false },
+    // featured: { type: Boolean, default: false },
     showInDailyNeeds: { type: Boolean, default: false }, // ✅ NEW FIELD
   },
   {

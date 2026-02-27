@@ -60,7 +60,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
 
-    console.log(salesAgent.villageName);
+  
 
     // Create and save the new order
     const newOrder = new Order({
@@ -184,7 +184,7 @@ router.get('/all', async (req, res) => {
 
     // Create agent map for quick lookup
     const agentMap = new Map(agents.map(agent => [agent._id.toString(), agent]));
-    console.log(agentMap)
+   
 
     // Extract valid village IDs from agents
     const validVillageIds = agents
@@ -370,7 +370,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ success: true, order });
   } catch (err) {
-    console.log(err);
+  
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -964,6 +964,7 @@ router.post('/fromAdmin', async (req, res) => {
             connectedPrinters: printersRoom.size
           };
         } else {
+          console.log('⚠️  No printing servers connected for auto-print');
           printStatus = { success: false, message: 'No printing servers are connected', connectedPrinters: 0 };
         }
       }

@@ -19,7 +19,6 @@ const updateAgentTags = async (playerId, tags) => {
         },
       }
     );
-    console.log(`✓ Tags updated for player ${playerId}`);
     return true;
   } catch (error) {
     console.error(`✗ Failed to update tags for player ${playerId}`, error.response?.data || error.message);

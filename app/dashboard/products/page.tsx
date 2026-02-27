@@ -666,7 +666,7 @@ export default function ProductsPage() {
               <TableHead>Selling Price</TableHead>
               <TableHead>Discounted Price</TableHead>
               <TableHead>Show In Daily Needs</TableHead>
-              <TableHead>Featured</TableHead>
+              {/* <TableHead>Featured</TableHead> */}
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Action</TableHead>
             </TableRow>
@@ -720,13 +720,13 @@ export default function ProductsPage() {
                       className="data-[state=checked]:bg-teal-500"
                     />
                   </TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     <Switch
                       checked={product.featured}
                       onCheckedChange={() => toggleFeatured(product._id)}
                       className="data-[state=checked]:bg-teal-500"
                     />
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell>
                     <Switch
                       checked={product.status}
