@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Zoya Traders',
@@ -28,6 +29,7 @@ export default function RootLayout({
       </head>
       <body>
         <ToastContainer position="top-right" autoClose={3000} />
+        <Toaster />
         {children}
       </body>
     </html>

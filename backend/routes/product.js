@@ -439,43 +439,70 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post('/', uploadImage.array('images', 10), async (req, res) => {
-  try {
-    // Parse JSON strings back to objects
-    if (req.body.tags && typeof req.body.tags === 'string') {
-      req.body.tags = JSON.parse(req.body.tags);
-    }
-    if (req.body.attributes && typeof req.body.attributes === 'string') {
-      req.body.attributes = JSON.parse(req.body.attributes);
-    }
+router.post('/', (req, res) => {
 
-    // Convert string values to appropriate types for attributes
-    if (req.body.attributes && Array.isArray(req.body.attributes)) {
-      req.body.attributes = req.body.attributes.map(attr => ({
-        ...attr,
-        price: Number(attr.price),
-        discountedPrice: Number(attr.discountedPrice)
-      }));
+  uploadImage.array('images', 10)(req, res, async function (error) {
+
+    if (error) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          message: 'File size too large. Maximum size is 5MB per image.'
+        });
+      }
+
+      return res.status(500).json({
+        message: error.message
+      });
     }
 
-    // Convert visibility string to boolean
-    if (typeof req.body.visibility === 'string') {
-      req.body.visibility = req.body.visibility === 'true';
+    try {
+
+      // Parse JSON strings
+      if (req.body.tags && typeof req.body.tags === 'string') {
+        req.body.tags = JSON.parse(req.body.tags);
+      }
+
+      if (req.body.attributes && typeof req.body.attributes === 'string') {
+        req.body.attributes = JSON.parse(req.body.attributes);
+      }
+
+      // Convert attributes
+      if (req.body.attributes && Array.isArray(req.body.attributes)) {
+        req.body.attributes = req.body.attributes.map(attr => ({
+          ...attr,
+          price: Number(attr.price),
+          discountedPrice: Number(attr.discountedPrice)
+        }));
+      }
+
+      // visibility
+      if (typeof req.body.visibility === 'string') {
+        req.body.visibility = req.body.visibility === 'true';
+      }
+
+      const product = new Product(req.body);
+
+      // images
+      if (req.files && req.files.length > 0) {
+        product.images = req.files.map(file => file.path);
+      }
+
+      await product.save();
+
+      res.status(201).json(product);
+
+    } catch (err) {
+
+      console.error('Error creating product:', err);
+
+      res.status(400).json({
+        message: err.message
+      });
+
     }
 
-    const product = new Product(req.body);
+  });
 
-    // Handle multiple image uploads with Cloudinary
-    if (req.files && req.files.length > 0) {
-      product.images = req.files.map(file => file.path);
-    }
-
-    await product.save();
-    res.status(201).json(product);
-  } catch (error) {
-    console.error('Error creating product:', error);
-    res.status(400).json({ message: error.message });
-  }
 });
 
 // Bulk import route (new)
@@ -856,6 +883,12 @@ router.put('/:id', uploadImage.array('images', 10), async (req, res) => {
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
+    
+    // Handle multer file size error
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File size too large. Maximum size is 5MB per image.' });
+    }
+    
     res.status(400).json({ message: error.message });
   }
 });
@@ -1045,7 +1078,8 @@ router.post("/subcategory", verifyToken, async (req, res) => {
     const subCategoryName = subCategoryExists.name;
 
     const products = await Product.find({
-      subCategory: subCategoryId || new mongoose.Types.ObjectId(subCategoryId)
+      subCategory: subCategoryId || new mongoose.Types.ObjectId(subCategoryId),
+      status: true
     });
 
     if (!products || products.length === 0) {

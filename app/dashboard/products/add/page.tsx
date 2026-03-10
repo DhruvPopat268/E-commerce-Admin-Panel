@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tag } from "lucide-react";
 import { Settings } from "lucide-react";
 import { Search, ChevronDown, Check } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast"
 
 interface Category {
   _id: string;
@@ -172,6 +173,7 @@ export default function AddProductPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId');
+  const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -292,6 +294,11 @@ export default function AddProductPage() {
       } catch (err) {
         console.error("Error loading data:", err);
         setError("Failed to load product data. Please try again.");
+        toast({
+          title: "Error",
+          description: "Failed to load product data. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -529,14 +536,20 @@ export default function AddProductPage() {
         });
       }
 
+      toast({
+        title: "Success",
+        description: productId ? "Product updated successfully" : "Product added successfully",
+      });
       router.push("/dashboard/products");
     } catch (err) {
       console.error("Save failed:", err);
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || "Failed to save product. Please try again.");
-      } else {
-        setError("Failed to save product. Please try again.");
-      }
+      const errorMsg = axios.isAxiosError(err) ? err.response?.data?.message || "Failed to save product. Please try again." : "Failed to save product. Please try again.";
+      setError(errorMsg);
+      toast({
+        title: "Error",
+        description: errorMsg,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
