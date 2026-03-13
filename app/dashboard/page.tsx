@@ -82,6 +82,9 @@ export default function DashboardPage() {
   const [loadingOrderData, setLoadingOrderData] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [showProductSelector, setShowProductSelector] = useState<number | null>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<boolean>(true);
+
+  console.log("Delivery Status from localStorage:", localStorage.getItem("deliveryStatus"))
 
   const { toast } = useToast();
   const router = useRouter();
@@ -89,6 +92,14 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchDashboardData();
     fetchOrderFormData();
+  }, []);
+
+  useEffect(() => {
+    const storedStatus = localStorage.getItem("deliveryStatus");
+
+    if (storedStatus !== null) {
+      setDeliveryStatus(storedStatus === "true");
+    }
   }, []);
 
   const fetchDashboardData = async () => {
@@ -228,7 +239,7 @@ export default function DashboardPage() {
     }
 
     const product = products.find(p => (p._id || p.id) === productId);
-    
+
     if (!product || !product.attributes || product.attributes.length === 0) {
       return [{ value: 'default', label: 'No attributes available' }];
     }
@@ -243,12 +254,12 @@ export default function DashboardPage() {
   // Calculate subtotal for a product row
   const getRowSubtotal = (row: ProductRow): number => {
     if (!row.productId || !row.attributeId) return 0;
-    
+
     // Use cached data first
     if (row.attributeData) {
       return row.attributeData.discountedPrice * row.quantity;
     }
-    
+
     const product = row.productData || products.find(p => (p._id || p.id) === row.productId);
     if (!product || !product.attributes) return 0;
 
@@ -617,7 +628,7 @@ export default function DashboardPage() {
               Select customer, add products, and complete the order.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex-1 overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-[1fr,400px] gap-6 h-full">
               {/* Left Column - Product Selector */}
@@ -656,10 +667,12 @@ export default function DashboardPage() {
                         <RadioGroupItem id="takeaway" value="takeaway" disabled={placingOrder} />
                         <Label htmlFor="takeaway">Takeaway</Label>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem id="delivery" value="delivery" disabled={placingOrder} />
-                        <Label htmlFor="delivery">Delivery</Label>
-                      </div>
+                      {deliveryStatus && (
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem id="delivery" value="delivery" disabled={placingOrder} />
+                          <Label htmlFor="delivery">Delivery</Label>
+                        </div>
+                      )}
                     </RadioGroup>
                   </div>
 
@@ -675,7 +688,7 @@ export default function DashboardPage() {
                           const product = row.productData || products.find(p => (p._id || p.id) === row.productId);
                           const attribute = row.attributeData || product?.attributes?.find(attr => attr._id === row.attributeId);
                           const subtotal = getRowSubtotal(row);
-                          
+
                           return (
                             <div key={index} className="border rounded-lg p-3 space-y-2">
                               <div className="flex gap-2">
@@ -704,7 +717,7 @@ export default function DashboardPage() {
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
-                              
+
                               {product?.attributes && product.attributes.length > 1 && (
                                 <div>
                                   <Label className="text-xs">Attribute</Label>
@@ -722,7 +735,7 @@ export default function DashboardPage() {
                                   </select>
                                 </div>
                               )}
-                              
+
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1">
                                   <Button

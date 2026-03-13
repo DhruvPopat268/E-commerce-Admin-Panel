@@ -22,6 +22,7 @@ const routeSetupRoutes = require('./routes/routeSetupRputes');
 const combineRoutes = require('./routes/combineRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/Order');
+const deliveryStatusRoutes = require('./routes/deliveryStatusRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -127,6 +128,7 @@ app.use("/api/routesSetup", routeSetupRoutes);
 app.use("/api/c/b/d", combineRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/delivery-status', deliveryStatusRoutes);
 
 // Print routes
 app.post('/api/print/send-to-print',verifyToken, async (req, res) => {
@@ -191,8 +193,6 @@ app.post('/api/print/send-to-print',verifyToken, async (req, res) => {
     });
   }
 });
-
-
 
 // Error handling middleware
 app.use((error, req, res, next) => {

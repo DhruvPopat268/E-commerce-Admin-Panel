@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import axios from "axios"
 import AuthWrapper from "@/components/AuthWrapper"
@@ -40,6 +41,7 @@ type NavItem = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [deliveryStatus, setDeliveryStatus] = useState(false)
   const [navItems, setNavItems] = useState<NavItem[]>([
     {
       label: "Dashboard",
@@ -101,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           active: pathname === "/dashboard/products",
           icon: ChevronRight,
         },
-  
+
       ],
       expanded:
         pathname.includes("/dashboard/attributes") ||
@@ -172,6 +174,57 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       active: pathname === "/dashboard/villages",
     },
   ])
+
+  useEffect(() => {
+    const storedStatus = localStorage.getItem("deliveryStatus")
+
+    if (storedStatus !== null) {
+      setDeliveryStatus(storedStatus === "true")
+    }
+
+    fetchDeliveryStatus()
+  }, [])
+
+  const fetchDeliveryStatus = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/delivery-status`
+      )
+
+      if (response.data.success) {
+        const status = response.data.deliveryStatus
+
+        setDeliveryStatus(status)
+
+        // Save to localStorage
+        localStorage.setItem("deliveryStatus", status)
+      }
+    } catch (error) {
+      console.error("Failed to fetch delivery status:", error)
+    }
+  }
+
+  const handleDeliveryStatusChange = async (checked: boolean) => {
+    try {
+      const response = await axios.patch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/delivery-status`,
+        { deliveryStatus: checked }
+      );
+
+      if (response.data.success) {
+        setDeliveryStatus(checked);
+
+        // Save to localStorage
+        localStorage.setItem("deliveryStatus", checked.toString());
+
+        // Refresh page
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Failed to update delivery status:", error);
+    }
+  };
+
   const toggleExpand = (index: number) => {
     setNavItems((prev) => prev.map((item, i) => (i === index ? { ...item, expanded: !item.expanded } : item)))
   }
@@ -187,7 +240,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       // Remove adminToken from localStorage
       localStorage.removeItem('adminToken');
-      
+
       // Optionally redirect to login page or update UI state
       // router.push('/login'); // if using Next.js router
       window.location.href = '/login'; // or use this for immediate redirect
@@ -323,6 +376,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Sheet>
             <div className="flex-1 flex justify-end">
               <div className="flex items-center gap-x-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Delivery Status:</span>
+                  <Switch checked={deliveryStatus} onCheckedChange={handleDeliveryStatusChange} />
+                  <span className={cn("text-sm font-semibold", deliveryStatus ? "text-green-600" : "text-red-600")}>
+                    {deliveryStatus ? "ON" : "OFF"}
+                  </span>
+                </div>
                 <div className="hidden md:flex md:items-center md:gap-4">
                   <div className="text-sm font-medium">Admin User</div>
                 </div>
