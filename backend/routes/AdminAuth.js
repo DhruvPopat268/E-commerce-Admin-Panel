@@ -38,11 +38,11 @@ router.post('/login', async (req, res) => {
 
     // Find admin
     const admin = await Admin.findOne({ mobileNumber });
-    if (!admin) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
+    if (!admin) return res.status(400).json({ message: 'Invalid mobileNumber or password', code: 'INVALID_CREDENTIALS' });
 
     // Compare password
     const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid mobileNumber or password' });
+    if (!isMatch) return res.status(400).json({ message: 'Invalid mobileNumber or password', code: 'INVALID_CREDENTIALS' });
 
     // Generate token
     const token = jwt.sign({ adminId: admin._id }, JWT_SECRET, { expiresIn: '7d' });

@@ -19,6 +19,7 @@ export default function LoginPage() {
     mobileNumber: "",
     password: "",
   })
+  const [error, setError] = useState("")
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -28,29 +29,26 @@ export default function LoginPage() {
 const handleSubmit = async (e) => {
   e.preventDefault()
   
+  setError("")
   try {
     const response = await axios.post(
       `${process.env.NEXT_PUBLIC_BASE_URL}/auth/admin/login`, 
-      formData , {
-        
-      }
-      // No need for withCredentials since we're not using cookies
+      formData
     )
     
     if (response.status === 200 && response.data.token) {
-      // Store token in localStorage
       localStorage.setItem('adminToken', response.data.token);
-      
-      // Get redirect URL from query params
       const urlParams = new URLSearchParams(window.location.search);
       const redirectPath = urlParams.get('redirect') || '/dashboard';
-      
-      console.log('Login successful, redirecting to:', redirectPath);
       router.push(redirectPath);
     }
-  } catch (error) {
-    console.error('Login failed:', error);
-    // Handle error - show message to user
+  } catch (error: any) {
+    const code = error?.response?.data?.code;
+    if (code === 'INVALID_CREDENTIALS') {
+      setError('Invalid credentials');
+    } else {
+      setError('Something went wrong. Please try again.');
+    }
   }
 }
 
@@ -99,6 +97,7 @@ const handleSubmit = async (e) => {
                 </Button>
               </div>
             </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full">
